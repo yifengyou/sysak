@@ -1,0 +1,120 @@
+#!/bin/sh
+#****************************************************************#
+# ScriptName: sysak.sh
+# Author: weipu.zy@alibaba-inc.com
+# Create Date: 2021-02-22 11:44
+# Modify Author: $SHTERM_REAL_USER@alibaba-inc.com
+# Modify Date: 2021-02-22 11:45
+# Function: 
+#***************************************************************#
+WORK_PATH=`pwd`
+
+function usage() {
+	echo "Usage: $0 [opt] subcmd [cmdargs]"
+	echo "       opt: -h, help information"
+	echo "            -g, if subcmd not exist, try to get from server"
+	echo "       subcmd:"
+	echo "              upgrage, upgrage sysAK to the latest version"
+	echo "              list, show all components"
+	echo "              help, help information for specify component"
+	echo "              get, get specify component"
+	echo "              upload, upload result data"
+}
+
+function upgrade() {
+	echo upgrade	
+}
+
+function get() {
+	echo get $1
+	return 1
+}
+
+function list() {
+	ls $WORK_PATH/tools
+}
+
+#execute command,every command need such args:
+# -h/--help: command usage
+# -f/--file: output files, default stdout
+#            output format jason
+# -e/--enable
+# -d/--disable
+function execute() {
+	#echo cmd:$1 ${*:2}
+	if [ ! -f $WORK_PATH/tools/$1 ];then
+		if [ $get_component ];then
+			get $1
+			if [ $? != 0 ]; then
+				echo subcmd:$1 is not support
+				exit -1
+			fi
+		else
+			echo "no components, you should get first"
+			exit -1
+		fi
+	fi
+	$WORK_PATH/tools/$1 ${*:2}
+}
+
+#upload result data
+function upload() {
+	echo upload
+}
+
+while getopts 'h:g' OPT; do
+	case $OPT in
+		"h")
+			usage
+			exit 0
+			;;
+		"g")
+			get_component=true
+			break
+			;;
+		*)
+			usage
+			exit -1
+			break
+		;;
+	esac
+done
+
+if [ $get_component ]; then
+	subcmd=$2;
+	subargs=${*:3}
+else
+	subcmd=$1
+	subargs=${*:2};
+fi
+
+for i in $subargs;do
+	echo $i;
+done
+
+if [ -z $subcmd ];then
+	usage
+	exit -1
+fi
+
+#echo subcmd=$subcmd
+case $subcmd in
+	"help")
+		execute ${subargs[0]} -h
+		;;
+	"upgrade")
+		upgrade
+		;;
+	"list")
+		list
+		;;
+	"get")
+		get $2
+		;;
+	"upload")
+		upload
+		;;
+	*)
+		execute $subcmd $subargs
+		;;
+esac
