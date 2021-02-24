@@ -12,10 +12,10 @@ sysak-objs += ./common/chrdev.o  ./common/event.o ./common/hook.o ./common/stack
 #modules
 #sysak-objs += modules/test_module/test.o
 sysak-objs += modules/signal/trace_sig.o
-
 sysak-objs += modules/memleak/memleak.o
 sysak-objs += modules/memleak/objects.o
 sysak-objs += modules/memleak/hashlist.o
+sysak-objs += modules/sched/noschedule.o modules/sched/rtrace_irqoff.o modules/sched/trace_runqlat.o
 
 obj-m += sysak.o
 
