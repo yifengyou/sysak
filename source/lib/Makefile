@@ -1,5 +1,8 @@
+.PHONY: sysaklib clean
+
 sysakmod:
+	make -C internal/kernel_module
 
-libbpf:
+clean:
+	make -C internal/kernel_module clean
 
-uapi:

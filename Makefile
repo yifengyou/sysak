@@ -20,6 +20,7 @@ all: $(OBJPATH)
 
 .PHONY: clean
 clean:
+	make -C $(SRC)/lib clean
 	rm -rf $(OUTPUT)
 
 $(OBJPATH):
