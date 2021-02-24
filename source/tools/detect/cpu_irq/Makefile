@@ -1,4 +1,4 @@
 mods := cpu_irq
 
-include $(SRC)/tools/sh.mk
+include $(SRC)/mk/sh.mk
 

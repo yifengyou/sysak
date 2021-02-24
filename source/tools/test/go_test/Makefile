@@ -1,3 +1,3 @@
 target := mygo
 
-include $(SRC)/tools/go.mk
+include $(SRC)/mk/go.mk

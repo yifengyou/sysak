@@ -1,1 +1,1 @@
-include sub.mk
+include $(SRC)/mk/sub.mk

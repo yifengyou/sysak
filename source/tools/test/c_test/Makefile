@@ -3,4 +3,4 @@ mods := main.o func.o
 
 LDFLAGS += -lpthread
 
-include $(SRC)/tools/csrc.mk
+include $(SRC)/mk/csrc.mk
