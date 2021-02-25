@@ -7,7 +7,7 @@
 # Modify Date: 2021-02-22 11:45
 # Function: 
 #***************************************************************#
-WORK_PATH=`pwd`/../sysak
+WORK_PATH=`dirname $0`/../sysak
 TOOLS_PATH=$WORK_PATH/tools/`uname -r`
 LIB_PATH=$WORK_PATH/lib/`uname -r`
 
