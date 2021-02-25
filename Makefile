@@ -25,10 +25,13 @@ all: $(OBJPATH)/bin $(OBJ_LIB_PATH) $(OBJ_TOOLS_PATH)
 	chmod +x $(OBJPATH)/bin/*
 	chmod +x $(OBJPATH)/sysak/tools/*
 
-.PHONY: clean
+.PHONY: clean clean_middle
 clean:
 	make -C $(SRC)/lib clean
 	rm -rf $(OBJPATH)
+clean_middle:
+	make -C $(SRC)/lib clean
+	rm -rf $(OBJPATH)/*.o
 
 $(OBJPATH)/bin:
 	mkdir -p $(OBJPATH)/bin
