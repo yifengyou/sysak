@@ -2,10 +2,16 @@
 
 build_rpm()
 {
-    local RPMBUILD_DIR="`realpath $BASE/../rpmbuild`"
-    local BUILD_DIR=`realpath $BASE/../out`
-    local SOURCE_DIR=`realpath $BASE/../`
-    mkdir -p "${RPMBUILD_DIR}"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+	rm -rf ${RPMBUILD_DIR}/BUILD
+	rm -rf ${RPMBUILD_DIR}/RPMS
+	rm -rf ${RPMBUILD_DIR}/SOURCES
+	rm -rf ${RPMBUILD_DIR}/SPECS
+	rm -rf ${RPMBUILD_DIR}/SRPMS
+	rm -rf ${RPMBUILD_DIR}/BUILDROOT
+	local RPMBUILD_DIR="`realpath $BASE/../rpmbuild`"
+	local BUILD_DIR=`realpath $BASE/../out`
+	local SOURCE_DIR=`realpath $BASE/../`
+	mkdir -p "${RPMBUILD_DIR}"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 
 cat > $RPMBUILD_DIR/sysak.spec <<EOF
 Name: sysAK
@@ -23,6 +29,7 @@ echo source_dir=%{source_dir}
 if [ %{source_dir} ]; then
 	echo linux_version=%{linux_version}
 	for version in %{linux_version}; do
+		make -C %{source_dir} KERNEL_VERSION=\$version clean_middle
 		make -C %{source_dir} KERNEL_VERSION=\$version
 	done
 fi
@@ -70,7 +77,7 @@ main() {
 		export LINUX_VERSION=$SYSTEM_SUPPORT
 	fi
 
-    build_rpm
+	build_rpm
 }
 
 main 1.0 all
