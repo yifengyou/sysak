@@ -1,9 +1,13 @@
 objs := $(foreach n, $(mods), $(OBJPATH)/$(n)) 
 
+CFLAGS += $(EXTRA_CFLAGS) -I$(SRC)/lib/uapi/include
+LDFLAGS += $(EXTRA_LDFLAGS)
+
+
 $(target): $(objs)
-	g++ -o $(OBJ_TOOLS_PATH)/$@ $^ -L$(OBJ_LIB_PATH) $(EXTRA_LDFLAGS)
+	g++ -o $(OBJ_TOOLS_PATH)/$@ $^ -L$(OBJ_LIB_PATH) $(LDFLAGS)
 
 $(objs): $(mods)
 
 $(mods): %.o : %.cpp
-	g++ -I. $(EXTRA_CFLAGS) -c -o $(OBJPATH)/$@ $<
+	g++ -I. $(CFLAGS) -c -o $(OBJPATH)/$@ $<
