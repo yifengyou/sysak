@@ -1,11 +1,15 @@
 KERNEL_VERSION ?= $(shell uname -r)
-OUTPUT ?= $(shell pwd)/out
+OBJPATH ?= $(shell pwd)/out
 SRC := $(shell pwd)/source
 
-OBJPATH := $(OUTPUT)/$(KERNEL_VERSION)
+OBJ_LIB_PATH := $(OBJPATH)/sysak/lib/$(KERNEL_VERSION)
+OBJ_TOOLS_PATH := $(OBJPATH)/sysak/tools/$(KERNEL_VERSION)
+
 export KERNEL_VERSION
 export SRC
 export OBJPATH
+export OBJ_LIB_PATH
+export OBJ_TOOLS_PATH
 
 .PHONY: target
 ifneq ($(TARGET_PATH), )
@@ -14,18 +18,22 @@ target: $(OBJPATH)
 endif
 
 .PHONY: all
-all: $(OBJPATH)
+all: $(OBJPATH)/bin $(OBJ_LIB_PATH) $(OBJ_TOOLS_PATH)
 	make -C $(SRC)/lib
 	make -C $(SRC)/tools
+	cp $(SRC)/sysak $(OBJPATH)/bin/
+	chmod +x $(OBJPATH)/bin/*
+	chmod +x $(OBJPATH)/sysak/tools/*
 
 .PHONY: clean
 clean:
 	make -C $(SRC)/lib clean
-	rm -rf $(OUTPUT)
+	rm -rf $(OBJPATH)
 
-$(OBJPATH):
-	mkdir -p $(OBJPATH)
-	mkdir -p $(OBJPATH)/tools
-	mkdir -p $(OBJPATH)/lib
-	cp $(SRC)/sysak $(OBJPATH)/
+$(OBJPATH)/bin:
+	mkdir -p $(OBJPATH)/bin
+$(OBJ_LIB_PATH):
+	mkdir -p $(OBJ_LIB_PATH)
+$(OBJ_TOOLS_PATH):
+	mkdir -p $(OBJ_TOOLS_PATH)
 

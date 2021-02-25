@@ -7,7 +7,9 @@
 # Modify Date: 2021-02-22 11:45
 # Function: 
 #***************************************************************#
-WORK_PATH=`pwd`
+WORK_PATH=`pwd`/../sysak
+TOOLS_PATH=$WORK_PATH/tools/`uname -r`
+LIB_PATH=$WORK_PATH/lib/`uname -r`
 
 function usage() {
 	echo "Usage: $0 [opt] subcmd [cmdargs]"
@@ -31,7 +33,7 @@ function get() {
 }
 
 function list() {
-	ls $WORK_PATH/tools
+	ls $TOOLS_PATH
 }
 
 #execute command,every command need such args:
@@ -42,7 +44,7 @@ function list() {
 # -d/--disable
 function execute() {
 	#echo cmd:$1 ${*:2}
-	if [ ! -f $WORK_PATH/tools/$1 ];then
+	if [ ! -f $TOOLS_PATH/$1 ];then
 		if [ $get_component ];then
 			get $1
 			if [ $? != 0 ]; then
@@ -54,7 +56,7 @@ function execute() {
 			exit -1
 		fi
 	fi
-	$WORK_PATH/tools/$1 ${*:2}
+	$TOOLS_PATH/$1 ${*:2}
 }
 
 #upload result data

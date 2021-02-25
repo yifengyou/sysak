@@ -14,7 +14,7 @@ EXTRA_CFLAGS := -I$(MODULE_SRC)
 
 sysak_mod:
 	make -C $(KERNEL_BUILD_PATH) M=$(MODULE_SRC)
-	cp sysak.ko $(OBJPATH)/lib
+	cp sysak.ko $(OBJ_LIB_PATH)/
 
 clean:
 	make -C $(KERNEL_BUILD_PATH) M=$(MODULE_SRC) clean

@@ -1,4 +1,4 @@
 target: $(mods)
 
 $(mods): %: %.sh
-	cp $< $(OBJPATH)/tools/$@
+	cp $< $(OBJ_TOOLS_PATH)/$@
