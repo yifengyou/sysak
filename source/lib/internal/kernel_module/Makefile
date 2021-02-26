@@ -1,4 +1,9 @@
-KERNEL_BUILD_PATH := /usr/src/kernels/$(KERNEL_VERSION)/
+KERNEL_BUILD_PATH := /usr/src/kernels/$(KERNEL_VERSION)
+
+ifneq ($(KERNEL_BUILD_PATH), $(wildcard $(KERNEL_BUILD_PATH)))
+KERNEL_BUILD_PATH := /lib/modules/$(KERNEL_VERSION)/build
+endif
+
 MODULE_SRC := $(SRC)/lib/internal/kernel_module
 
 #common
