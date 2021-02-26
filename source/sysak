@@ -90,10 +90,6 @@ else
 	subargs=${*:2};
 fi
 
-for i in $subargs;do
-	echo $i;
-done
-
 if [ -z $subcmd ];then
 	usage
 	exit -1
