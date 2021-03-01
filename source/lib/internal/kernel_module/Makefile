@@ -5,7 +5,7 @@ MODULE_SRC := $(SRC)/lib/internal/kernel_module
 sysak-objs += ./common/event.o ./common/hook.o ./common/stack.o entry.o sysak_mods.o
 
 #modules
-sysak-objs += modules/test_module/test.o
+#sysak-objs += modules/test_module/test.o
 
 obj-m += sysak.o
 
