@@ -5,7 +5,7 @@ LDFLAGS += $(EXTRA_LDFLAGS)
 
 
 $(target): $(objs)
-	g++ -o $(OBJ_TOOLS_PATH)/$@ $^ -L$(OBJ_LIB_PATH) $(LDFLAGS)
+	g++ -o $(OBJ_TOOLS_PATH)/$@ $^ -L$(OBJ_LIB_PATH) $(LDFLAGS) --static
 
 $(objs): $(mods)
 
