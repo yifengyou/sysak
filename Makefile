@@ -17,7 +17,7 @@ target: $(OBJPATH)
 	make -C $(TARGET_PATH)
 endif
 
-.PHONY: all
+.PHONY: all install
 all: $(OBJPATH)/bin $(OBJ_LIB_PATH) $(OBJ_TOOLS_PATH)
 	make -C $(SRC)/lib
 	make -C $(SRC)/tools
@@ -40,3 +40,6 @@ $(OBJ_LIB_PATH):
 $(OBJ_TOOLS_PATH):
 	mkdir -p $(OBJ_TOOLS_PATH)
 
+install:
+	cp $(OBJPATH)/bin/sysak /usr/local/sbin/
+	cp $(OBJPATH)/sysak /usr/local/ -rf
