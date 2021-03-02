@@ -23,7 +23,7 @@ all: $(OBJPATH)/bin $(OBJ_LIB_PATH) $(OBJ_TOOLS_PATH)
 	make -C $(SRC)/tools
 	cp $(SRC)/sysak $(OBJPATH)/bin/
 	chmod +x $(OBJPATH)/bin/*
-	chmod +x $(OBJPATH)/sysak/tools/*
+	chmod +x $(OBJPATH)/sysak/tools/* -R
 
 .PHONY: clean clean_middle
 clean:
