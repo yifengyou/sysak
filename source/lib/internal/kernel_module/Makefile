@@ -11,6 +11,7 @@ sysak-objs += ./common/event.o ./common/hook.o ./common/stack.o entry.o sysak_mo
 
 #modules
 #sysak-objs += modules/test_module/test.o
+sysak-objs += modules/signal/trace_sig.o
 
 obj-m += sysak.o
 
