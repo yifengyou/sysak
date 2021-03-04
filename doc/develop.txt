@@ -1,0 +1,24 @@
+sysAK开发
+
+1，内核模块
+1) 放在source/lib/internal/kernel_module/modules/目录下，新功能自己建子目录或单独放一个文件都可以
+2) 将新功能模块的名字、init函数、exit函数放入source/lib/internal/kernel_module/sysak_mods.c中的sysak_modules数组
+3) 将新功能模块的实现文件加入到模块mafile
+vi source/lib/internal/kernel_module/Makefile
+     sysak-objs += xxx.o
+
+2，用户态命令
+1) 放在source/tools目录下，下面有几个大目录：
+     detect -- 实现一次性的分析诊断命令，也就是命令结束即结束
+     monitor -- 实现监控类的命令，对系统某类资源进行监控，可能常驻系统或者运行一段时间再结束
+     inject  --  实现故障或者场景注入类，比如要在某个地方要延迟一会，或者执行错误逻辑等
+     operate  -- 实现介入修复类，比如限制系统资源使用等
+     combine---非单一功能，组合使用上述功能或者系统其它命令
+     test  --  一些实验性质的功能，或者示例等
+2) 新添加一个命令，就在上述几个目录下分别建一个子目录，里面放入源文件，makefile根据源代码类型去引用source/mk下的**.mk，可以参照source/tools/test/目录的相应例子。
+3) 如果是添加一个子类的功能集，先建立一个子类目录，目录中的makefile包含source/mk/sub.mk即可，然后再在子目录中新增命令的目录
+   新命令目录中的makefile，设定目标编译文件和额外需要的编译参数，然后根据命令实现的源代码类型包含source/mk/xxx.mk, 如c语言，包含source/mk/csrc.mk。具体可参考tools/test/下面的示例。
+3，编译运行
+1) make KERNEL_VERSION=xxx
+2) cd out/$KERNEL_VERSION
+3) ./sysak xxx
