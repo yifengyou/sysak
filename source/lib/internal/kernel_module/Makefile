@@ -7,16 +7,22 @@ endif
 MODULE_SRC := $(SRC)/lib/internal/kernel_module
 
 #common
-sysak-objs += ./common/event.o ./common/hook.o ./common/stack.o entry.o sysak_mods.o
+sysak-objs += ./common/chrdev.o  ./common/event.o ./common/hook.o ./common/stack.o ./entry.o sysak_mods.o
 
 #modules
 #sysak-objs += modules/test_module/test.o
 sysak-objs += modules/signal/trace_sig.o
 
+sysak-objs += modules/memleak/memleak.o
+sysak-objs += modules/memleak/objects.o
+sysak-objs += modules/memleak/hashlist.o
+
 obj-m += sysak.o
 
 
 EXTRA_CFLAGS := -I$(MODULE_SRC)
+EXTRA_CFLAGS += -I$(MODULE_SRC)/include
+EXTRA_CFLAGS += -I$(SRC)/lib/uapi/include
 
 sysak_mod:
 	make -C $(KERNEL_BUILD_PATH) M=$(MODULE_SRC)

@@ -21,4 +21,5 @@ vi source/lib/internal/kernel_module/Makefile
 3，编译运行
 1) make KERNEL_VERSION=xxx
 2) cd out/$KERNEL_VERSION
-3) ./sysak xxx
+5) sysak list /* 查看syak 子命令列表*/
+6) sysak memleak /* 运行内存泄漏检测工具*/

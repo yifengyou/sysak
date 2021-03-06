@@ -10,6 +10,7 @@
 WORK_PATH=`dirname $0`/.sysak_compoents
 TOOLS_PATH=$WORK_PATH/tools/`uname -r`
 LIB_PATH=$WORK_PATH/lib/`uname -r`
+SYSAK_MOD=$LIB_PATH/sysak.ko
 
 function usage() {
 	echo "Usage: $0 [opt] subcmd [cmdargs]"
@@ -113,6 +114,8 @@ component_depend_post() {
 
 }
 
+
+#execute command,every command need such args:
 # -h/--help: command usage
 # -f/--file: output files, default stdout
 #            output format jason

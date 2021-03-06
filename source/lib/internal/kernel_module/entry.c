@@ -17,6 +17,8 @@ static int sysak_mod_init(void)
 {
 	int i;
 
+	sysak_dev_init();
+
 	for (i = 0; i < sysk_module_num; i++) {
 		if (sysak_modules[i].init())
 			printk("WARN: module %s init failed", sysak_modules[i].name);
@@ -29,6 +31,8 @@ static int sysak_mod_init(void)
 static void sysak_mod_exit(void)
 {
 	int i;
+
+	sysak_dev_uninit();
 
 	for (i = 0; i < sysk_module_num; i++)
 		sysak_modules[i].exit();
