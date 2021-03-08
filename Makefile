@@ -2,8 +2,8 @@ KERNEL_VERSION ?= $(shell uname -r)
 OBJPATH ?= $(shell pwd)/out
 SRC := $(shell pwd)/source
 
-OBJ_LIB_PATH := $(OBJPATH)/sysak/lib/$(KERNEL_VERSION)
-OBJ_TOOLS_PATH := $(OBJPATH)/sysak/tools/$(KERNEL_VERSION)
+OBJ_LIB_PATH := $(OBJPATH)/.sysak_compoents/lib/$(KERNEL_VERSION)
+OBJ_TOOLS_PATH := $(OBJPATH)/.sysak_compoents/tools/$(KERNEL_VERSION)
 
 export KERNEL_VERSION
 export SRC
@@ -18,12 +18,12 @@ target: $(OBJPATH)
 endif
 
 .PHONY: all install
-all: $(OBJPATH)/bin $(OBJ_LIB_PATH) $(OBJ_TOOLS_PATH)
+all: $(OBJ_LIB_PATH) $(OBJ_TOOLS_PATH)
 	make -C $(SRC)/lib
 	make -C $(SRC)/tools
-	cp $(SRC)/sysak $(OBJPATH)/bin/
-	chmod +x $(OBJPATH)/bin/*
-	chmod +x $(OBJPATH)/sysak/tools/* -R
+	cp $(SRC)/sysak $(OBJPATH)/
+	chmod +x $(OBJPATH)/sysak
+	chmod +x $(OBJPATH)/.sysak_compoents/tools/* -R
 
 .PHONY: clean clean_middle
 clean:
@@ -33,13 +33,11 @@ clean_middle:
 	make -C $(SRC)/lib clean
 	rm -rf $(OBJPATH)/*.o
 
-$(OBJPATH)/bin:
-	mkdir -p $(OBJPATH)/bin
 $(OBJ_LIB_PATH):
 	mkdir -p $(OBJ_LIB_PATH)
 $(OBJ_TOOLS_PATH):
 	mkdir -p $(OBJ_TOOLS_PATH)
 
 install:
-	cp $(OBJPATH)/bin/sysak /usr/local/sbin/
-	cp $(OBJPATH)/sysak /usr/local/ -rf
+	cp $(OBJPATH)/sysak /usr/local/sbin/
+	cp $(OBJPATH)/.sysak_compoents /usr/local/sbin/ -rf

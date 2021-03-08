@@ -36,8 +36,8 @@ fi
 
 %install
 mkdir -p \$RPM_BUILD_ROOT/usr/local/sbin
-/bin/cp -rf $BUILD_DIR/sysak \$RPM_BUILD_ROOT//usr/local/sysak
-/bin/cp -rf $BUILD_DIR/bin/sysak \$RPM_BUILD_ROOT/usr/local/sbin/
+/bin/cp -rf $BUILD_DIR/.sysak_compoents \$RPM_BUILD_ROOT/usr/local/sbin/.sysak_compoents
+/bin/cp -rf $BUILD_DIR/sysak \$RPM_BUILD_ROOT/usr/local/sbin/
 
 %preun
 
@@ -48,7 +48,7 @@ if [ $? -eq 0 ]; then
 fi
 
 %files
-/usr/local/sysak
+/usr/local/sbin/.sysak_compoents
 /usr/local/sbin/sysak
 
 %changelog
