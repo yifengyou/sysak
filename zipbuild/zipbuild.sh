@@ -27,7 +27,8 @@ done
 
 /bin/cp -rf $BUILD_DIR/.sysak_compoents $ZIP_BUILD_ROOT/
 /bin/cp -rf $BUILD_DIR/sysak $ZIP_BUILD_ROOT/
-tar -zcf sysak.zip $ZIP_BUILD_ROOT/
+cd $ZIP_BUILD_ROOT/
+tar -zcf sysak-$ZIP_VERSION.zip .[!.]* *
 }
 
 #ALL_SYS_VERSIONS="4.19.91-008.ali4000.alios7.x86_64 \
