@@ -10,7 +10,7 @@ cat > $ZIP_BUILD_ROOT/config.json <<EOF
   "arch": "x64",
   "osType": "linux"
   "runPath": "sysak"
-  "timeout": "60"
+  "timeout": "300"
   "publisher": "aliyun",
   "version": $ZIP_VERSION
 }
@@ -28,7 +28,7 @@ done
 /bin/cp -rf $BUILD_DIR/.sysak_compoents $ZIP_BUILD_ROOT/
 /bin/cp -rf $BUILD_DIR/sysak $ZIP_BUILD_ROOT/
 cd $ZIP_BUILD_ROOT/
-tar -zcf sysak-$ZIP_VERSION.zip .[!.]* *
+zip -r -q -o sysak-$ZIP_VERSION.zip .[!.]* *
 }
 
 #ALL_SYS_VERSIONS="4.19.91-008.ali4000.alios7.x86_64 \
