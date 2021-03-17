@@ -22,7 +22,7 @@ BUILD_DIR=`realpath $BASE/../out`
 
 for version in $LINUX_VERSION; do
 	make -C $SOURCE_DIR KERNEL_VERSION=$version clean_middle
-	make -C $SOURCE_DIR KERNEL_VERSION=$version
+	make -C $SOURCE_DIR KERNEL_VERSION=$version -j
 done
 
 /bin/cp -rf $BUILD_DIR/.sysak_compoents $ZIP_BUILD_ROOT/

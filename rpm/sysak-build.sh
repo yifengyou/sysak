@@ -30,7 +30,7 @@ if [ %{source_dir} ]; then
 	echo linux_version=%{linux_version}
 	for version in %{linux_version}; do
 		make -C %{source_dir} KERNEL_VERSION=\$version clean_middle
-		make -C %{source_dir} KERNEL_VERSION=\$version
+		make -C %{source_dir} KERNEL_VERSION=\$version -j
 	done
 fi
 
@@ -63,7 +63,7 @@ rpmbuild --define "%linux_version $LINUX_VERSION" \
 	 -bb $RPMBUILD_DIR/sysak.spec
 }
 
-ALL_SYS_VERSIONS="4.19.91-008.ali4000.alios7.x86_64 \
+ALL_SYS_VERSIONS="4.19.91-009.ali4000.alios7.x86_64 \
 		 4.19.91-007.ali4000.alios7.x86_64 \
 		 4.9.168-016.ali3000.alios7.x86_64 \
 		 4.9.151-015.ali3000.alios7.x86_64 \
