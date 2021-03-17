@@ -4,12 +4,14 @@ SRC := $(shell pwd)/source
 
 OBJ_LIB_PATH := $(OBJPATH)/.sysak_compoents/lib/$(KERNEL_VERSION)
 OBJ_TOOLS_PATH := $(OBJPATH)/.sysak_compoents/tools/$(KERNEL_VERSION)
+SYSAK_RULES := .sysak.rules
 
 export KERNEL_VERSION
 export SRC
 export OBJPATH
 export OBJ_LIB_PATH
 export OBJ_TOOLS_PATH
+export SYSAK_RULES
 
 .PHONY: target
 ifneq ($(TARGET_PATH), )

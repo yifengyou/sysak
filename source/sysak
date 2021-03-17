@@ -32,18 +32,95 @@ function get() {
 	return 1
 }
 
-function list() {
-	ls $TOOLS_PATH
+declare -A sysak_list_map=()
+parse_sysak_list() {
+	while read line
+	do
+		local cmd=`echo $line | awk -F: '{print $1}'`
+		if [ -n "$cmd" ]; then
+			sysak_list_map[$cmd]=`echo $line | awk -F: '{print $2}'`
+		fi
+	done < $TOOLS_PATH/.sysak.rules
 }
 
-#execute command,every command need such args:
+function list() {
+	parse_sysak_list
+	for key in ${!sysak_list_map[@]}; do
+		echo $key
+	done
+}
+
+sysakmod_depend()
+{
+	res=`lsmod | grep sysak`
+	if [ -z "$res" ]; then
+		insmod $LIB_PATH/sysak.ko
+		if [ $? -ne 0 ]; then
+			echo "insmod ko failed, please check the ko files."
+			exit $?
+		fi
+	fi
+}
+
+component_depend_prev() {
+
+	local rules=${sysak_list_map[$1]}
+	local prev_rules_str=${rules%'};post'*}
+	prev_rules_str=${prev_rules_str#*'prev{'}
+	oldIFS=$IFS
+	IFS=,
+	local prev_rules=($prev_rules_str)
+	IFS=$oldIFS
+	for item in "${prev_rules[@]}"; do
+		local rule=($item)
+		key=${rule[0]}
+		val=${rule[1]}
+		if [[ $key == 'default' ]] || [[ "${*:2}" =~ "$key" ]]; then
+			case $val in
+				"modin")
+					sysakmod_depend
+					;;
+				*)
+					;;
+			esac
+		fi
+	done
+}
+
+component_depend_post() {
+	local rules=${sysak_list_map[$1]}
+	local post_rules_str=${rules#*'post{'}
+	post_rules_str=${post_rules_str%'}'*}
+	oldIFS=$IFS
+	IFS=,
+	local post_rules=($post_rules_str)
+	IFS=$oldIFS
+
+	for item in "${post_rules[@]}"; do
+		local rule=($item)
+		key=${rule[0]}
+		val=${rule[1]}
+		if [[ $key == 'default' ]] || [[ "${*:2}" =~ "$key" ]]; then
+			case $val in
+				"modun")
+					rmmod sysak
+					;;
+				*)
+					;;
+			esac
+		fi
+	done
+
+}
+
 # -h/--help: command usage
 # -f/--file: output files, default stdout
 #            output format jason
 # -e/--enable
 # -d/--disable
 function execute() {
-	#echo cmd:$1 ${*:2}
+	parse_sysak_list
+
 	if [ ! -f $TOOLS_PATH/$1 ];then
 		if [ $get_component ];then
 			get $1
@@ -56,8 +133,11 @@ function execute() {
 			exit -1
 		fi
 	fi
-	chmod +x $TOOLS_PATH/$1
+
+	chmod -R +x $TOOLS_PATH/$1
+	component_depend_prev $*
 	$TOOLS_PATH/$1 ${*:2}
+	component_depend_post $*
 }
 
 #upload result data
