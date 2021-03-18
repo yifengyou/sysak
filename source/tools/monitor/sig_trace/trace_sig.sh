@@ -1,24 +1,11 @@
 WORK_PATH=`dirname $0`
 
-sysakmod_depend()
-{
-	res=`lsmod | grep sysak`
-	if [ -z "$res" ]; then
-		insmod $WORK_PATH/../../lib/`uname -r`/sysak.ko
-		if [ $? -ne 0 ]; then
-			echo "insmod ko failed, please check the ko files."
-			exit $?
-		fi
-	fi
-}
-
 trace_sig_enable() {
 	echo "enable" > /proc/sysak_sig_trace
 }
 
 trace_sig_disable() {
 	echo "disable" > /proc/sysak_sig_trace
-	rmmod sysak
 }
 
 usage() {
@@ -38,19 +25,15 @@ while getopts 'p:c:s:edrh' OPT; do
 			exit 0
 			;;
 		"p")
-			sysakmod_depend
 			echo "pid $OPTARG" > /proc/sysak_sig_trace
 			;;
 		"c")
-			sysakmod_depend
 			echo "comm $OPTARG" > /proc/sysak_sig_trace
 			;;
 		"s")
-			sysakmod_depend
 			echo "sig $OPTARG" > /proc/sysak_sig_trace
 			;;
 		"e")
-			sysakmod_depend
 			trace_enable=true
 			;;
 		"d")
