@@ -8,16 +8,16 @@ build_rpm()
 	rm -rf ${RPMBUILD_DIR}/SPECS
 	rm -rf ${RPMBUILD_DIR}/SRPMS
 	rm -rf ${RPMBUILD_DIR}/BUILDROOT
-	local RPMBUILD_DIR="`realpath $BASE/../rpmbuild`"
+	local RPMBUILD_DIR="`realpath $BASE/../rpm`"
 	local BUILD_DIR=`realpath $BASE/../out`
 	local SOURCE_DIR=`realpath $BASE/../`
 	mkdir -p "${RPMBUILD_DIR}"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 
 cat > $RPMBUILD_DIR/sysak.spec <<EOF
-Name: sysAK
+Name: sysak
 Summary: system analyse kit
 Version: ${RPM_VERSION}
-Release: 1%{?dist}
+Release: ${RELEASE}%{?dist}
 License: GPLv3+
 
 %description
@@ -71,9 +71,9 @@ ALL_SYS_VERSIONS="4.19.91-008.ali4000.alios7.x86_64 \
 main() {
 	export BASE=`pwd`
 	export RPM_VERSION=$1
-	local SYSTEM_SUPPORT=$2
+	export RELEASE=$2
 
-	if [ $SYSTEM_SUPPORT = "all" ]; then
+	if [ -z $SYSTEM_SUPPORT ]; then
 		export LINUX_VERSION=$ALL_SYS_VERSIONS
 	else
 		export LINUX_VERSION=$SYSTEM_SUPPORT
@@ -82,4 +82,4 @@ main() {
 	build_rpm
 }
 
-main 0.1 all
+main $3 $4
