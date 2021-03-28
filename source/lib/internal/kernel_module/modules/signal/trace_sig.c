@@ -99,6 +99,7 @@ static void trace_sig_disable(void)
 
 	unhook_tracepoint("signal_generate", signal_generate_trace, NULL);
 	synchronize_sched();
+	trace_enabled = false;
 }
 
 static ssize_t signal_trace_write(struct file *file,
