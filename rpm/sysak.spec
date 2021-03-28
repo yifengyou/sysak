@@ -1,6 +1,6 @@
 Name: sysak
 Summary: system analyse kit
-Version: 0.1.0
+Version: 1.0.0
 Release: 1%{?dist}
 License: GPLv3+
 
@@ -20,8 +20,8 @@ fi
 
 %install
 mkdir -p $RPM_BUILD_ROOT/usr/local/sbin
-/bin/cp -rf /home/weipu.zy/develop/sysAK/out/.sysak_compoents $RPM_BUILD_ROOT/usr/local/sbin/.sysak_compoents
-/bin/cp -rf /home/weipu.zy/develop/sysAK/out/sysak $RPM_BUILD_ROOT/usr/local/sbin/
+/bin/cp -rf /home/weipu.zy/develop/sysAK_wetp/out/.sysak_compoents $RPM_BUILD_ROOT/usr/local/sbin/.sysak_compoents
+/bin/cp -rf /home/weipu.zy/develop/sysAK_wetp/out/sysak $RPM_BUILD_ROOT/usr/local/sbin/
 
 %preun
 

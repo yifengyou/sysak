@@ -644,7 +644,7 @@ static void trace_irqoff_cancel_timers(void)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0)
 #include <linux/string.h>
 
-static int kstrtobool_from_user(const char __user *s, size_t count, bool *res)
+int __weak kstrtobool_from_user(const char __user *s, size_t count, bool *res)
 {
 	/* Longest string needed to differentiate, newline, terminator */
 	char buf[4];
