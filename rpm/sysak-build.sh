@@ -64,9 +64,15 @@ rpmbuild --define "%linux_version $LINUX_VERSION" \
 }
 
 ALL_SYS_VERSIONS="4.19.91-008.ali4000.alios7.x86_64 \
+		 4.19.91-007.ali4000.alios7.x86_64 \
+		 4.9.168-016.ali3000.alios7.x86_64 \
+		 4.9.151-015.ali3000.alios7.x86_64 \
 		 3.10.0-327.ali2016.alios7.x86_64 \
 		 3.10.0-327.ali2014.alios7.x86_64 \
-		 3.10.0-1160.11.1.el7.x86_64"
+		 4.19.91-22.1.al7.x86_64 \
+		 4.19.91-22.2.al7.x86_64 \
+		 3.10.0-1160.11.1.el7.x86_64 \
+		 3.10.0-1160.el7.x86_64"
 
 main() {
 	export BASE=`pwd`
