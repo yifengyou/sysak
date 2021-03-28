@@ -146,7 +146,7 @@ static void trace_page_free(struct page *page,
         unsigned int order)
 #endif
 {
-	if (PageMappingFlags(page))
+	if (((unsigned long)page->mapping & PAGE_MAPPING_FLAGS) != 0)
 		return;
 
 	memleak_alloc_desc_pop(tab, (unsigned long)__builtin_return_address(3), page, order);

@@ -1,5 +1,6 @@
 #ifndef __MEMLEAK__
 #define __MEMLEAK__
+#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/kobject.h>
@@ -15,10 +16,16 @@
 #include <linux/slab.h>
 #include <linux/slub_def.h>
 #include <linux/workqueue.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
 #include <linux/sched.h>
+#else
+#include <linux/sched/clock.h>
+#endif
 #include <linux/vmalloc.h>
 #include <linux/string.h>
 #include <linux/atomic.h>
+#include <linux/page-flags.h>
+
 #include "common.h"
 #include "memleak.h"
 #include "user.h"
