@@ -1,5 +1,5 @@
-mods := load_monitor sys_monitor
-
+mods := sh_test
+target := sh_test
 
 include $(SRC)/mk/sh.mk
 
