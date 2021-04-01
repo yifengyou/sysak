@@ -15,7 +15,7 @@ if [ "$1" -ge 0 ] 2>/dev/null; then
 	fi
 else
 	echo Usage:
-	echo "     cpu_irq.sh cpu"
+	echo "     sysak cpu_irq cpu"
 	exit
 fi
 
