@@ -201,7 +201,7 @@ int memleak_hashlist_uninit(struct memleak_htab *htab)
 		}
 	}
 
-	printk("memleak number %d\n", htab->free);
+	//printk("memleak number %d\n", htab->free);
 
 	list_for_each_entry_safe(tmp1, tmp2, &htab->freelist, node) {
 		list_del_init(&tmp1->node);
