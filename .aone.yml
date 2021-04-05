@@ -1,0 +1,3 @@
+sysak:
+  pkgpara:
+    DOCKER: reg.docker.alibaba-inc.com/lcc/sysak:base

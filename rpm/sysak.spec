@@ -1,6 +1,6 @@
 Name: sysak
 Summary: system analyse kit
-Version: 1.0.0
+Version:1.0.0
 Release: 1%{?dist}
 License: GPLv3+
 
