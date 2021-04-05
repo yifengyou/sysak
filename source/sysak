@@ -8,6 +8,7 @@
 # Function: 
 #***************************************************************#
 WORK_PATH=`dirname $0`/.sysak_compoents
+TOOLS_ROOT=$WORK_PATH/tools
 TOOLS_PATH=$WORK_PATH/tools/`uname -r`
 LIB_PATH=$WORK_PATH/lib/`uname -r`
 SYSAK_MOD=$LIB_PATH/sysak.ko
@@ -57,7 +58,7 @@ sysakmod_depend()
 	if [ -z "$res" ]; then
 		insmod $LIB_PATH/sysak.ko
 		if [ $? -ne 0 ]; then
-			echo "insmod ko failed, please check the ko files."
+			echo "insmod ko failed, command maybe not supported for this kernel."
 			exit $?
 		fi
 	fi
@@ -123,8 +124,12 @@ component_depend_post() {
 # -d/--disable
 function execute() {
 	parse_sysak_list
+	exec_file=$TOOLS_ROOT/$1
+	if [ ! -f $exec_file ];then
+		exec_file=$TOOLS_PATH/$1
+	fi
 
-	if [ ! -f $TOOLS_PATH/$1 ];then
+	if [ ! -f $exec_file ];then
 		if [ $get_component ];then
 			get $1
 			if [ $? != 0 ]; then
@@ -137,9 +142,9 @@ function execute() {
 		fi
 	fi
 
-	chmod -R +x $TOOLS_PATH/$1
+	chmod -R +x $exec_file
 	component_depend_prev $*
-	$TOOLS_PATH/$1 ${*:2}
+	$exec_file ${*:2}
 	component_depend_post $*
 }
 
