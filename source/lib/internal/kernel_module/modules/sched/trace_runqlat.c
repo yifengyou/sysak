@@ -393,7 +393,7 @@ static inline bool is_tracepoint_lookup_success(struct tracepoints_probe *tps)
 	return tps->num_initalized == PROBE_TRACEPOINTS;
 }
 
-static void __init tracepoint_lookup(struct tracepoint *tp, void *priv)
+static void tracepoint_lookup(struct tracepoint *tp, void *priv)
 {
 	int i;
 	struct tracepoints_probe *tps = priv;
@@ -608,7 +608,7 @@ static int distribution_show(struct seq_file *m, void *ptr)
 
 DEFINE_PROC_ATTRIBUTE_RO(distribution);
 
-__init int trace_runqlat_init(struct proc_dir_entry *root_dir)
+int trace_runqlat_init(struct proc_dir_entry *root_dir)
 {
 	int i;
 	void *buf;

@@ -380,7 +380,7 @@ static inline bool is_tracepoint_lookup_success(struct noschedule_info *info)
 	return info->tp_initalized == ARRAY_SIZE(info->tp_entries);
 }
 
-static void __init tracepoint_lookup(struct tracepoint *tp, void *priv)
+static void tracepoint_lookup(struct tracepoint *tp, void *priv)
 {
 	int i;
 	struct noschedule_info *info = priv;
@@ -650,7 +650,7 @@ static ssize_t nosched_test_store(void *priv, const char __user *buf,
 DEFINE_PROC_ATTRIBUTE_RW(nosched_test);
 #endif
 
-__init int trace_noschedule_init(struct proc_dir_entry *root_dir)
+int trace_noschedule_init(struct proc_dir_entry *root_dir)
 {
 	struct proc_dir_entry *parent_dir;
 	struct noschedule_info *info = &nosched_info;
