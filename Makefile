@@ -1,5 +1,11 @@
-KERNEL_VERSION ?= $(shell uname -r)
-OBJPATH ?= $(shell pwd)/out
+ifneq ($(wildcard config-host.mak),)
+include config-host.mak
+else
+config-host.mak:
+	@echo "Please call configure before running make!"
+	@exit 1
+endif
+
 SRC := $(shell pwd)/source
 
 OBJ_LIB_PATH := $(OBJPATH)/.sysak_compoents/lib/$(KERNEL_VERSION)
@@ -14,17 +20,22 @@ export OBJ_LIB_PATH
 export OBJ_TOOLS_ROOT
 export OBJ_TOOLS_PATH
 export SYSAK_RULES
+export BUILD_KERNEL_MODULE
+export BUILD_LIBBPF
 
-.PHONY: target
-ifneq ($(TARGET_PATH), )
-target: $(OBJPATH)
-	make -C $(TARGET_PATH)
-endif
+export EXTRA_LDFLAGS
 
-.PHONY: all install
-all: $(OBJ_LIB_PATH) $(OBJ_TOOLS_PATH)
+.PHONY: all lib tools binary install $(TARGET_LIST)
+all: config-host.mak $(OBJ_LIB_PATH) $(OBJ_TOOLS_PATH) lib tools binary
+
+lib:
 	make -C $(SRC)/lib
-	make -C $(SRC)/tools
+
+tools: $(TARGET_LIST)
+$(TARGET_LIST):
+	make -C $@
+
+binary:
 	cp $(SRC)/sysak $(OBJPATH)/
 	chmod +x $(OBJPATH)/sysak
 	chmod +x $(OBJPATH)/.sysak_compoents/tools/* -R

@@ -10,7 +10,7 @@ TARGET_PATH := $(OBJ_TOOLS_ROOT)
 endif
 
 $(target): $(objs)
-	gcc -o $(TARGET_PATH)/$@ $^ -L$(OBJ_LIB_PATH) $(LDFLAGS) --static
+	gcc -o $(TARGET_PATH)/$@ $^ -L$(OBJ_LIB_PATH) $(LDFLAGS)
 	echo $(target):$(DEPEND) >> $(OBJ_TOOLS_PATH)/$(SYSAK_RULES)
 $(objs): $(mods)
 

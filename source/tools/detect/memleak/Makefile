@@ -1,5 +1,5 @@
 
-target = memleak
+target := memleak
 
 mods := main.o slab.o page.o vmalloc.o
 
