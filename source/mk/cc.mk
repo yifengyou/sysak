@@ -11,7 +11,7 @@ endif
 
 $(target): $(objs)
 	g++ -o $(TARGET_PATH)/$@ $^ -L$(OBJ_LIB_PATH) $(LDFLAGS)
-	echo $(target):$(DEPEND) >> $(OBJ_TOOLS_PATH)/$(SYSAK_RULES)
+	echo $(target):$(DEPEND) >> $(TARGET_PATH)/$(SYSAK_RULES)
 
 $(objs): $(mods)
 

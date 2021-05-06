@@ -62,7 +62,7 @@ $(APPS): %: $(OUTPUT)/%.o $(LIBBPF_OBJ) | $(OUTPUT)
 	$(call msg,BINARY,$@)
 	$(Q)$(CC) $(CFLAGS) $^ -lelf -lz -o $@
 	mv $@ $(OUTPUT)/$@
-	echo $(APPS):$(DEPEND) >> $(OBJ_TOOLS_PATH)/$(SYSAK_RULES)
+	echo $(APPS):$(DEPEND) >> $(OUTPUT)/$(SYSAK_RULES)
 
 # delete failed targets
 .DELETE_ON_ERROR:

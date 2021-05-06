@@ -36,6 +36,17 @@ function get() {
 
 declare -A sysak_list_map=()
 parse_sysak_list() {
+	if [ -f $TOOLS_ROOT/.sysak.rules ]; then
+	while read line
+	do
+		local cmd=`echo $line | awk -F: '{print $1}'`
+		if [ -n "$cmd" ]; then
+			sysak_list_map[$cmd]=`echo $line | awk -F: '{print $2}'`
+		fi
+	done < $TOOLS_ROOT/.sysak.rules
+	fi
+
+	if [ -f $TOOLS_PATH/.sysak.rules ]; then
 	while read line
 	do
 		local cmd=`echo $line | awk -F: '{print $1}'`
@@ -43,6 +54,7 @@ parse_sysak_list() {
 			sysak_list_map[$cmd]=`echo $line | awk -F: '{print $2}'`
 		fi
 	done < $TOOLS_PATH/.sysak.rules
+	fi
 }
 
 function list() {

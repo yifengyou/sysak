@@ -10,7 +10,7 @@ exist := $(shell if [ -f $(SOURCE_PATH)/$(target) ]; then echo "exist"; else ech
 ifeq ($(exist), exist)
 $(target):
 	cp $(SOURCE_PATH)/$(target) $(TARGET_PATH)/
-	echo $(target):$(DEPEND) >> $(OBJ_TOOLS_PATH)/$(SYSAK_RULES)
+	echo $(target):$(DEPEND) >> $(TARGET_PATH)/$(SYSAK_RULES)
 else
 $(target):
 	@echo no kernel version

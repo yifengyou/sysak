@@ -8,4 +8,4 @@ target: $(mods)
 
 $(mods): %: %.sh
 	cp $< $(TARGET_PATH)/$@
-	echo $(target):$(DEPEND) >> $(OBJ_TOOLS_PATH)/$(SYSAK_RULES)
+	echo $(target):$(DEPEND) >> $(TARGET_PATH)/$(SYSAK_RULES)
