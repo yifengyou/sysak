@@ -29,8 +29,9 @@ echo source_dir=%{source_dir}
 if [ %{source_dir} ]; then
 	echo linux_version=%{linux_version}
 	for version in %{linux_version}; do
-		make -C %{source_dir} KERNEL_VERSION=\$version clean_middle
-		make -C %{source_dir} KERNEL_VERSION=\$version -j
+		cd %{source_dir} && ./configure --enable-target-all --kernel=\$version
+		make clean_middle
+		make -j
 	done
 fi
 
@@ -63,24 +64,13 @@ rpmbuild --define "%linux_version $LINUX_VERSION" \
 	 -bb $RPMBUILD_DIR/sysak.spec
 }
 
-ALL_SYS_VERSIONS="4.19.91-009.ali4000.alios7.x86_64 \
-		 4.19.91-007.ali4000.alios7.x86_64 \
-		 4.9.168-016.ali3000.alios7.x86_64 \
-		 4.9.151-015.ali3000.alios7.x86_64 \
-		 3.10.0-327.ali2016.alios7.x86_64 \
-		 3.10.0-327.ali2014.alios7.x86_64 \
-		 4.19.91-22.1.al7.x86_64 \
-		 4.19.91-22.2.al7.x86_64 \
-		 3.10.0-1160.11.1.el7.x86_64 \
-		 3.10.0-1160.el7.x86_64"
-
 main() {
 	export BASE=`pwd`
 	export RPM_VERSION=$1
 	export RELEASE=$2
 
 	if [ -z $SYSTEM_SUPPORT ]; then
-		export LINUX_VERSION=$ALL_SYS_VERSIONS
+		export LINUX_VERSION=$(uname -r)
 	else
 		export LINUX_VERSION=$SYSTEM_SUPPORT
 	fi
