@@ -9,6 +9,19 @@ static_link=no
 enable_all=no
 default_target=yes
 
+usage() {
+	echo "Usage: configure [options]"
+	echo "options:"
+	echo "  --kernel=KERNEL_VERSION    kernel version"
+	echo "  --buiddir=OBJDIR           the build dir"
+	echo "  --enable-lkm               enable linux kernel module"
+	echo "  --enable-libbpf            enable libbpf"
+	echo "  --enable-static            static link for c/cpp tools"
+	echo "  --enable-target-xxx        xxx is the actual tool, like memleak"
+	echo "  --enable-target-all        enable all compoents"
+	echo "  --disable-default          disable default compoents to built-in"
+}
+
 for opt; do
 	optarg=$(expr "x$opt" : 'x[^=]*=\(.*\)')
 	case "$opt" in
@@ -39,6 +52,10 @@ for opt; do
 			;;
 		--disable-default)
 			default_target=no
+			;;
+		*)
+			usage
+			exit
 			;;
 	esac
 done
