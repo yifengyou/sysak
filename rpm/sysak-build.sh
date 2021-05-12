@@ -29,7 +29,7 @@ echo source_dir=%{source_dir}
 if [ %{source_dir} ]; then
 	echo linux_version=%{linux_version}
 	for version in %{linux_version}; do
-		cd %{source_dir} && ./configure --enable-target-all --kernel=\$version
+		cd %{source_dir} && ./configure %{target} --kernel=\$version
 		make clean_middle
 		make -j
 	done
@@ -61,6 +61,7 @@ echo SOURCE_DIR=$SOURCE_DIR
 rpmbuild --define "%linux_version $LINUX_VERSION" \
 	 --define "%_topdir ${RPMBUILD_DIR}"       \
 	 --define "%source_dir $SOURCE_DIR" \
+	 --define "%target $TARGET_LIST" \
 	 -bb $RPMBUILD_DIR/sysak.spec
 }
 
@@ -73,6 +74,12 @@ main() {
 		export LINUX_VERSION=$(uname -r)
 	else
 		export LINUX_VERSION=$SYSTEM_SUPPORT
+	fi
+
+	if [ -z $SYSAK_TARGET_SET ]; then
+		TARGET_LIST="--enable-target-all"
+	else
+		TARGET_LIST=$SYSAK_TARGET_SET
 	fi
 
 	build_rpm
