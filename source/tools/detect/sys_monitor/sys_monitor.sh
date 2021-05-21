@@ -10,6 +10,7 @@
 maxsys=20
 interval=5
 datafile=perf.data
+lasttime=10
 
 usage() {
 	echo "sysak sys_monitory: auto perf when sys util over threshold"
@@ -18,7 +19,7 @@ usage() {
 	echo "         -c cpu, cpu to mointor, default the total util to monitor"
 	echo "         -f datafile, file for output"
 	echo "         -i interval, the interval checking the sys util"
-	echo "         -l lasttime, perf record time"
+	echo "         -l lasttime, perf record time, default to 10 seconds"
 }
 
 monitor() {
@@ -26,7 +27,7 @@ monitor() {
 	do
 		sys_util=`mpstat $cpuarg 1 1 | grep Average | awk '{print $5}' | awk -F. '{print $1}'`
 		if [ $sys_util -gt $maxsys ]; then
-			perf record -a -g sleep $lasttime -o $datafile;
+			perf record -a -g -o $datafile sleep $lasttime;
 			exit
 		fi
 
