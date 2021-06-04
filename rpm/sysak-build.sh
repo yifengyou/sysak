@@ -31,7 +31,7 @@ if [ %{source_dir} ]; then
 	for version in %{linux_version}; do
 		cd %{source_dir} && ./configure %{target} --kernel=\$version
 		make clean_middle
-		make -j
+		make
 	done
 fi
 

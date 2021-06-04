@@ -33,7 +33,7 @@ lib:
 
 tools: $(TARGET_LIST)
 $(TARGET_LIST):
-	make -C $@
+	make -C $@ -j
 
 binary:
 	cp $(SRC)/sysak $(OBJPATH)/
