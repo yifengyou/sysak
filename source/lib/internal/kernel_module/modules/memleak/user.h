@@ -35,11 +35,11 @@ struct user_alloc_desc {
     int pid;
 	int mark;
 	int order;
-    unsigned long ts;
     const void *ptr;
     char comm[TASK_COMM_LEN];
     char function[NAME_LEN];
 	unsigned long long call_site;
+    unsigned long long ts;
     unsigned long long  backtrace[];
 };
 

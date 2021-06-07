@@ -20,7 +20,7 @@ static int rate = 20;
 static int need_exit = 0;
 static int mark_nr = 0;
 
-#define CALL_SIZE (100)
+#define CALL_SIZE (1000)
 static int call_index = 0;
 
 struct user_call_site *call;
@@ -138,8 +138,6 @@ int memleak_rcuos_execsum(struct user_rcu_exec *sum, char *taskname, int pid)
 
 		if(sscanf(name, "%s %c %lf", &sumname, &tmp, &sumtime) != 3)
 			break;
-
-		//printf("task %s current %lf prev %lf\n", sum->taskname, sumtime, sum->exec_sum);
 
 		if (!sum->exec_sum) {
 			sum->exec_sum = sumtime;
@@ -298,16 +296,18 @@ int slab_main(struct memleak_settings *set)
 
 	}
 
+_retry:
 	ret = ioctl(fd, MEMLEAK_RESULT, &res);
 	if (ret) {
 		printf("ret %d,errn %d, num = %d\n", ret, errno, res.num);
-		goto _out;
+		sleep(10);
+		goto _retry;
 	}
 
 	desc = res.desc;
 	printf("未释放内存详细列表:\n");
 	for (ret = 0; ret < res.num; ret++) {
-		printf(" %s:%d  %s  ptr=%p mark %d\n", desc->comm, desc->pid, desc->function, desc->ptr, desc->mark);
+		printf(" %s:%d  %s  ptr=%p mark %d delta = %llu\n", desc->comm, desc->pid, desc->function, desc->ptr, desc->mark, desc->ts);
 		desc++;
 	}
 

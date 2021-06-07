@@ -18,7 +18,7 @@
 static int detect_time = 300;
 static int rate = 20;
 
-#define CALL_SIZE (200)
+#define CALL_SIZE (1000)
 static int call_index = 0;
 
 struct user_call_site *call;
@@ -133,16 +133,18 @@ int page_main(struct memleak_settings *set)
 		sleep(10);
 	}
 
+_retry:
 	ret = ioctl(fd, MEMLEAK_RESULT, &res);
 	if (ret) {
 		printf("ret %d,errn %d, num = %d\n", ret, errno, res.num);
-		goto _out;
+		sleep(10);
+		goto _retry;
 	}
 
 	desc = res.desc;
 	printf("未释放内存详细列表:\n");
 	for (ret = 0; ret < res.num; ret++) {
-		printf(" %s:%d  %s  ptr=%p order %d\n", desc->comm, desc->pid, desc->function, desc->ptr, desc->order);
+		printf(" %s:%d  %s  ptr=%p order %d ts_delta=%llu\n", desc->comm, desc->pid, desc->function, desc->ptr, desc->order, desc->ts);
 		desc++;
 	}
 

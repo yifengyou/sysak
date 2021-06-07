@@ -201,8 +201,6 @@ int memleak_hashlist_uninit(struct memleak_htab *htab)
 		}
 	}
 
-	//printk("memleak number %d\n", htab->free);
-
 	list_for_each_entry_safe(tmp1, tmp2, &htab->freelist, node) {
 		list_del_init(&tmp1->node);
 		internal_kfree(tmp1);
@@ -253,6 +251,7 @@ int memleak_dump_leak(struct memleak_htab *htab, struct user_result __user *resu
 	int num = 0;
 	int count = atomic_read(&htab->count);
 	int ret = 0;
+	unsigned long long curr_ts = sched_clock();
 
 	if (!count || copy_from_user(&res, result, sizeof(res))) {
 		ret = copy_to_user(result, &i, sizeof(i));
@@ -300,10 +299,8 @@ int memleak_dump_leak(struct memleak_htab *htab, struct user_result __user *resu
 
 			list_for_each_entry_safe(tmp1, tmp2, &bucket->head, node) {
 
-				//printk("%s:%d->call_site %pS, ptr %p ts=%lu\n", tmp1->comm, tmp1->pid, (void *)tmp1->call_site, tmp1->ptr, tmp1->ts);
 				list_del_init(&tmp1->node);
-
-				desc->ts = tmp1->ts;
+				desc->ts = (curr_ts - tmp1->ts)>>30;
 				desc->ptr = tmp1->ptr;
 				desc->pid = tmp1->pid;
 				desc->mark = memleak_mark_leak(htab, tmp1);
@@ -311,7 +308,6 @@ int memleak_dump_leak(struct memleak_htab *htab, struct user_result __user *resu
 				desc->call_site = tmp1->call_site;
 				strcpy(desc->comm,tmp1->comm);
 				snprintf(desc->function, NAME_LEN, "%pS", (void *)tmp1->call_site);
-				//printk("function %s ,ptr %p\n", desc->function, (void *)tmp1->call_site);
 
 				memleak_free_desc(htab, tmp1);
 				desc++;
