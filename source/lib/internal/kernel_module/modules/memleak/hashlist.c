@@ -290,37 +290,36 @@ int memleak_dump_leak(struct memleak_htab *htab, struct user_result __user *resu
 	for (i = 0; i < htab->n_buckets; i++) {
 
 		bucket = &htab->buckets[i];
-
-		if (bucket->nr < 0) {
-			printk("bucket num is error %d\n", bucket->nr);
+		if (bucket->nr <= 0) {
+			continue;
 		}
 
-		if (bucket->nr) {
+		list_for_each_entry_safe(tmp1, tmp2, &bucket->head, node) {
+			struct page *page = (struct page *)tmp1->ptr;
 
-			list_for_each_entry_safe(tmp1, tmp2, &bucket->head, node) {
-
-				list_del_init(&tmp1->node);
-				desc->ts = (curr_ts - tmp1->ts)>>30;
-				desc->ptr = tmp1->ptr;
-				desc->pid = tmp1->pid;
-				desc->mark = memleak_mark_leak(htab, tmp1);
-				desc->order = tmp1->order;
-				desc->call_site = tmp1->call_site;
-				strcpy(desc->comm,tmp1->comm);
-				snprintf(desc->function, NAME_LEN, "%pS", (void *)tmp1->call_site);
-
-				memleak_free_desc(htab, tmp1);
-				desc++;
-				j++;
-
-				atomic_sub(1, &htab->count);
-				bucket->nr--;
-
-				if (!--num)
-					goto _out;
-
+			list_del_init(&tmp1->node);
+			if ((htab->set.type == MEMLEAK_TYPE_PAGE) && PageSlab((struct page*)tmp1->ptr)) {
+				goto _skip;
 			}
-		}
+
+			desc->ts = (curr_ts - tmp1->ts)>>30;
+			desc->ptr = tmp1->ptr;
+			desc->pid = tmp1->pid;
+			desc->mark = memleak_mark_leak(htab, tmp1);
+			desc->order = tmp1->order;
+			desc->call_site = tmp1->call_site;
+			strcpy(desc->comm,tmp1->comm);
+			snprintf(desc->function, NAME_LEN, "%pS", (void *)tmp1->call_site);
+
+			desc++;
+			j++;
+_skip:
+			memleak_free_desc(htab, tmp1);
+			atomic_sub(1, &htab->count);
+			bucket->nr--;
+			if (!--num)
+				goto _out;
+			}
 	}
 
 _out:
