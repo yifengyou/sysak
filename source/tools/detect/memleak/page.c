@@ -144,7 +144,7 @@ _retry:
 	desc = res.desc;
 	printf("未释放内存详细列表:\n");
 	for (ret = 0; ret < res.num; ret++) {
-		printf(" %s:%d  %s  ptr=%p order %d ts_delta=%llu\n", desc->comm, desc->pid, desc->function, desc->ptr, desc->order, desc->ts);
+		printf("%s:%d  %s  ptr=%p order %d ts_delta=%llu\n", desc->comm, desc->pid, desc->function, desc->ptr, desc->order, desc->ts);
 		desc++;
 	}
 

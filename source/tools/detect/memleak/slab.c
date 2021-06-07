@@ -17,7 +17,6 @@
 static int detect_time = 300;
 static char *slab_name;
 static int rate = 20;
-static int need_exit = 0;
 static int mark_nr = 0;
 
 #define CALL_SIZE (1000)
@@ -103,140 +102,10 @@ static int sort_call_site(struct user_result *res)
 	qsort(call, call_index, sizeof(struct user_call_site), cmp);
 
 	for (num = 0; num < call_index; num++)
-		printf("%d %8d       %s\n", call[num].nr, call[num].mark_nr, call[num].function);
+		printf("%d %8d       %-15s\n", call[num].nr, call[num].mark_nr, call[num].function);
 
 
 	return 0;
-}
-
-
-int memleak_rcuos_execsum(struct user_rcu_exec *sum, char *taskname, int pid)
-{
-	int i;
-	char name[256] = {0};
-	char sumname[NAME_LEN];
-	double sumtime;
-	char tmp;
-
-	FILE *file = NULL;
-
-	i = snprintf(name, NAME_LEN, "%s/%d/%s", "/proc", pid, "sched");
-	file = fopen(name, "r");
-	if (!file) {
-		printf("open rcuos file %s failed \n", name);
-		return 0;
-	}
-
-	memset(name, 0, 256);
-
-	while(!feof(file)) {
-		if(!fgets(name, sizeof(name), file))
-			break;
-
-		if (!strstr(name, "se.sum_exec_runtime"))
-			continue;
-
-		if(sscanf(name, "%s %c %lf", &sumname, &tmp, &sumtime) != 3)
-			break;
-
-		if (!sum->exec_sum) {
-			sum->exec_sum = sumtime;
-			sum->pid = pid;
-			strncpy(sum->taskname, taskname, 31);
-			goto _out;
-		}
-
-		if (sum->exec_sum == sumtime) {
-			sum->err = 1;
-			goto _out;
-		}
-		break;
-	}
-
-_out:
-	fclose(file);
-	return 0;
-}
-
-void * memleak_check_rcu(void *argv)
-{
-    DIR *dp;
-    struct dirent *entry;
-	char rcuos[NAME_LEN];
-	char taskname[64];
-	struct user_rcu_exec *sum, *tmp;
-	int cpu = 0;
-	int ret = 0;
-	int fd = 0;
-	int i = 0;
-
-	cpu = get_nprocs_conf();
-	if (cpu <= 0)
-		return NULL;
-
-	sum = (struct user_rcu_exec *)malloc(sizeof(*sum) * cpu);
-	if (!sum) {
-		printf("alloc memory failed\n");
-		return NULL;
-	}
-
-	tmp = sum;
-	memset(sum, 0, sizeof(*sum) * cpu);
-
-    dp = opendir("/proc");
-    if (!dp) {
-		printf("open proc error\n");
-		return NULL;
-	}
-
-	while ((entry = readdir(dp)) != NULL)
-	{
-		if ((strcmp(entry->d_name, ".") == 0) ||
-				    (strcmp(entry->d_name, "..") == 0) ||
-				    (atoll(entry->d_name) <= 0)) {
-			    continue;
-		 }
-
-		memset(rcuos, 0, NAME_LEN);
-
-		ret = snprintf(rcuos, NAME_LEN, "%s/%s/%s", "/proc/", entry->d_name, "comm");
-		fd = open(rcuos, O_RDONLY);
-		if (fd < 0)
-			continue;
-
-		memset(taskname, 0, 64);
-
-		ret = read(fd, taskname, 64);
-		if (strncmp("rcuos/", taskname, 6)) {
-			close(fd);
-			continue;
-		}
-
-		taskname[ret - 1 ] = 0;
-
-		if (i < cpu) {
-			memleak_rcuos_execsum(tmp + i, taskname, atoi(entry->d_name));
-			i++;
-		}
-	}
-
-	sleep(detect_time/3);
-
-	tmp = sum;
-	for (i = 0; i < cpu; i++) {
-
-		memleak_rcuos_execsum(tmp, tmp->taskname, tmp->pid);
-
-		if (tmp->err) {
-			printf("task %s %d hang\n", tmp->taskname, tmp->pid);
-			need_exit = 1;
-		}
-		tmp++;
-	}
-
-	closedir(dp);
-
-	return NULL;
 }
 
 int slab_main(struct memleak_settings *set)
@@ -247,12 +116,6 @@ int slab_main(struct memleak_settings *set)
 	struct max_object object;
 
 	struct user_alloc_desc *desc;
-	pthread_t pid;
-
-	ret =  pthread_create(&pid, NULL, memleak_check_rcu, NULL);
-	if (ret) {
-		printf("create rcu thread error \n");
-	}
 
 	fd = open("/dev/sysak", O_RDWR);
 	if (fd < 0) {
@@ -289,11 +152,6 @@ int slab_main(struct memleak_settings *set)
 	while(ret--) {
 		printf("wait for %d seconds \n", ret * 10);
 		sleep(10);
-		if (need_exit) {
-			printf("rcuos check faild \n");
-			goto _out;
-		}
-
 	}
 
 _retry:
@@ -307,7 +165,7 @@ _retry:
 	desc = res.desc;
 	printf("未释放内存详细列表:\n");
 	for (ret = 0; ret < res.num; ret++) {
-		printf(" %s:%d  %s  ptr=%p mark %d delta = %llu\n", desc->comm, desc->pid, desc->function, desc->ptr, desc->mark, desc->ts);
+		printf("%s:%-15d  %15s  ptr=%p mark %d delta = %llu\n", desc->comm, desc->pid, desc->function, desc->ptr, desc->mark, desc->ts);
 		desc++;
 	}
 
@@ -327,8 +185,6 @@ _retry:
 	free(res.desc);
 _out:
 	printf("\n");
-	printf("RCUOS 线程检测: %s\n", need_exit ? "异常" : "通过");
-
 	if (call && mark_nr)
 		printf("疑似泄漏函数: %s\n", call[0].function);
 	else
