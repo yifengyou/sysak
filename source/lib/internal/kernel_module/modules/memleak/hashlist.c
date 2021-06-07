@@ -295,8 +295,6 @@ int memleak_dump_leak(struct memleak_htab *htab, struct user_result __user *resu
 		}
 
 		list_for_each_entry_safe(tmp1, tmp2, &bucket->head, node) {
-			struct page *page = (struct page *)tmp1->ptr;
-
 			list_del_init(&tmp1->node);
 			if ((htab->set.type == MEMLEAK_TYPE_PAGE) && PageSlab((struct page*)tmp1->ptr)) {
 				goto _skip;
