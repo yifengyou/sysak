@@ -160,33 +160,33 @@ static int slab_tracepoint_init(void)
 
 	ret = hook_tracepoint("kmem_cache_alloc", trace_slab_alloc, NULL);
 	if (ret) {
-		printk("memleak register kmem cache alloc tracepoint error %d\n", ret);
+		pr_err("memleak register kmem cache alloc tracepoint error %d\n", ret);
 	}
 
 	ret = hook_tracepoint("kmem_cache_free", trace_slab_free, NULL);
 	if (ret) {
-		printk("memleak register kmem cache free tracepoint error %d\n", ret);
+		pr_err("memleak register kmem cache free tracepoint error %d\n", ret);
 	}
 
 	ret = hook_tracepoint("kmalloc", trace_slab_alloc, NULL);
 	if (ret) {
-		printk("memleak register kmalloc tracepoint error %d\n", ret);
+		pr_err("memleak register kmalloc tracepoint error %d\n", ret);
 	}
 
 	ret = hook_tracepoint("kfree", trace_slab_free, NULL);
 	if (ret) {
-		printk("memleak register kfree tracepoint error %d\n", ret);
+		pr_err("memleak register kfree tracepoint error %d\n", ret);
 	}
 
 #ifdef CONFIG_NUMA
 	ret = hook_tracepoint("kmalloc_node", trace_slab_alloc_node, NULL);
 	if (ret) {
-		printk("memleak register kmalloc node  tracepoint error %d\n", ret);
+		pr_err("memleak register kmalloc node  tracepoint error %d\n", ret);
 	}
 #ifdef CONFIG_NUMA
 	ret = hook_tracepoint("kmem_cache_alloc_node", trace_slab_alloc_node, NULL);
 	if (ret) {
-		printk("memleak register kmem_cache_alloc  node  tracepoint error %d\n", ret);
+		pr_err("memleak register kmem_cache_alloc  node  tracepoint error %d\n", ret);
 	}
 #endif
 #endif
@@ -218,12 +218,12 @@ static void page_tracepoint_init(void)
 
 	ret = hook_tracepoint("mm_page_free", trace_page_free, NULL);
 	if(ret)
-		printk("register mm page free error\n");
+		pr_err("register mm page free error\n");
 
 
 	ret = hook_tracepoint("mm_page_alloc", trace_page_alloc, NULL);
 	if(ret)
-		printk("register mm page alloc error\n");
+		pr_err("register mm page alloc error\n");
 }
 
 static void page_tracepoint_alloc_uninit(void)
@@ -245,7 +245,7 @@ static void memleak_tracepoint_init(struct memleak_htab *htab)
 	}else if (htab->set.type == MEMLEAK_TYPE_PAGE) {
 		page_tracepoint_init();
 	} else
-		printk("trace type error %d\n", htab->set.type);
+		pr_err("trace type error %d\n", htab->set.type);
 }
 
 static void memleak_tracepoint_alloc_uninit(struct memleak_htab *htab)
@@ -255,7 +255,7 @@ static void memleak_tracepoint_alloc_uninit(struct memleak_htab *htab)
 	} else if (htab->set.type == MEMLEAK_TYPE_PAGE) {
 		page_tracepoint_alloc_uninit();
 	} else
-		printk("trace alloc uninit type %d\n", htab->set.type);
+		pr_err("trace alloc uninit type %d\n", htab->set.type);
 }
 
 static void memleak_tracepoint_free_uninit(struct memleak_htab *htab)
@@ -265,7 +265,7 @@ static void memleak_tracepoint_free_uninit(struct memleak_htab *htab)
 	} else if (htab->set.type == MEMLEAK_TYPE_PAGE) {
 		page_tracepoint_free_uninit();
 	} else
-		printk("trace free uninit type %d\n", htab->set.type);
+		pr_err("trace free uninit type %d\n", htab->set.type);
 
 }
 
@@ -299,7 +299,7 @@ static int memleak_get_maxslab(struct memleak_htab *htab)
 
 	*show_slab = (void *)kallsyms_lookup_name("objects_show");
 	if (!*show_slab) {
-		printk("Get show_slab objects error\n");
+		pr_err("Get show_slab objects error\n");
 		return 0;
 	}
 
@@ -325,7 +325,7 @@ static int memleak_get_maxslab(struct memleak_htab *htab)
 	}
 
 	if (htab->check.cache)
-		printk("max cache %s size = %lu \n", htab->check.cache->name, max);
+		pr_info("max cache %s size = %lu \n", htab->check.cache->name, max);
 
 	mutex_unlock(htab->check.slab_mutex);
 
@@ -342,7 +342,7 @@ static int memleak_slab_init(struct memleak_htab *htab)
 	slab_caches = (struct list_head *)kallsyms_lookup_name("slab_caches");
 
 	if (!slab_mutex || !slab_caches) {
-		printk("memleak:can't get slab mutex/caches %p:%p\n", slab_mutex, slab_caches);
+		pr_err("memleak:can't get slab mutex/caches %p:%p\n", slab_mutex, slab_caches);
 		return -EIO;
 	}
 
@@ -363,7 +363,7 @@ static int memleak_slab_init(struct memleak_htab *htab)
 	list_for_each_entry(s, slab_caches, list) {
 		if (!strcmp(s->name, htab->set.name)) {
 			htab->check.cache = s;
-			printk("get slab %s,%p\n",s->name, htab->check.cache);
+			pr_info("get slab %s,%p\n",s->name, htab->check.cache);
 			break;
 		}
 	}
@@ -398,7 +398,7 @@ static void memleak_delay_work(struct work_struct *work)
 	htab = (struct memleak_htab *)container_of(work, struct memleak_htab, work.work);
 
 	if (htab->state == MEMLEAK_STATE_INIT) {
-		printk("memleak delay work state on\n");
+		pr_err("memleak delay work state on\n");
 		memleak_tracepoint_alloc_uninit(htab);
 
 		htab->state = MEMLEAK_STATE_ON;
@@ -407,7 +407,7 @@ static void memleak_delay_work(struct work_struct *work)
 
 	} else if (htab->state == MEMLEAK_STATE_ON) {
 
-		printk("memleak delay work state off\n");
+		pr_err("memleak delay work state off\n");
 
 		memleak_tracepoint_free_uninit(htab);
 
@@ -483,10 +483,10 @@ int memleak_trace_off(struct memleak_htab *htab)
 	switch (htab->set.type) {
 
 	case MEMLEAK_TYPE_VMALLOC:
-		printk("trace vmalloc\n");
+		pr_info("trace vmalloc\n");
 		break;
 	case MEMLEAK_TYPE_PAGE:
-		printk("trace alloc page\n");
+		pr_info("trace alloc page\n");
 		break;
 	default:
 		ret = memleak_trace_slab(htab);
@@ -501,7 +501,7 @@ int memleak_trace_off(struct memleak_htab *htab)
 	delay = htab->set.monitor_time;
 	delay = delay - (delay * htab->set.rate)/100;
 
-	printk("delay = %d\n",delay);
+	pr_info("delay = %d\n",delay);
 	schedule_delayed_work(&htab->work, HZ * delay);
 
 	return ret;
@@ -523,7 +523,7 @@ int memleak_handler_cmd(int cmd, unsigned long arg)
 	struct memleak_htab * htab = tab;
 
     if (!htab || htab->state != MEMLEAK_STATE_OFF) {
-       	printk("htab is busy\n");
+       	pr_info("htab is busy\n");
 		return -EBUSY;
 	}
 
@@ -533,19 +533,19 @@ int memleak_handler_cmd(int cmd, unsigned long arg)
             ret = copy_from_user(&set, (void *)arg, sizeof(set));
             if (ret)
                 return ret;
-            printk("type = %d time = %d,slabname %s ext %d,rate=%d\n",set.type, set.monitor_time, set.name, set.ext,set.rate);
+            pr_info("type = %d time = %d,slabname %s ext %d,rate=%d\n",set.type, set.monitor_time, set.name, set.ext,set.rate);
             htab->set = set;
             ret = memleak_trace_on(htab);
 
             break;
 
         case MEMLEAK_CMD_RESULT:
-            printk("get result\n");
+            pr_info("get result\n");
             ret = memleak_dump_leak(htab, (struct user_result __user*)arg);
             break;
 
 		case MEMLEAK_CMD_DISABLE:
-			printk("disable\n");
+			pr_info("disable\n");
 			memleak_release(htab);
 
     };
@@ -559,7 +559,7 @@ int memleak_handler_cmd(int cmd, unsigned long arg)
 
 	tab = kzalloc(sizeof(struct memleak_htab), GFP_KERNEL);
 	if (!tab) {
-		printk("alloc memleak hash table failed\n");
+		pr_err("alloc memleak hash table failed\n");
 		return -ENOMEM;
 	}
 

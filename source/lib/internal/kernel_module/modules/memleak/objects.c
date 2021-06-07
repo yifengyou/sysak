@@ -102,7 +102,6 @@ static int merge_similar_object(struct object_info *info, struct object *object,
 		info->object = object;
 
 	if (merge) {
-		//printk("merge similar object byte %d src %p dst %p\n", object->valid_byte, tmp->ptr, object->ptr);
 		tmp->valid_object += object->valid_object;
 
 		if (tmp->valid_object > info->object->valid_object)
@@ -145,7 +144,7 @@ static int scan_one_page(struct page *page, struct object_info *info)
 
 	object = internal_alloc(sizeof(*object), GFP_KERNEL);
 	if (!object) {
-		printk(" alloc object info error\n");
+		pr_err(" alloc object info error\n");
 		return 0;
 	}
 
@@ -213,7 +212,7 @@ int  memleak_max_object(struct memleak_htab *htab)
 	INIT_LIST_HEAD(&info->head);
 
 	if (!cache) {
-		printk("slab cache is null\n");
+		pr_info("slab cache is null\n");
 		return 0;
 	}
 
@@ -270,10 +269,10 @@ int  memleak_max_object(struct memleak_htab *htab)
 		}
 	}
 
-	printk("find object %d\n", info->num);
+	pr_info("find object %d\n", info->num);
 	object = info->object;
 	if (object)
-		printk("start %p ptr %p byte %d object %d \n", object->page, object->ptr, object->valid_byte, object->valid_object);
+		pr_info("start %p ptr %p byte %d object %d \n", object->page, object->ptr, object->valid_byte, object->valid_object);
 
 	return 0;
 }

@@ -208,7 +208,7 @@ int memleak_hashlist_uninit(struct memleak_htab *htab)
 	}
 
 	if (htab->free != htab->total)
-		printk("memleak free %u ,total %u\n", htab->free, htab->total);
+		pr_info("memleak free %u ,total %u\n", htab->free, htab->total);
 
 	if (htab->buckets)
 		internal_kfree(htab->buckets);
@@ -259,12 +259,12 @@ int memleak_dump_leak(struct memleak_htab *htab, struct user_result __user *resu
 	}
 
 	if (!res.num || !res.desc) {
-		printk("num %d ,desc %p \n", res.num, res.desc);
+		pr_err("num %d ,desc %p \n", res.num, res.desc);
 		ret = copy_to_user(result, &i, sizeof(i));
 		return -EFAULT;
 	}
 
-	printk("total memleak number %d user %d ts=%llu\n", count, res.num, sched_clock());
+	pr_info("total memleak number %d user %d ts=%llu\n", count, res.num, sched_clock());
 
 	res.num = (res.num > count) ? count : res.num;
 	num = res.num;
@@ -281,14 +281,12 @@ int memleak_dump_leak(struct memleak_htab *htab, struct user_result __user *resu
 
 	/*copy object info */
 	if (res.objects) {
-		printk("dump object info\n");
 		memset(&object, 0, sizeof(object));
 		memleak_dump_object(htab, &object);
 		ret = copy_to_user(res.objects, &object, sizeof(object));
 	}
 
 	for (i = 0; i < htab->n_buckets; i++) {
-
 		bucket = &htab->buckets[i];
 		if (bucket->nr <= 0) {
 			continue;
@@ -326,7 +324,7 @@ _out:
 	i = copy_to_user(tmp, res.desc, sizeof(*desc) * j);
 
 	vfree(res.desc);
-	printk("get num %d htab %d, %d\n", j, atomic_read(&htab->count), num);
+	pr_info("get num %d htab %d, %d\n", j, atomic_read(&htab->count), num);
 	return i;
 }
 
@@ -341,7 +339,7 @@ int memleak_clear_leak(struct memleak_htab *htab)
 		return 0;
 	}
 
-	printk(" clear leak %d \n", atomic_read(&htab->count));
+	pr_info(" clear leak %d \n", atomic_read(&htab->count));
 
 
 	for (i = 0; i < htab->n_buckets; i++) {
