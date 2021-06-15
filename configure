@@ -17,9 +17,10 @@ usage() {
 	echo "  --enable-lkm               enable linux kernel module"
 	echo "  --enable-libbpf            enable libbpf"
 	echo "  --enable-static            static link for c/cpp tools"
-	echo "  --enable-target-xxx        xxx is the actual tool, like memleak"
+	echo "  --enable-target-xxx        xxx is the actual tool, like memleak, you may use --show-target to list all"
 	echo "  --enable-target-all        enable all compoents"
 	echo "  --disable-default          disable default compoents to built-in"
+	echo "  --show-target              list all support tools"
 }
 
 for opt; do
@@ -52,6 +53,10 @@ for opt; do
 			;;
 		--disable-default)
 			default_target=no
+			;;
+		--show-target)
+			grep -nrw "target :=" $(pwd)/source/tools/ | awk '{print $3}' | grep -v test
+			exit
 			;;
 		*)
 			usage
