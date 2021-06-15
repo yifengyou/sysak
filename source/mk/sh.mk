@@ -4,8 +4,11 @@ else
 TARGET_PATH := $(OBJ_TOOLS_ROOT)
 endif
 
-target: $(mods)
+.PHONY: $(mods)
 
-$(mods): %: %.sh
-	cp $< $(TARGET_PATH)/$@
+$(target): $(mods)
+	cp $@.sh $(TARGET_PATH)/$@
 	echo $(target):$(DEPEND) >> $(TARGET_PATH)/$(SYSAK_RULES)
+
+$(mods):
+	cp $@ $(TARGET_PATH)/ -rf
