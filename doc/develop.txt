@@ -1,25 +1,72 @@
 sysAK开发
 
-1，内核模块
-1) 放在source/lib/internal/kernel_module/modules/目录下，新功能自己建子目录或单独放一个文件都可以
-2) 将新功能模块的名字、init函数、exit函数放入source/lib/internal/kernel_module/sysak_mods.c中的sysak_modules数组
-3) 将新功能模块的实现文件加入到模块mafile
-vi source/lib/internal/kernel_module/Makefile
-     sysak-objs += xxx.o
+1, 代码结构
+核心代码在source目录下，lib目录提供不同系统平台的封装供tools目录下的各种工具命令调用，包括libbpf、kernel module，mk目录则负责各个工具命令的统一构建。
+tools目录按工具的目标类型进行分类，工具具体实现放在此目录:
+detect -- 实现一次性的分析诊断命令，也就是命令结束即结束
+monitor -- 实现监控类的命令，对系统某类资源进行监控，可能常驻系统或者运行一段时间再结束
+inject  --  实现故障或者场景注入类，比如要在某个地方要延迟一会，或者执行错误逻辑等
+operate  -- 实现介入修复类，比如限制系统资源使用等
+combine---非单一功能，组合使用上述功能或者系统其它命令
+test  --  一些实验性质的功能，或者示例等
 
-2，用户态命令
-1) 放在source/tools目录下，下面有几个大目录：
-     detect -- 实现一次性的分析诊断命令，也就是命令结束即结束
-     monitor -- 实现监控类的命令，对系统某类资源进行监控，可能常驻系统或者运行一段时间再结束
-     inject  --  实现故障或者场景注入类，比如要在某个地方要延迟一会，或者执行错误逻辑等
-     operate  -- 实现介入修复类，比如限制系统资源使用等
-     combine---非单一功能，组合使用上述功能或者系统其它命令
-     test  --  一些实验性质的功能，或者示例等
-2) 新添加一个命令，就在上述几个目录下分别建一个子目录，里面放入源文件，makefile根据源代码类型去引用source/mk下的**.mk，可以参照source/tools/test/目录的相应例子。
-3) 如果是添加一个子类的功能集，先建立一个子类目录，目录中的makefile包含source/mk/sub.mk即可，然后再在子目录中新增命令的目录
-   新命令目录中的makefile，设定目标编译文件和额外需要的编译参数，然后根据命令实现的源代码类型包含source/mk/xxx.mk, 如c语言，包含source/mk/csrc.mk。具体可参考tools/test/下面的示例。
-3，编译运行
-1) make KERNEL_VERSION=xxx
-2) cd out/$KERNEL_VERSION
-5) sysak list /* 查看syak 子命令列表*/
-6) sysak memleak /* 运行内存泄漏检测工具*/
+2, 编译
+1) sysAK源码中包含了多个库和tools等组件，但不是所有组件在所有平台上都会支持，可以通过在编译之前指定configure的参数来达到指定组件编译的效果。
+./configure -h
+Usage: configure [options]
+options:
+--kernel=KERNEL_VERSION , kernel version
+--buiddir=OBJDIR ,the build dir
+--enable-lkm ,enable linux kernel module
+--enable-libbpf ,enable libbpf
+--enable-static ,static link for c/cpp tools
+--enable-target-xxx ,xxx is the actual tool, like memleak
+--enable-target-all ,enable all compoents
+--disable-default ,disable default compoents to built-in
+
+2) ./make
+
+3, 新功能开发
+有多种方式，比如直接写一个kernel module，通过这个module直接实现想要的调试诊断功能，或者基于这个kernel module提供更易用的用户命令
+又比如利用linux ebpf特性来达到上述相同的目的；再比如仅仅利用现有的一些系统api或工具就集成实现更强大的工具，等等。
+
+利用LKM(linux kernel module)模块实现新功能
+1) kernel module源码放在source/lib/internal/kernel_module/modules/目录下，新功能自己建子目录或单独放一个文件都可以，比如test/test_module.c
+2) 将新功能模块的名字、init函数、exit函数放入source/lib/internal/kernel_module/sysak_mods.c中的sysak_modules数组中完成注册
+3) 将新功能模块的实现文件加入到模块makefile，比如上面新增的test/test_module.c
+vi source/lib/internal/kernel_module/Makefile
+sysak-objs += test/test_module.o
+
+使用各种语言实现用户态命令的功能
+1) 只需在source/tools对应目录下新建一个子目录，里面放入源文件和makefile即可。
+ >>源文件类型格式可以是
+     .c -- c
+     .cpp  --c++
+     .py  -- python
+     .sh  -- bash script
+     .bpf.c -- 基于libbpf实现的功能
+ >>参考makefile的规则如下:
+     #目标文件名，即工具本身的名字，不能重复
+     #target := xxx
+     #工具中间文件，如果有多个源文件，都需要指定
+     #mods := aaa bbb
+
+     #c/cpp格式需要额外编译参数或库时需要指定如下参数
+     #CFLAGS +=  
+     #LDFLAGS +=
+
+     #如果工具执行过程中有依赖，需要在这里指定，prev中的rules是在这个命令执行前触发的规则，
+     #post中的rules是命令执行结束后触发的规则，
+     #其格式为：match action
+     #          match: 执行命令时带的参数，如果为default，则表示不检查参数自动match规则
+     #          action: 规则满足后触发的动作，目前是modin和modun, 分别代表LKM的insmod和rmmod
+     #DEPEND := "prev{rule1, prule2 ...};post{rule1, rule2 ...}"
+
+     #根据源代码类型去引用source/mk下的**.mk
+     #include $(SRC)/mk/**.mk
+
+以上各类格式都在可以source/tools/test/目录找到相应示例。
+
+2) 如果是添加一个子类的功能集，先建立一个子类目录，目录中的makefile包含source/mk/sub.mk即可，然后再在子目录中新增命令的目录
+
+
