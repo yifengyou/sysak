@@ -84,7 +84,7 @@ done
 fi
 
 if [ $enable_all = "yes" ]; then
-target_files=$(grep -nrw "target :=" $(pwd)/source/tools/ | awk -F ":" '{print $1}')
+target_files=$(grep -nrw "target :=" $(pwd)/source/tools/ | grep -v test | awk -F ":" '{print $1}')
 fi
 
 for file in $target_files;do
