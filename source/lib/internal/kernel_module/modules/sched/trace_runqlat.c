@@ -14,6 +14,7 @@
 #include <linux/version.h>
 #include <linux/vmalloc.h>
 #include <trace/events/sched.h>
+#include "common/proc.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
 #include <linux/sched.h>
@@ -32,36 +33,6 @@
 #define INVALID_PID			-1
 #define INVALID_CPU			-1
 #define PROBE_TRACEPOINTS		 4
-
-#define LATENCY_HISTOGRAM_ENTRY		12
-
-#define DEFINE_PROC_ATTRIBUTE(name, __write)				\
-	static int name##_open(struct inode *inode, struct file *file)	\
-	{								\
-		return single_open(file, name##_show, PDE_DATA(inode));	\
-	}								\
-									\
-	static const struct file_operations name##_fops = {		\
-		.owner		= THIS_MODULE,				\
-		.open		= name##_open,				\
-		.read		= seq_read,				\
-		.write		= __write,				\
-		.llseek		= seq_lseek,				\
-		.release	= single_release,			\
-	}
-
-#define DEFINE_PROC_ATTRIBUTE_RW(name)					\
-	static ssize_t name##_write(struct file *file,			\
-				    const char __user *buf,		\
-				    size_t count, loff_t *ppos)		\
-	{								\
-		return name##_store(PDE_DATA(file_inode(file)), buf,	\
-				    count);				\
-	}								\
-	DEFINE_PROC_ATTRIBUTE(name, name##_write)
-
-#define DEFINE_PROC_ATTRIBUTE_RO(name)	\
-	DEFINE_PROC_ATTRIBUTE(name, NULL)
 
 /**
  * If we call register_trace_sched_{wakeup,wakeup_new,switch,migrate_task}()
@@ -98,7 +69,6 @@ struct runqlat_info {
 	u64 run_start;
 	u64 threshold;
 	struct task_struct *curr;
-	unsigned long latency_hist[LATENCY_HISTOGRAM_ENTRY];
 
 	unsigned int nr_trace;
 	struct trace_entry *trace_entries;
@@ -217,29 +187,12 @@ static void record_task(struct runqlat_info *info, struct task_struct *p,
 	}
 }
 
-static inline void latency_histogram_store(struct runqlat_info *info, u64 delta)
-{
-	int index = -1;
-
-	delta /= 1000000UL;
-	do {
-		index++;
-		delta >>= 1;
-	} while (delta > 0);
-
-	if (unlikely(index >= LATENCY_HISTOGRAM_ENTRY))
-		index = LATENCY_HISTOGRAM_ENTRY - 1;
-
-	info->latency_hist[index]++;
-}
-
 /* Must be called with @info->lock held */
 static bool record_task_commit(struct runqlat_info *info, u64 latency)
 	__must_hold(&info->lock)
 {
 	struct trace_entry *trace;
 
-	latency_histogram_store(info, latency);
 	trace = info->trace_entries + info->nr_trace;
 	if (trace->nr_tasks == 0)
 		return false;
@@ -435,16 +388,12 @@ static ssize_t trace_pid_store(void *priv, const char __user *buf, size_t count)
 		goto unlock;
 
 	if (pid != INVALID_PID) {
-		int i;
 
 		info->nr_trace = 0;
 		info->nr_task = 0;
 		memset(info->trace_entries, 0,
 		       MAX_TRACE_ENTRIES * sizeof(struct trace_entry) +
 		       MAX_TRACE_ENTRY_TASKS * sizeof(struct task_entry));
-
-		for (i = 0; i < LATENCY_HISTOGRAM_ENTRY; i++)
-			info->latency_hist[i] = 0;
 	}
 	runqlat_info_reset(info);
 	smp_wmb();
@@ -516,7 +465,6 @@ static int runqlat_show(struct seq_file *m, void *ptr)
 
 static ssize_t runqlat_store(void *priv, const char __user *buf, size_t count)
 {
-	int i;
 	int clear;
 	struct runqlat_info *info = priv;
 
@@ -530,9 +478,6 @@ static ssize_t runqlat_store(void *priv, const char __user *buf, size_t count)
 	memset(info->trace_entries, 0,
 			MAX_TRACE_ENTRIES * sizeof(struct trace_entry) +
 			MAX_TRACE_ENTRY_TASKS * sizeof(struct task_entry));
-
-	for (i = 0; i < LATENCY_HISTOGRAM_ENTRY; i++)
-		info->latency_hist[i] = 0;
 		
 	runqlat_info_reset(info);
 	smp_wmb();
@@ -543,70 +488,6 @@ static ssize_t runqlat_store(void *priv, const char __user *buf, size_t count)
 }
 
 DEFINE_PROC_ATTRIBUTE_RW(runqlat);
-
-#define NUMBER_CHARACTER	40
-
-static bool histogram_show(struct seq_file *m, const char *header,
-			   const unsigned long *hist, unsigned long size,
-			   unsigned int factor)
-{
-	int i, zero_index = 0;
-	unsigned long count_max = 0;
-
-	for (i = 0; i < size; i++) {
-		unsigned long count = hist[i];
-
-		if (count > count_max)
-			count_max = count;
-
-		if (count)
-			zero_index = i + 1;
-	}
-	if (count_max == 0)
-		return false;
-
-	/* print header */
-	if (header)
-		seq_printf(m, "%s\n", header);
-	seq_printf(m, "%*c%s%*c : %-9s %s\n", 9, ' ', "msecs", 10, ' ', "count",
-		   "distribution");
-
-	for (i = 0; i < zero_index; i++) {
-		int num;
-		int scale_min, scale_max;
-		char str[NUMBER_CHARACTER + 1];
-
-		scale_max = 2 << i;
-		scale_min = unlikely(i == 0) ? 1 : scale_max / 2;
-
-		num = hist[i] * NUMBER_CHARACTER / count_max;
-		memset(str, '*', num);
-		memset(str + num, ' ', NUMBER_CHARACTER - num);
-		str[NUMBER_CHARACTER] = '\0';
-
-		seq_printf(m, "%10d -> %-10d : %-8lu |%s|\n",
-			   scale_min * factor, scale_max * factor - 1,
-			   hist[i], str);
-	}
-
-	return true;
-}
-
-static int distribution_show(struct seq_file *m, void *ptr)
-{
-	int i;
-	unsigned long hist[LATENCY_HISTOGRAM_ENTRY];
-	struct runqlat_info *info = m->private;
-
-	for (i = 0; i < LATENCY_HISTOGRAM_ENTRY; i++)
-		hist[i] = info->latency_hist[i];
-
-	histogram_show(m, NULL, hist, LATENCY_HISTOGRAM_ENTRY, 1);
-
-	return 0;
-}
-
-DEFINE_PROC_ATTRIBUTE_RO(distribution);
 
 int trace_runqlat_init(struct proc_dir_entry *root_dir)
 {
@@ -641,10 +522,6 @@ int trace_runqlat_init(struct proc_dir_entry *root_dir)
 		goto remove_proc;
 
 	if (!proc_create_data("runqlat", 0, parent_dir, &runqlat_fops, info))
-		goto remove_proc;
-
-	if (!proc_create_data("distribution", 0, parent_dir, &distribution_fops,
-			      info))
 		goto remove_proc;
 
 	/* Lookup for the tracepoint that we needed */
