@@ -11,12 +11,14 @@
 #include <linux/proc_fs.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include "common/proc.h"
 #include "sysak_mods.h"
 
 static int sysak_mod_init(void)
 {
 	int i;
 
+	sysak_proc_init();
 	sysak_dev_init();
 
 	for (i = 0; i < sysk_module_num; i++) {
@@ -33,6 +35,7 @@ static void sysak_mod_exit(void)
 	int i;
 
 	sysak_dev_uninit();
+	sysak_proc_exit();
 
 	for (i = 0; i < sysk_module_num; i++)
 		sysak_modules[i].exit();

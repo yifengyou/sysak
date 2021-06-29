@@ -7,7 +7,8 @@ endif
 MODULE_SRC := $(SRC)/lib/internal/kernel_module
 
 #common
-sysak-objs += ./common/chrdev.o  ./common/event.o ./common/hook.o ./common/stack.o ./entry.o sysak_mods.o
+sysak-objs += ./common/chrdev.o  ./common/event.o ./common/hook.o ./common/stack.o ./common/proc.o
+sysak-objs += ./entry.o sysak_mods.o
 
 #modules
 #sysak-objs += modules/test_module/test.o
