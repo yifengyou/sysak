@@ -13,7 +13,7 @@
 #include <linux/kthread.h>
 
 #include "common/hook.h"
-
+#include "common/proc.h"
 
 struct trace_sig_info {
 	char comm[TASK_COMM_LEN];
@@ -172,8 +172,7 @@ const struct file_operations signal_trace_fops = {
 
 int trace_sig_init(void)
 {
-	signal_trace_proc = proc_create("sysak_sig_trace",
-			0644, NULL,  &signal_trace_fops);
+	signal_trace_proc = sysak_proc_create("sig_trace", &signal_trace_fops);
 	
 	return 0;
 }
@@ -182,7 +181,7 @@ int trace_sig_exit(void)
 {
 	trace_sig_disable();
 	if (signal_trace_proc)
-		remove_proc_entry("sysak_sig_trace", NULL);
+		sysak_remove_proc_entry("sig_trace");
 	return 0;
 }
 
