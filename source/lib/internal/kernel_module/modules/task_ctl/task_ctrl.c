@@ -13,7 +13,7 @@
 #include <linux/kthread.h>
 
 #include "common/hook.h"
-
+#include "common/proc.h"
 
 enum TASK_CTL_TYPE{
 	TASK_LOOP,
@@ -138,8 +138,7 @@ const struct file_operations task_ctl_fops = {
 
 int task_ctl_init(void)
 {
-	task_ctl_proc = proc_create("sysak_task_ctl",
-			0644, NULL,  &task_ctl_fops);
+	task_ctl_proc = sysak_proc_create("task_ctl", &task_ctl_fops);
 	
 	return 0;
 }
@@ -148,7 +147,7 @@ int task_ctl_exit(void)
 {
 	task_ctl_disable();
 	if (task_ctl_proc)
-		remove_proc_entry("sysak_task_ctl", NULL);
+		sysak_remove_proc_entry("sysak_task_ctl");
 	return 0;
 }
 
