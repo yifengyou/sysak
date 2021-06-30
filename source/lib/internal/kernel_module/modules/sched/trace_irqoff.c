@@ -6,8 +6,6 @@
 #include <linux/kallsyms.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
 #include <linux/sizes.h>
 #include <linux/stacktrace.h>
 #include <linux/timer.h>
@@ -15,6 +13,7 @@
 #include <linux/kprobes.h>
 #include <linux/version.h>
 #include <asm/irq_regs.h>
+#include "common/proc.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
 #include <linux/sched.h>
@@ -29,39 +28,6 @@
 	(MAX_TRACE_ENTRIES / PER_TRACE_ENTRIES_AVERAGE)
 
 #define MAX_LATENCY_RECORD		10
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)
-#ifndef DEFINE_SHOW_ATTRIBUTE
-#define DEFINE_SHOW_ATTRIBUTE(__name)					\
-static int __name ## _open(struct inode *inode, struct file *file)	\
-{									\
-	return single_open(file, __name ## _show, inode->i_private);	\
-}									\
-									\
-static const struct file_operations __name ## _fops = {			\
-	.owner		= THIS_MODULE,					\
-	.open		= __name ## _open,				\
-	.read		= seq_read,					\
-	.llseek		= seq_lseek,					\
-	.release	= single_release,				\
-}
-#endif /* DEFINE_SHOW_ATTRIBUTE */
-#define IRQ_OFF_DEFINE_SHOW_ATTRIBUTE DEFINE_SHOW_ATTRIBUTE
-
-#else /* LINUX_VERSION_CODE */
-#define IRQ_OFF_DEFINE_SHOW_ATTRIBUTE(__name)				\
-static int __name ## _open(struct inode *inode, struct file *file)	\
-{									\
-	return single_open(file, __name ## _show, inode->i_private);	\
-}									\
-									\
-static const struct proc_ops __name ## _fops = {			\
-	.proc_open	= __name ## _open,				\
-	.proc_read	= seq_read,					\
-	.proc_lseek	= seq_lseek,					\
-	.proc_release	= single_release,				\
-}
-#endif /* LINUX_VERSION_CODE */
 
 static bool trace_enable;
 
@@ -173,8 +139,6 @@ static int noop_pre_handler(struct kprobe *p, struct pt_regs *regs){
 }
 
 /**
- * Since commit 0bd476e6c671 ("kallsyms: unexport kallsyms_lookup_name()
- * and kallsyms_on_each_symbol()"), kallsyms_lookup_name is unexported.
  *
  * We can only find the kallsyms_lookup_name's addr by using kprobes, then use
  * the unexported kallsyms_lookup_name to find symbols.
@@ -385,86 +349,6 @@ static void smp_timers_start(void *info)
 	add_timer_on(timer, smp_processor_id());
 }
 
-#define NUMBER_CHARACTER	40
-
-static bool histogram_show(struct seq_file *m, const char *header,
-			   const unsigned long *hist, unsigned long size,
-			   unsigned int factor)
-{
-	int i, zero_index = 0;
-	unsigned long count_max = 0;
-
-	for (i = 0; i < size; i++) {
-		unsigned long count = hist[i];
-
-		if (count > count_max)
-			count_max = count;
-
-		if (count)
-			zero_index = i + 1;
-	}
-	if (count_max == 0)
-		return false;
-
-	/* print header */
-	if (header)
-		seq_printf(m, "%s\n", header);
-	seq_printf(m, "%*c%s%*c : %-9s %s\n", 9, ' ', "msecs", 10, ' ', "count",
-		   "distribution");
-
-	for (i = 0; i < zero_index; i++) {
-		int num;
-		int scale_min, scale_max;
-		char str[NUMBER_CHARACTER + 1];
-
-		scale_max = 2 << i;
-		scale_min = unlikely(i == 0) ? 1 : scale_max / 2;
-
-		num = hist[i] * NUMBER_CHARACTER / count_max;
-		memset(str, '*', num);
-		memset(str + num, ' ', NUMBER_CHARACTER - num);
-		str[NUMBER_CHARACTER] = '\0';
-
-		seq_printf(m, "%10d -> %-10d : %-8lu |%s|\n",
-			   scale_min * factor, scale_max * factor - 1,
-			   hist[i], str);
-	}
-
-	return true;
-}
-
-static void distribute_show_one(struct seq_file *m, void *v, bool hardirq)
-{
-	int cpu;
-	unsigned long latency_count[MAX_LATENCY_RECORD] = { 0 };
-
-	for_each_online_cpu(cpu) {
-		int i;
-		unsigned long *count;
-		struct per_cpu_stack_trace *trace;
-		
-		trace = per_cpu_ptr(cpu_stack_trace, cpu);
-		count = hardirq ? trace->hardirq_trace.latency_count : trace->softirq_trace.latency_count;
-
-
-		for (i = 0; i < MAX_LATENCY_RECORD; i++)
-			latency_count[i] += count[i];
-	}
-
-	histogram_show(m, hardirq ? "hardirq-off:" : "softirq-off:",
-		       latency_count, MAX_LATENCY_RECORD,
-		       (sampling_period << 1) / (1000 * 1000UL));
-}
-
-static int distribute_show(struct seq_file *m, void *v)
-{
-	distribute_show_one(m, v, true);
-	distribute_show_one(m, v, false);
-
-	return 0;
-}
-
-IRQ_OFF_DEFINE_SHOW_ATTRIBUTE(distribute);
 
 static void seq_print_stack_trace(struct seq_file *m, struct irqoff_trace *trace)
 {
@@ -475,30 +359,6 @@ static void seq_print_stack_trace(struct seq_file *m, struct irqoff_trace *trace
 
 	for (i = 0; i < trace->nr_entries; i++)
 		seq_printf(m, "%*c%pS\n", 5, ' ', (void *)trace->entries[i]);
-}
-
-static ssize_t trace_latency_write(struct file *file, const char __user *buf,
-				   size_t count, loff_t *ppos)
-{
-	unsigned long latency;
-
-	if (kstrtoul_from_user(buf, count, 0, &latency))
-		return -EINVAL;
-
-	if (latency == 0) {
-		int cpu;
-
-		for_each_online_cpu(cpu)
-			smp_call_function_single(cpu, smp_clear_stack_trace,
-						 per_cpu_ptr(cpu_stack_trace, cpu),
-						 true);
-		return count;
-	} else if (latency < (sampling_period << 1) / (1000 * 1000UL))
-		return -EINVAL;
-
-	trace_irqoff_latency = latency * 1000 * 1000UL;
-
-	return count;
 }
 
 static void trace_latency_show_one(struct seq_file *m, void *v, bool hardirq)
@@ -558,41 +418,31 @@ static int trace_latency_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int trace_latency_open(struct inode *inode, struct file *file)
+
+static ssize_t trace_latency_store(void *priv, const char __user *buf, size_t count)
 {
-	return single_open(file, trace_latency_show, inode->i_private);
+	unsigned long latency;
+
+	if (kstrtoul_from_user(buf, count, 0, &latency))
+		return -EINVAL;
+
+	if (latency == 0) {
+		int cpu;
+
+		for_each_online_cpu(cpu)
+			smp_call_function_single(cpu, smp_clear_stack_trace,
+						 per_cpu_ptr(cpu_stack_trace, cpu),
+						 true);
+		return count;
+	} else if (latency < (sampling_period << 1) / (1000 * 1000UL))
+		return -EINVAL;
+
+	trace_irqoff_latency = latency * 1000 * 1000UL;
+
+	return count;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)
-static const struct file_operations trace_latency_fops = {
-	.owner		= THIS_MODULE,
-	.open		= trace_latency_open,
-	.read		= seq_read,
-	.write		= trace_latency_write,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-#else
-static const struct proc_ops trace_latency_fops = {
-	.proc_open	= trace_latency_open,
-	.proc_read	= seq_read,
-	.proc_write	= trace_latency_write,
-	.proc_lseek	= seq_lseek,
-	.proc_release	= single_release,
-};
-#endif
-
-static int enable_show(struct seq_file *m, void *ptr)
-{
-	seq_printf(m, "%s\n", trace_enable ? "enabled" : "disabled");
-
-	return 0;
-}
-
-static int enable_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, enable_show, inode->i_private);
-}
+DEFINE_PROC_ATTRIBUTE_RW(trace_latency);
 
 static void trace_irqoff_start_timers(void)
 {
@@ -641,24 +491,14 @@ static void trace_irqoff_cancel_timers(void)
 	}
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0)
-#include <linux/string.h>
-
-int __weak kstrtobool_from_user(const char __user *s, size_t count, bool *res)
+static int enable_show(struct seq_file *m, void *ptr)
 {
-	/* Longest string needed to differentiate, newline, terminator */
-	char buf[4];
+	seq_printf(m, "%s\n", trace_enable ? "enabled" : "disabled");
 
-	count = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, s, count))
-		return -EFAULT;
-	buf[count] = '\0';
-	return strtobool(buf, res);
+	return 0;
 }
-#endif
 
-static ssize_t enable_write(struct file *file, const char __user *buf,
-			    size_t count, loff_t *ppos)
+static ssize_t enable_store(void *priv, const char __user *buf, size_t count)
 {
 	bool enable;
 
@@ -677,24 +517,7 @@ static ssize_t enable_write(struct file *file, const char __user *buf,
 
 	return count;
 }
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)
-static const struct file_operations enable_fops = {
-	.open		= enable_open,
-	.read		= seq_read,
-	.write		= enable_write,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-#else
-static const struct proc_ops enable_fops = {
-	.proc_open	= enable_open,
-	.proc_read	= seq_read,
-	.proc_write	= enable_write,
-	.proc_lseek	= seq_lseek,
-	.proc_release	= single_release,
-};
-#endif
+DEFINE_PROC_ATTRIBUTE_RW(enable);
 
 static int sampling_period_show(struct seq_file *m, void *ptr)
 {
@@ -703,13 +526,7 @@ static int sampling_period_show(struct seq_file *m, void *ptr)
 	return 0;
 }
 
-static int sampling_period_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, sampling_period_show, inode->i_private);
-}
-
-static ssize_t sampling_period_write(struct file *file, const char __user *buf,
-				     size_t count, loff_t *ppos)
+static ssize_t sampling_period_store(void *priv, const char __user *buf, size_t count)
 {
 	unsigned long period;
 
@@ -727,24 +544,7 @@ static ssize_t sampling_period_write(struct file *file, const char __user *buf,
 
 	return count;
 }
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)
-static const struct file_operations sampling_period_fops = {
-	.open		= sampling_period_open,
-	.read		= seq_read,
-	.write		= sampling_period_write,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-#else
-static const struct proc_ops sampling_period_fops = {
-	.proc_open	= sampling_period_open,
-	.proc_read	= seq_read,
-	.proc_write	= sampling_period_write,
-	.proc_lseek	= seq_lseek,
-	.proc_release	= single_release,
-};
-#endif
+DEFINE_PROC_ATTRIBUTE_RW(sampling_period);
 
 
 extern int  trace_noschedule_init(struct proc_dir_entry *root_dir);
@@ -764,7 +564,7 @@ int trace_irqoff_init(void)
 
 	stack_trace_skip_hardirq_init();
 	
-	root_dir = proc_mkdir("runlatency", NULL);
+	root_dir = sysak_proc_mkdir("runlatency");
 	if (!root_dir) {
 		ret = -ENOMEM;
 		goto free_percpu;
@@ -810,7 +610,7 @@ int trace_irqoff_init(void)
 remove_proc:
 	remove_proc_subtree("irqoff", root_dir);
 remove_root:
-	remove_proc_subtree("runlatency", NULL);
+	sysak_remove_proc_entry("runlatency");
 free_percpu:
 	free_percpu(cpu_stack_trace);
 
@@ -823,7 +623,7 @@ void trace_irqoff_exit(void)
 		trace_irqoff_cancel_timers();
 	trace_noschedule_exit();
 	trace_runqlat_exit();
-	remove_proc_subtree("runlatency", NULL);
+	sysak_remove_proc_entry("runlatency");
 	free_percpu(cpu_stack_trace);
 }
 

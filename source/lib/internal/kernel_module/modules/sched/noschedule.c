@@ -16,6 +16,7 @@
 #include <linux/vmalloc.h>
 #include <trace/events/sched.h>
 #include <asm/irq_regs.h>
+#include "common/proc.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
 #include <linux/sched.h>
@@ -26,8 +27,6 @@
 #endif
 
 //#define CONFIG_DEBUG_TRACE_NOSCHED
-
-#define DURATION_HISTOGRAM_ENTRY	12
 #define NUMBER_CHARACTER		40
 #define PROC_DIR_NAME			"nosch"
 #define NUM_TRACEPOINTS			1
@@ -37,33 +36,6 @@
 #define MAX_STACE_TRACE_ENTRIES		\
 	(MAX_TRACE_ENTRIES / PER_TRACE_ENTRIES_AVERAGE)
 
-#define DEFINE_PROC_ATTRIBUTE(name, __write)				\
-	static int name##_open(struct inode *inode, struct file *file)	\
-	{								\
-		return single_open(file, name##_show, PDE_DATA(inode));	\
-	}								\
-									\
-	static const struct file_operations name##_fops = {		\
-		.owner		= THIS_MODULE,				\
-		.open		= name##_open,				\
-		.read		= seq_read,				\
-		.write		= __write,				\
-		.llseek		= seq_lseek,				\
-		.release	= single_release,			\
-	}
-
-#define DEFINE_PROC_ATTRIBUTE_RW(name)					\
-	static ssize_t name##_write(struct file *file,			\
-				    const char __user *buf,		\
-				    size_t count, loff_t *ppos)		\
-	{								\
-		return name##_store(PDE_DATA(file_inode(file)), buf,	\
-				    count);				\
-	}								\
-	DEFINE_PROC_ATTRIBUTE(name, name##_write)
-
-#define DEFINE_PROC_ATTRIBUTE_RO(name)	\
-	DEFINE_PROC_ATTRIBUTE(name, NULL)
 
 /**
  * If we call register_trace_sched_{wakeup,wakeup_new,switch,migrate_task}()
@@ -92,8 +64,6 @@ struct per_cpu_stack_trace {
 	unsigned int nr_entries;
 	struct stack_entry stack_entries[MAX_STACE_TRACE_ENTRIES];
 	unsigned long entries[MAX_TRACE_ENTRIES];
-
-	unsigned long hist[DURATION_HISTOGRAM_ENTRY];
 
 	char comms[MAX_STACE_TRACE_ENTRIES][TASK_COMM_LEN];
 	pid_t pids[MAX_STACE_TRACE_ENTRIES];
@@ -281,25 +251,6 @@ static inline bool stack_trace_record(struct per_cpu_stack_trace *stack_trace,
 	return false;
 }
 
-static inline void hist_update(struct per_cpu_stack_trace *stack_trace,
-			       u64 delta)
-{
-	int index = -1;
-	u64 step = sampling_period * 2;
-
-	if (likely(delta < step))
-		return;
-
-	do {
-		delta >>= 1;
-		index++;
-	} while (delta >= step);
-
-	if (unlikely(index >= ARRAY_SIZE(stack_trace->hist)))
-		index = ARRAY_SIZE(stack_trace->hist) - 1;
-	stack_trace->hist[index]++;
-}
-
 static enum hrtimer_restart trace_nosched_hrtimer_handler(struct hrtimer *hrtimer)
 {
 	struct pt_regs *regs = get_irq_regs();
@@ -357,12 +308,6 @@ static void probe_sched_switch(void *priv, bool preempt,
 		cpu_stack_trace->duration[index] = now - last;
 	}
 
-	/**
-	 * Skip the idle task and make sure we are not only the
-	 * running task on the CPU.
-	 */
-	if (!is_idle_task(prev) && !single_task_running())
-		hist_update(cpu_stack_trace, now - last);
 }
 
 static struct noschedule_info nosched_info = {
@@ -548,15 +493,11 @@ DEFINE_PROC_ATTRIBUTE_RW(enable);
 
 static void each_stack_trace_clear(void *priv)
 {
-	int i;
 	struct per_cpu_stack_trace __percpu *stack_trace = priv;
 	struct per_cpu_stack_trace *cpu_stack_trace = this_cpu_ptr(stack_trace);
 
 	cpu_stack_trace->nr_entries = 0;
 	cpu_stack_trace->nr_stack_entries = 0;
-
-	for (i = 0; i < ARRAY_SIZE(cpu_stack_trace->hist); i++)
-		cpu_stack_trace->hist[i] = 0;
 }
 
 static inline void seq_print_stack_trace(struct seq_file *m,

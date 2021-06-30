@@ -16,7 +16,7 @@ sysak-objs += modules/signal/trace_sig.o
 sysak-objs += modules/memleak/memleak.o
 sysak-objs += modules/memleak/objects.o
 sysak-objs += modules/memleak/hashlist.o
-sysak-objs += modules/sched/noschedule.o modules/sched/rtrace_irqoff.o modules/sched/trace_runqlat.o
+sysak-objs += modules/sched/noschedule.o modules/sched/trace_irqoff.o modules/sched/trace_runqlat.o
 sysak-objs += modules/task_ctl/task_ctrl.o
 
 obj-m += sysak.o
