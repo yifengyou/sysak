@@ -21,7 +21,7 @@ static int rate = 20;
 #define CALL_SIZE (1000)
 static int call_index = 0;
 
-struct user_call_site *call;
+static struct user_call_site *call;
 
 static inline int is_in(struct user_call_site *call, unsigned long long call_site, int page)
 {

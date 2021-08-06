@@ -22,7 +22,7 @@ static int mark_nr = 0;
 #define CALL_SIZE (1000)
 static int call_index = 0;
 
-struct user_call_site *call;
+static struct user_call_site *call;
 
 struct user_rcu_exec {
 	int pid;
