@@ -16,13 +16,9 @@ SYSAK_MOD=$LIB_PATH/sysak.ko
 function usage() {
 	echo "Usage: $0 [opt] subcmd [cmdargs]"
 	echo "       opt: -h, help information"
-	echo "            -g, if subcmd not exist, try to get from server"
 	echo "       subcmd:"
-	echo "              upgrade, upgrade sysAK to the latest version"
 	echo "              list, show all components"
 	echo "              help, help information for specify component"
-	echo "              get, get specify component"
-	echo "              upload, upload result data"
 }
 
 function upgrade() {
