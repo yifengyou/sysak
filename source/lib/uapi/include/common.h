@@ -8,6 +8,8 @@
 
 #define CHR_NAME "sysak"
 
-#define MEMLEAK_IOCTL_CMD (1)
+enum SYSAK_IOCTL_CMD {
+	MEMLEAK_IOCTL_CMD = 1,
+};
 
 #endif
