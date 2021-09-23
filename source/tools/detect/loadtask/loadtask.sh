@@ -1,6 +1,6 @@
 #!/bin/sh
 #****************************************************************#
-# ScriptName: load_tasks.sh
+# ScriptName: loadtask.sh
 # Author: $SHTERM_REAL_USER@alibaba-inc.com
 # Create Date: 2021-02-06 10:53
 # Modify Author: $SHTERM_REAL_USER@alibaba-inc.com
