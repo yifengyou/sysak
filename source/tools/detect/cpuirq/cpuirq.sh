@@ -1,6 +1,6 @@
 #!/bin/sh
 #****************************************************************#
-# ScriptName: cpu_irq.sh
+# ScriptName: cpuirq.sh
 # Author: $SHTERM_REAL_USER@alibaba-inc.com
 # Create Date: 2021-02-09 15:21
 # Modify Author: $SHTERM_REAL_USER@alibaba-inc.com
@@ -34,11 +34,11 @@ OLD_IFS="$IFS"
 for irq in `ls /proc/irq`; do
 	if [ "$irq" -ge 0 ] 2>/dev/null; then
 		cpulist=`cat /proc/irq/$irq/smp_affinity_list`;
-		IFS="," 
-		arr=($cpulist) 
+		IFS=","
+		arr=($cpulist)
 		for item in ${arr[@]}; do
 			IFS="-"
-			range=($item)			
+			range=($item)
 			min=${range[0]}
 			max=${range[1]}
 			if [ ${range[0]} -eq $cpu ]; then

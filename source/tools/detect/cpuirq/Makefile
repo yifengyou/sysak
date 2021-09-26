@@ -1,4 +1,4 @@
-target := cpu_irq
+target := cpuirq
 
 include $(SRC)/mk/sh.mk
 
