@@ -9,11 +9,11 @@
 #***************************************************************#
 maxsys=20
 interval=5
-datafile=perf.data
+datafile=/var/log/sysak/sysmonitor.data
 lasttime=10
 
 usage() {
-	echo "sysak sys_monitory: auto perf when sys util over threshold"
+	echo "sysak sys_monitor: auto perf when sys util over threshold"
 	echo "options: -h, help information"
 	echo "         -m maxsys, auto perf when sys util over threshold  "
 	echo "         -c cpu, cpu to mointor, default the total util to monitor"
