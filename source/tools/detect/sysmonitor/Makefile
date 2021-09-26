@@ -1,4 +1,4 @@
-target := sys_monitor
+target := sysmonitor
 
 include $(SRC)/mk/sh.mk
 
