@@ -623,7 +623,6 @@ void trace_irqoff_exit(void)
 		trace_irqoff_cancel_timers();
 	trace_noschedule_exit();
 	trace_runqlat_exit();
-	sysak_remove_proc_entry("runlatency");
 	free_percpu(cpu_stack_trace);
 }
 

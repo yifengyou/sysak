@@ -146,8 +146,6 @@ int task_ctl_init(void)
 int task_ctl_exit(void)
 {
 	task_ctl_disable();
-	if (task_ctl_proc)
-		sysak_remove_proc_entry("sysak_task_ctl");
 	return 0;
 }
 

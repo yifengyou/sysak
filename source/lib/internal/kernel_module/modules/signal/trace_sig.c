@@ -180,8 +180,6 @@ int trace_sig_init(void)
 int trace_sig_exit(void)
 {
 	trace_sig_disable();
-	if (signal_trace_proc)
-		sysak_remove_proc_entry("sig_trace");
 	return 0;
 }
 
