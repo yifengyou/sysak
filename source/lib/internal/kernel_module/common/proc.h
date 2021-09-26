@@ -5,6 +5,7 @@
 #include <linux/seq_file.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0)
+#include <asm/uaccess.h>
 #include <linux/string.h>
 
 int __weak kstrtobool_from_user(const char __user *s, size_t count, bool *res)
