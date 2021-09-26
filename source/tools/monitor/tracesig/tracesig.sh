@@ -1,11 +1,11 @@
 WORK_PATH=`dirname $0`
 
 trace_sig_enable() {
-	echo "enable" > /proc/sysak_sig_trace
+	echo "enable" > /proc/sysak/sig_trace
 }
 
 trace_sig_disable() {
-	echo "disable" > /proc/sysak_sig_trace
+	echo "disable" > /proc/sysak/sig_trace
 }
 
 usage() {
@@ -25,13 +25,13 @@ while getopts 'p:c:s:edrh' OPT; do
 			exit 0
 			;;
 		"p")
-			echo "pid $OPTARG" > /proc/sysak_sig_trace
+			echo "pid $OPTARG" > /proc/sysak/sig_trace
 			;;
 		"c")
-			echo "comm $OPTARG" > /proc/sysak_sig_trace
+			echo "comm $OPTARG" > /proc/sysak/sig_trace
 			;;
 		"s")
-			echo "sig $OPTARG" > /proc/sysak_sig_trace
+			echo "sig $OPTARG" > /proc/sysak/sig_trace
 			;;
 		"e")
 			trace_enable=true

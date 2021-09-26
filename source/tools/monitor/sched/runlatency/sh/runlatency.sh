@@ -2,15 +2,15 @@ WORK_PATH=`dirname $0`/
 pid=-1
 
 runlatency_enable() {
-	echo 1 > /proc/runlatency/irqoff/enable
-	echo 1 > /proc/runlatency/nosch/enable
-	echo $pid > /proc/runlatency/runqlat/pid
+	echo 1 > /proc/sysak/runlatency/irqoff/enable
+	echo 1 > /proc/sysak/runlatency/nosch/enable
+	echo $pid > /proc/sysak/runlatency/runqlat/pid
 }
 
 runlatency_disable() {
-	echo 0 > /proc/runlatency/irqoff/enable
-	echo 0 > /proc/runlatency/nosch/enable
-	echo -1 > /proc/runlatency/runqlat/pid
+	echo 0 > /proc/sysak/runlatency/irqoff/enable
+	echo 0 > /proc/sysak/runlatency/nosch/enable
+	echo -1 > /proc/sysak/runlatency/runqlat/pid
 }
 
 runlatency_report() {

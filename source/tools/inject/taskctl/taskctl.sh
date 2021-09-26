@@ -1,11 +1,11 @@
 WORK_PATH=`dirname $0`
 
 task_ctl_enable() {
-	echo "enable" > /proc/sysak_task_ctl
+	echo "enable" > /proc/sysak/task_ctl
 }
 
 task_ctl_disable() {
-	echo "disable" > /proc/sysak_task_ctl
+	echo "disable" > /proc/sysak/task_ctl
 }
 
 usage() {
@@ -24,10 +24,10 @@ while getopts 'p:t:edh' OPT; do
 			exit 0
 			;;
 		"p")
-			echo "pid $OPTARG" > /proc/sysak_task_ctl
+			echo "pid $OPTARG" > /proc/sysak/task_ctl
 			;;
 		"t")
-			echo "type $OPTARG" > /proc/sysak_task_ctl
+			echo "type $OPTARG" > /proc/sysak/task_ctl
 			;;
 		"e")
 			trace_enable=true
