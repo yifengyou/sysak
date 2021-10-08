@@ -12,6 +12,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 
+#include "sysak_mods.h"
 #include "common/hook.h"
 #include "common/proc.h"
 
@@ -21,6 +22,7 @@ struct trace_sig_info {
 	int sig;
 }trace_info;
 
+static int sig_ref;
 #define BUFFER_LEN 256
 static char process_info_buf[BUFFER_LEN];
 
@@ -90,6 +92,7 @@ static void trace_sig_enable(void)
 		return;
 	hook_tracepoint("signal_generate", signal_generate_trace, NULL);
 	trace_enabled = true;
+	sysak_module_get(&sig_ref);
 }
 
 static void trace_sig_disable(void)
@@ -100,6 +103,7 @@ static void trace_sig_disable(void)
 	unhook_tracepoint("signal_generate", signal_generate_trace, NULL);
 	synchronize_sched();
 	trace_enabled = false;
+	sysak_module_put(&sig_ref);
 }
 
 static ssize_t signal_trace_write(struct file *file,
