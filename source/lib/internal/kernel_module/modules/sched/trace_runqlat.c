@@ -14,6 +14,7 @@
 #include <linux/version.h>
 #include <linux/vmalloc.h>
 #include <trace/events/sched.h>
+#include "sysak_mods.h"
 #include "common/proc.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
@@ -85,6 +86,8 @@ static struct runqlat_info runqlat_info = {
 	.threshold	= THRESHOLD_DEFAULT,
 	.lock		= __ARCH_SPIN_LOCK_UNLOCKED,
 };
+
+static int runqlat_ref;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0)
 static struct tracepoint **runq__start___tracepoints_ptrs;
@@ -394,7 +397,10 @@ static ssize_t trace_pid_store(void *priv, const char __user *buf, size_t count)
 		memset(info->trace_entries, 0,
 		       MAX_TRACE_ENTRIES * sizeof(struct trace_entry) +
 		       MAX_TRACE_ENTRY_TASKS * sizeof(struct task_entry));
-	}
+		sysak_module_get(&runqlat_ref);
+	} else 
+		sysak_module_put(&runqlat_ref);
+
 	runqlat_info_reset(info);
 	smp_wmb();
 	info->pid = pid;

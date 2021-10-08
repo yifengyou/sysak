@@ -16,6 +16,7 @@
 #include <linux/vmalloc.h>
 #include <trace/events/sched.h>
 #include <asm/irq_regs.h>
+#include "sysak_mods.h"
 #include "common/proc.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
@@ -77,6 +78,8 @@ struct noschedule_info {
 
 	struct per_cpu_stack_trace __percpu *stack_trace;
 };
+
+static int nosched_ref;
 
 /* Whether to enable the tracker. */
 static bool trace_enable;
@@ -475,18 +478,20 @@ static ssize_t enable_store(void *priv, const char __user *buf, size_t count)
 		return count;
 
 	if (enable) {
-		if (!trace_nosched_register_tp())
+		if (!trace_nosched_register_tp()) {
 			trace_nosched_hrtimer_start();
+			sysak_module_get(&nosched_ref);
+		}
 		else
 			return -EAGAIN;
 	} else {
 		trace_nosched_hrtimer_cancel();
 		if (trace_nosched_unregister_tp())
 			return -EAGAIN;
+		sysak_module_put(&nosched_ref);
 	}
 
 	trace_enable = enable;
-
 	return count;
 }
 DEFINE_PROC_ATTRIBUTE_RW(enable);

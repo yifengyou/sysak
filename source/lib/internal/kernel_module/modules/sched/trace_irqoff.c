@@ -13,6 +13,7 @@
 #include <linux/kprobes.h>
 #include <linux/version.h>
 #include <asm/irq_regs.h>
+#include "sysak_mods.h"
 #include "common/proc.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
@@ -29,6 +30,7 @@
 
 #define MAX_LATENCY_RECORD		10
 
+static int irqoff_ref;
 static bool trace_enable;
 
 /**
@@ -508,10 +510,14 @@ static ssize_t enable_store(void *priv, const char __user *buf, size_t count)
 	if (!!enable == !!trace_enable)
 		return count;
 
-	if (enable)
+	if (enable) {
 		trace_irqoff_start_timers();
-	else
+		sysak_module_get(&irqoff_ref);
+	}
+	else {
 		trace_irqoff_cancel_timers();
+		sysak_module_put(&irqoff_ref);
+	}
 
 	trace_enable = enable;
 
