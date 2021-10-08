@@ -12,6 +12,8 @@ struct sysak_module {
 
 extern struct sysak_module sysak_modules[];
 extern const int sysk_module_num;
+extern void sysak_module_get(int *mod_ref);
+extern void sysak_module_put(int *mod_ref);
 extern int sysak_dev_init(void);
 extern void sysak_dev_uninit(void);
 extern int sysak_bbox_init(void);

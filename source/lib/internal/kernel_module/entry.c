@@ -14,6 +14,22 @@
 #include "common/proc.h"
 #include "sysak_mods.h"
 
+void sysak_module_get(int *mod_ref)
+{
+	if (*mod_ref)
+		return;
+	try_module_get(THIS_MODULE);
+	*mod_ref = 1;
+}
+
+void sysak_module_put(int *mod_ref)
+{
+	if (*mod_ref) {
+		*mod_ref = 0;
+		module_put(THIS_MODULE);
+	}
+}
+
 static int sysak_mod_init(void)
 {
 	int i, ret;
