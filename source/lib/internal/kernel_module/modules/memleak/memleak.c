@@ -5,12 +5,14 @@
 #include <linux/mmzone.h>
 #include <linux/page-flags.h>
 
+#include "sysak_mods.h"
 #include"mem.h"
 #include"common/hook.h"
 
 #define HASH_SIZE (1024)
 #define PRE_ALLOC (2048)
 
+static int memleak_ref;
 static struct memleak_htab *tab;
 static ssize_t (*show_slab_objects)(struct kmem_cache *s, char *buf);
 
@@ -525,7 +527,7 @@ int memleak_release(void)
 	printk("memleak release\n");
 	memleak_trace_off(tab);
     memleak_clear_leak(tab);
-
+	sysak_module_put(&memleak_ref);
 	return 0;
 }
 
@@ -552,7 +554,8 @@ int memleak_handler_cmd(int cmd, unsigned long arg)
             pr_info("type = %d time = %d,slabname %s ext %d,rate=%d\n",set.type, set.monitor_time, set.name, set.ext,set.rate);
             htab->set = set;
             ret = memleak_trace_on(htab);
-
+            if (!ret)
+                sysak_module_get(&memleak_ref);
             break;
 
         case MEMLEAK_CMD_RESULT:
