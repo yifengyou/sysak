@@ -12,6 +12,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 
+#include "sysak_mods.h"
 #include "common/hook.h"
 #include "common/proc.h"
 
@@ -28,6 +29,7 @@ struct task_ctl_info {
 	enum TASK_CTL_TYPE type;
 }ctl_info;
 
+static int taskctl_ref;
 static bool ctl_enabled;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)
@@ -53,6 +55,7 @@ static void task_ctl_enable(void)
 		return;
 	hook_tracepoint("sys_enter", syscall_enter_trace, NULL);
 	ctl_enabled = true;
+	sysak_module_get(&taskctl_ref);
 }
 
 static void task_ctl_disable(void)
@@ -63,6 +66,7 @@ static void task_ctl_disable(void)
 	unhook_tracepoint("sys_enter", syscall_enter_trace, NULL);
 	synchronize_sched();
 	ctl_enabled = false;
+	sysak_module_put(&taskctl_ref);
 }
 
 static ssize_t task_ctl_write(struct file *file,
