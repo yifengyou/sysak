@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @Author: lichen
+# @Author: lichen/shiyan/tuquan
 
 """
 This script is the entry of ossre. It tries to detect OS exceptions and diagnose these
