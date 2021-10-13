@@ -1,0 +1,95 @@
+ossre介绍:
+ossre目标是做自动化的OS诊断专家系统，自动化发现OS异常并对OS异常做自动化诊断，主要具备的能力包括：
+1）线上问题分析，自动分析线上问题并提供关联修复建议或者upstream fix
+2）宕机自动分析，自动分析宕机产生的vmcore和dmesg文件，并提供关联修复建议或者upstream fix
+3）配置异常检查
+4）OS指标检查和异常指标诊断
+5）OS日志异常分析
+6）硬件问题识别
+7）主机健康巡检
+
+工具依赖:
+完整使用ossre的全部功能，需要依赖如下的软件，请在使用前安装。
+1) crash tools(https://github.com/crash-utility/crash)
+2) kernel-debuginfo package
+3) ssar or tsar
+https://codeup.openanolis.cn/codeup/tracing_diagnosis/ssar
+https://github.com/alibaba/tsar
+4) perf-tools(https://perf.wiki.kernel.org/index.php/Main_Page)
+5）python 注意：目前仅支持python2，python3正在适配中。
+
+运行方式：
+1) 缺省模式：自动扫描机器OS异常并自动诊断异常原因，推荐使用的缺省模式.
+  命令： "sudo python ./ossre.py -d"
+2) 全量模式：如果需要全量扫描OS异常并做诊断，主要是会依赖于crash／perf/kernel-debuginfo等工具做较耗时的诊断，
+命令："sudo python ./ossre.py -d -a"。
+该模式主要是在缺省模式没有扫描出异常或者未诊断出异常原因的前提下运行全量的诊断
+3) 巡检模式：扫描机器是否存在OS异常，
+命令： "sudo python ./tools/syscheck.py"，该模式适合在集群批量运行做集群健康巡检。
+4) 宕机分析：分析宕机日志匹配已知问题。
+自动扫描机器上kdump生成的vmcore文件并匹配已知问题， 命令："sudo python ./ossre.py -p", 
+如需指定宕机的dmesg文件做分析，命令： "sudo python ./ossre.py -p -l xxx", 
+如 "sudo python ./ossre.py -p -l /home/var/crash/127.0.0.1-2020-09-27-15\:13\:19/vmcore-dmesg.txt"
+5) 日志分析：指定日志文件分析是否存在已知问题。
+命令： "sudo python ./ossre.py -l xxx.log", 
+如 "sudo python ./ossre.py -l /var/log/kern"
+
+输出结果说明
+目前ossre会做5大类检查，包括SLI／CONFIG／ISSUE／LOG／HW，输出结果也会按这五大类做归类。
+1）缺省输出
+检查和诊断结论会通过打印输出，同时也会将诊断结果保存在/var/log/sysak/ossre.log日志文件，以json格式存储，检查和诊断结果可直接关注该文件的summary字段，通过"cat /var/log/sysak/ossre.log | json_reformat" ，提取["ossre"]["fields"]["summary"]字段。
+参考代码：
+    cmd = ("cat /var/log/sysak/ossre.log")
+    output = os.popen(cmd)
+    ret = output.read().strip()
+    output.close()
+    if ret and len(ret) > 0:
+        try:
+            data = json.loads(ret,strict=False)
+            if "ossre" in data:
+                result = json.dumps(data["ossre"]["fields"]['summary'],ensure_ascii=False)
+                print "result=",result
+                return result
+        except Exception as e:
+            traceback.print_exc()
+2）业务对接输出
+为了方便对接业务运维系统，增加了["ossre"]["fields"]["cust"] 字段，该字段是一个python的字典，包括诊断的5大类（SLI／CONFIG／ISSUE／LOG／HW），每一个具体的诊断项会放在cust["SLI|CONFIG|ISSUE|LOG|HW"]下面，每一个诊断项会包括（level, category，name，desc，solution和summary字段）。
+诊断大类说明
+SLI: OS关键指标检查
+CONFIG：OS配置类检查
+ISSUE：OS已知问题检查
+LOG：OS异常日志检查
+HW：硬件错误检查
+异常级别说明
+目前定义5个异常级别，从高到低为fatal－》critical－》error－》warning－》info
+fatal：最严重的异常级别，一般是指硬件错误或者批量宕机／夯机的异常
+critical：严重级别，一般是导致宕机和夯机的异常
+error：错误级别，一般是常见OS错误，已经触发故障
+warning：报警级别，可能会存在稳定性风险，还没触发故障
+info：信息输出级别，无稳定性风险
+
+诊断项字段说明
+目前每个诊断项定义了下面几个字段：level, category，name，desc，solution，summary
+level: 该诊断项的稳定性风险级别，见上面的“异常风险级别说明”。
+catgory：该诊断项所属类别，目标主要是CPU，内存，IO，网络，MISC等
+name：诊断项的名字，方便对外展示
+desc：诊断项的描述信息
+solution：针对诊断项异常的修复方案
+summary：诊断项的诊断结果，这个是缺省对外的诊断信息
+
+参考代码：
+    cmd = ("cat /var/log/sysak/ossre.log")
+    output = os.popen(cmd)
+    ret = output.read().strip()
+    output.close()
+		if ret and len(ret) > 0:
+        try:
+            data = json.loads(ret,strict=False)
+            if "ossre" in data and "cust" in data["ossre"]["fields"]:
+                cust = data["ossre"]["fields"]["cust"]
+                result = json.dumps(cust,ensure_ascii=False)
+                print "result=",result
+                return result
+        except Exception as e:
+            traceback.print_exc()
+
