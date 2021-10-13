@@ -21,7 +21,7 @@ sys.path.append("%s/vmcore"%(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append("%s/rules"%(os.path.dirname(os.path.abspath(__file__))))
 
 VMCORE_FUNCS = {
-        'VMCORE':[]
+        'VMCORE':['parse_panic']
 }
 
 """
