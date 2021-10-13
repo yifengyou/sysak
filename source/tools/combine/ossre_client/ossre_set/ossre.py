@@ -93,7 +93,7 @@ logger = get_logger()
 def get_tsar_path(cache_data):
     tsar_path = utils.get_tsar_path(cache_data)
     if len(tsar_path) <= 0:
-        print("Warning: Please install https://github.com/alibaba/tsar!")
+        print("Warning: Please install ssar or tsar!")
 
     return tsar_path
 

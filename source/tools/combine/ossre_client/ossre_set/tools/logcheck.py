@@ -11,7 +11,6 @@ import sqlite3
 import traceback
 import zlib
 import argparse
-import oomcheck
 
 if sys.version[0] == '2':
     from sets import Set as set
@@ -24,6 +23,8 @@ import collect_data
 import crash
 import utils
 import cust_const
+import oomcheck
+import parse_panic
 
 if sys.version[0] == '2':
     reload(sys)
@@ -548,21 +549,6 @@ def query(sn,data,log_file=""):
             ret['solution']['cust']['softlockup']['params']['softlockup_total_num'] = ret['solution']['softlockup']['total_num']
             ret['solution']['cust']['softlockup']['summary'] = (
                 cust_const.softlockup['summary_format']%(ret['solution']['cust']['softlockup']['params']['softlockup_total_num']))
-            if run_diag:
-                ret['solution']['summary'] += "诊断原因:\n"
-                aones = {}
-                for item in ret['solution']['softlockup']['detail']:
-                    if len(item['solution']) > 0:
-                        for aone in item['solution']:
-                            if aone["issue_id"] != 0:
-                                aones[aone["issue_id"]] = aone["hotfix"]
-                if len(aones) > 0:
-                    for aone in aones:
-                        ret['solution']['summary'] += "疑似问题:Aone ID: https://work.aone.alibaba-inc.com/issue/%s, 关联hotfix: %s\n"%(
-                            aone,aones[aone])
-                        ret['solution']['cust']['softlockup']['summary'] += (
-                            "疑似问题:Aone ID: https://work.aone.alibaba-inc.com/issue/%s, 关联hotfix: %s\n"%(
-                            aone,aones[aone]))
         if ret['solution']['hungtask']['total_num'] > 0:
             ret['solution']['summary'] += "发生hungtask %s次\n"%(ret['solution']['hungtask']['total_num'])
             ret['solution']['cust']['hungtask'] = {}
@@ -575,21 +561,6 @@ def query(sn,data,log_file=""):
             ret['solution']['cust']['hungtask']['params']['hungtask_total_num'] = ret['solution']['hungtask']['total_num']
             ret['solution']['cust']['hungtask']['summary'] = (
                  cust_const.hungtask['summary_format']%(ret['solution']['cust']['hungtask']['params']['hungtask_total_num']))
-            if run_diag:
-                ret['solution']['summary'] += "诊断原因:\n"
-                aones = {}
-                for item in ret['solution']['hungtask']['detail']:
-                    if len(item['solution']) > 0:
-                        for aone in item['solution']:
-                            if aone["issue_id"] != 0:
-                                aones[aone["issue_id"]] = aone["hotfix"]
-                if len(aones) > 0:
-                    for aone in aones:
-                        ret['solution']['summary'] += "疑似问题:Aone ID: https://work.aone.alibaba-inc.com/issue/%s, 关联hotfix: %s\n"%(
-                            aone,aones[aone])
-                        ret['solution']['cust']['hungtask']['summary'] += (
-                            "疑似问题:Aone ID: https://work.aone.alibaba-inc.com/issue/%s, 关联hotfix: %s\n"%(
-                            aone,aones[aone]))
         if ret['solution']['rcustall']['total_num'] > 0:
             ret['solution']['summary'] += "发生rcustall %s次\n"%(ret['solution']['rcustall']['total_num'])
             ret['solution']['cust']['rcustall'] = {}

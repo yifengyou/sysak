@@ -24,7 +24,6 @@ def query(sn, data):
     ret = {}
     ret['solution'] = {}
     ret['solution']['crash'] = {}
-    ret['solution']['crash']['API'] = {}
     ret['solution']['crash']['local'] = {}
 
     for func_class in VMCORE_FUNCS:
