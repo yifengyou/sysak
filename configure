@@ -9,6 +9,7 @@ static_link=no
 enable_all=no
 default_target=yes
 kernel_bpf_support=NO
+disable_list=test
 
 usage() {
 	echo "Usage: configure [options]"
@@ -21,6 +22,7 @@ usage() {
 	echo "  --enable-target-xxx        xxx is the actual tool, like memleak, you may use --show-target to list all"
 	echo "  --enable-target-all        enable all compoents"
 	echo "  --disable-default          disable default compoents to built-in"
+	echo "  --disable-target-xxx       xxx is the actual tool, like memleak, you may use --show-target to list all"
 	echo "  --show-target              list all support tools"
 }
 
@@ -107,6 +109,10 @@ for opt; do
 		--disable-default)
 			default_target=no
 			;;
+		--disable-target-*)
+			disable=$(expr "$opt" : '--disable-target-\(.*\)')
+			disable_list="$disable|$disable_list"
+			;;
 		--show-target)
 			grep -nrw "target :=" $(pwd)/source/tools/ | awk '{print $3}' | grep -v test
 			exit
@@ -130,7 +136,7 @@ done
 fi
 
 if [ $enable_all = "yes" ]; then
-target_files=$(grep -nrw "target :=" $(pwd)/source/tools/ | grep -v test | awk -F ":" '{print $1}')
+target_files=$(grep -nrw "target :=" $(pwd)/source/tools/ | grep -vwE $disable_list | awk -F ":" '{print $1}')
 fi
 
 for file in $target_files;do
