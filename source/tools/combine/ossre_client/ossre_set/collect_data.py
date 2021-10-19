@@ -6,14 +6,15 @@ import time,datetime
 import json, base64, hashlib, re
 import crash
 
-live_crash = None
-
 def get_live_crash(sn, data, updated=0):
-    global live_crash
-    if not live_crash or updated:
-        live_crash = crash.Crash()
-        data['live_crash'] = live_crash
-    return live_crash
+    if 'crash_inst' not in data:
+        data['crash_inst'] = None
+    if data['crash_inst'] is None or updated:
+        if 'vmcore' in data and 'vmlinux' in data:
+            data['crash_inst'] = crash.Crash(data['vmcore'], data['vmlinux'])
+        else:
+            data['crash_inst'] = crash.Crash()
+    return data['crash_inst']
 
 def get_vmcore_crash(sn, data, vmcore_path, vmlinux_path, updated=0):
     if 'vmcore' not in data:

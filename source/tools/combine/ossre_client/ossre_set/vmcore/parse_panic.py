@@ -13,6 +13,12 @@ import importlib
 import argparse
 import vmcore_const
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append("%s/../"%(os.path.dirname(os.path.abspath(__file__))))
+import crash
+import collect_data
+import utils
+
 if sys.version[0] == '2':
     reload(sys)
     sys.setdefaultencoding('utf8')
@@ -137,6 +143,20 @@ def parse_file(name, column):
     column['dmesg_file'] = name
     fix_func_name(column)
 
+def parse_rawdmesg(column):
+    dmesgs = column['rawdmesg'].splitlines()
+    column['rawdmesg'] = ''
+    result = ''
+    for line in dmesgs:
+        if line.find('Modules linked in') >= 0:
+            column['modules'] = line[line.find(':')+1:]
+        result += line
+        get_column_value(column, line)
+    #if len(result)>65536:
+    #    result=result[-65536:]
+    column['dmesg'] = result
+    fix_func_name(column)
+
 line_pattern = re.compile(r'.+[0-9]+\]\s+\[.*\][? ]* (\S+)\+0x')
 def get_calltrace(column):
     list1 = []
@@ -177,11 +197,14 @@ def fixup_panic(column):
         return result
 
 def check_panic(column):
-    if os.path.isfile(column['filename']) == False:
+    if 'rawdmesg' not in column and os.path.isfile(column['filename']) == False:
         return
 
     matched = False
-    parse_file(column['filename'], column)
+    if 'rawdmesg' in column:
+        parse_rawdmesg(column)
+    else:
+        parse_file(column['filename'], column)
 
     m = vertype_pattern.match(column['ver'])
     if m:
@@ -277,68 +300,100 @@ def init_column(column):
     column['commitid'] = ''
     column['solution'] = ''
 
-def query(sn, data, log_file=""):
+def query(sn, data, log_file="", crashonly=0):
     ret = {}
     ret['return'] = False
-    ret['solution'] = {}
+    ret['solution'] = []
     column = {}
 
     try:
-        if len(log_file) > 0:
+        if crashonly == 1:
+            result = {}
+            vmcore_file = data['vmcore']
+            vmlinux_file = data['vmlinux']
+            crash_inst = collect_data.get_live_crash(sn, data)
+            dmesgs = crash_inst.cmd("log")
+            init_column(column)
+            column['rawdmesg'] = dmesgs
+            matched = check_panic(column)
+            result['vmcore_file'] = vmcore_file
+            if matched:
+                ret['return'] = True
+                if len(column['commitid']) > 0:
+                    result['commitid'] = column['commitid']
+                if len(column['solution']) > 0:
+                    result['solution'] = column['solution']
+                if len(column['cause']) > 0:
+                    result['cause'] = column['cause']
+            else:
+                result['solution'] = "没有匹配到已知的宕机问题，请联系内核同学!"
+
+            if column['status'] == vmcore_const.STATUS_SYSRQ:
+                ret['return'] = True
+                result["cause"] = "该宕机为手动触发宕机!"
+            elif column['status'] == vmcore_const.STATUS_HWERROR:
+                ret['return'] = True
+                result["cause"] = "该宕机为硬件错误导致宕机!"
+            ret['solution'].append(result)
+        elif len(log_file) > 0:
+            result = {}
             init_column(column)
             column['filename'] = log_file
             column['ver'] = ''
-            ret['solution'][log_file] = {}
+            result['dmesg_file'] = log_file
             matched = check_panic(column)
             if matched:
                 ret['return'] = True
                 if len(column['commitid']) > 0:
-                    ret['solution'][log_file]['commitid'] = column['commitid']
+                    result['commitid'] = column['commitid']
                 if len(column['solution']) > 0:
-                    ret['solution'][log_file]['solution'] = column['solution']
+                    result['solution'] = column['solution']
                 if len(column['cause']) > 0:
-                    ret['solution'][log_file]['cause'] = column['cause']
+                    result['cause'] = column['cause']
             else:
-                ret['solution'][log_file]['solution'] = "没有匹配到已知的宕机问题，请联系内核同学!"
+                result['solution'] = "没有匹配到已知的宕机问题，请联系内核同学!"
 
             if column['status'] == vmcore_const.STATUS_SYSRQ:
                 ret['return'] = True
-                ret['solution'][log_file]["cause"] = "该宕机为手动触发宕机!"
+                result["cause"] = "该宕机为手动触发宕机!"
             elif column['status'] == vmcore_const.STATUS_HWERROR:
                 ret['return'] = True
-                ret['solution'][log_file]["cause"] = "该宕机为硬件错误导致宕机!"
+                result["cause"] = "该宕机为硬件错误导致宕机!"
+            ret['solution'].append(result)
         else:    
             for subdir, dirs, files in os.walk(get_crash_path()):
                 for file in files:
+                    result = {}
                     filepath = subdir + os.sep + file
                     if os.path.isfile(filepath) and filepath.endswith('-dmesg.txt'):
                         init_column(column)
                         column['filename'] = filepath 
                         column['ver'] = ''
-                        ret['solution'][filepath] = {}
+                        result['dmesg_file'] = filepath
                         matched = check_panic(column)
                         if matched:
                             ret['return'] = True
                             if len(column['commitid']) > 0:
-                                ret['solution'][log_file]['commitid'] = column['commitid']
+                                result['commitid'] = column['commitid']
                             if len(column['solution']) > 0:
-                                ret['solution'][log_file]['solution'] = column['solution']
+                                result['solution'] = column['solution']
                             if len(column['cause']) > 0:
-                                ret['solution'][log_file]['cause'] = column['cause']
+                                result['cause'] = column['cause']
                         else:
-                            ret['solution'][log_file]['solution'] = "没有匹配到已知的宕机问题，请联系内核同学!"
+                            result['solution'] = "没有匹配到已知的宕机问题，请联系内核同学!"
                         if column['status'] == vmcore_const.STATUS_SYSRQ:
                             ret['return'] = True
-                            ret['solution'][filepath]["cause"] = "该宕机为手动触发宕机!"
+                            result["cause"] = "该宕机为手动触发宕机!"
                         elif column['status'] == vmcore_const.STATUS_HWERROR:
                             ret['return'] = True
-                            ret['solution'][filepath]["cause"] = "该宕机为硬件错误导致宕机!"
+                            result["cause"] = "该宕机为硬件错误导致宕机!"
+                        ret['solution'].append(result)
     except Exception as e:
         print("Exception in check_vmcores!",e)
         traceback.print_exc()
     finally:
         column['dmesg'] = ""
-        print(column)
+        #print(column)
         print ('VMCORE:%s' %( json.dumps(ret, ensure_ascii=False)))
         return ret
 

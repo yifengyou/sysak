@@ -95,8 +95,8 @@ def query(sn, data):
         if ret:
             return ret
 
-        run_slow = os.environ.get('run_slow')
-        if run_slow is None or int(run_slow) != 1:
+        run_all = os.environ.get('run_all')
+        if run_all is None or int(run_all) != 1:
             return
 
         ret = {}

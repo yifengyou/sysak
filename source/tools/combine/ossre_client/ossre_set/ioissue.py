@@ -27,6 +27,8 @@ def query(sn, data):
     name_keywords = {}
     name_mods = {}
 
+    err_keywords = set()
+    for subdir, dirs, files in os.walk("%s/rules"%(sys.path[0])):
         for file in files:
             filepath = subdir + os.sep + file
             if os.path.isfile(filepath) and file.endswith('.py') and (

@@ -100,9 +100,8 @@ def need_long_time():
 def need_attach_crash():
     return False
 
-# We define a fast mode which has suspected diagnosis to help fast scanning in ossre fast mode.
-# You can have a accurate diagnosis by run this script directly.
-def has_fast_mode():
+# We define a crash-only mode which can use crash-utility to analyze vmcore file.
+def has_crashonly_mode():
     return False
 
 #Reference: http://xxx
