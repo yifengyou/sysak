@@ -126,11 +126,6 @@ def query(sn, data):
         ret['return'] = False
         ret['solution'] = 'Not match'
         hotfix = ''
-        run_fast = os.environ.get('run_fast')
-        if run_fast is not None and int(run_fast) == 1:
-            run_fast = True
-        else:
-            run_fast = False
 
         dmesg = collect_data.get_dmesg(sn, data)
 

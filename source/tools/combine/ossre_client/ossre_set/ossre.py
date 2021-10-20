@@ -51,6 +51,7 @@ run_issuecheck = 0
 run_logcheck = 0
 run_panic = 0
 run_verbose = 0
+run_crash = 0
 log_file=""
 cache_data = {}
 
@@ -200,8 +201,8 @@ def check_log(result,log_file):
             result['fields']['LOG']['summary'] += log_ret['solution']['summary']
             result['fields']['cust']['LOG'] = log_ret['solution']['cust']
         else:
-            result['fields']['SLI']['CRASH'] = {}
-            result['fields']['SLI']['CRASH']['detail'] = log_ret['solution']['panic']['solution']
+            result['fields']['SLI']['PANIC'] = {}
+            result['fields']['SLI']['PANIC']['detail'] = log_ret['solution']['panic']['solution']
     except Exception as e:
         print( 'check_log: exception(%s)!'%(e))
         traceback.print_exc()
@@ -251,12 +252,12 @@ def get_crash_path():
         return '/var/crash/'
 
 
-def check_crash(ret):
+def check_panic(ret):
     total_crash_num = 0
-    ret['fields']['SLI']['CRASH'] = {}
-    ret['fields']['SLI']['CRASH']['local'] = {}
-    ret['fields']['SLI']['CRASH']['local']['total_num'] = 0
-    ret['fields']['SLI']['CRASH']['local']['detail'] = []
+    ret['fields']['SLI']['PANIC'] = {}
+    ret['fields']['SLI']['PANIC']['local'] = {}
+    ret['fields']['SLI']['PANIC']['local']['total_num'] = 0
+    ret['fields']['SLI']['PANIC']['local']['detail'] = []
     ret['fields']['SLI']["summary"] += "1)宕机:\n"
     total_crash_num = 0
     # Check local crash dirs
@@ -269,35 +270,35 @@ def check_crash(ret):
                 if os.path.isfile(filepath) and filepath.endswith('-dmesg.txt'):
                     total_crash_num += 1
                     crash_one = {"vmcore链接":subdir}
-                    ret['fields']['SLI']['CRASH']['local']['detail'].append(crash_one)
+                    ret['fields']['SLI']['PANIC']['local']['detail'].append(crash_one)
                     tmp = subdir[subdir.rfind(".")+1:]
                     crash_time += tmp[tmp.find("-")+1:]
                     crash_time += "\t"
         if total_crash_num > 0:
             ret['status'] = -1
-            ret['fields']['SLI']['CRASH']['local']['total_num'] = total_crash_num
+            ret['fields']['SLI']['PANIC']['local']['total_num'] = total_crash_num
             ret['fields']['SLI']["summary"] += "本地机器上检查到宕机%s次,宕机时间:%s\n"%(total_crash_num,crash_time)
 
-            ret['fields']['cust']['SLI']['CRASH'] = {}
-            ret['fields']['cust']['SLI']['CRASH']['category'] = cust_const.CRASH['category']
-            ret['fields']['cust']['SLI']['CRASH']['level'] = cust_const.CRASH['level']
-            ret['fields']['cust']['SLI']['CRASH']['name'] = cust_const.CRASH['name']
-            ret['fields']['cust']['SLI']['CRASH']['desc'] = cust_const.CRASH['desc']
-            ret['fields']['cust']['SLI']['CRASH']['solution'] = cust_const.CRASH['solution']
-            ret['fields']['cust']['SLI']['CRASH']['params'] = {}
-            ret['fields']['cust']['SLI']['CRASH']['params']['total_crash_num'] = total_crash_num
-            ret['fields']['cust']['SLI']['CRASH']['params']['crash_time'] = crash_time
-            ret['fields']['cust']['SLI']['CRASH']['summary'] = cust_const.CRASH['summary_format']%(
-                ret['fields']['cust']['SLI']['CRASH']['params']['total_crash_num'],ret['fields']['cust']['SLI']['CRASH']['params']['crash_time'])
+            ret['fields']['cust']['SLI']['PANIC'] = {}
+            ret['fields']['cust']['SLI']['PANIC']['category'] = cust_const.PANIC['category']
+            ret['fields']['cust']['SLI']['PANIC']['level'] = cust_const.PANIC['level']
+            ret['fields']['cust']['SLI']['PANIC']['name'] = cust_const.PANIC['name']
+            ret['fields']['cust']['SLI']['PANIC']['desc'] = cust_const.PANIC['desc']
+            ret['fields']['cust']['SLI']['PANIC']['solution'] = cust_const.PANIC['solution']
+            ret['fields']['cust']['SLI']['PANIC']['params'] = {}
+            ret['fields']['cust']['SLI']['PANIC']['params']['total_crash_num'] = total_crash_num
+            ret['fields']['cust']['SLI']['PANIC']['params']['crash_time'] = crash_time
+            ret['fields']['cust']['SLI']['PANIC']['summary'] = cust_const.PANIC['summary_format']%(
+                ret['fields']['cust']['SLI']['PANIC']['params']['total_crash_num'],ret['fields']['cust']['SLI']['PANIC']['params']['crash_time'])
 
             if run_diag == 1:
                 data = {}
                 for func in VMCORE_FUNCS:
                     mod = importlib.import_module(func)
                     crash_ret = mod.query("", cache_data)
-                    ret['fields']['SLI']['CRASH']['local']['detail'] = crash_ret['solution']
+                    ret['fields']['SLI']['PANIC']['local']['detail'] = crash_ret['solution']
                     ret['fields']['SLI']["summary"] += "诊断原因:\n%s\n"%(json.dumps(crash_ret['solution'],ensure_ascii=False))
-                    ret['fields']['cust']['SLI']['CRASH']['summary'] += ("诊断原因:\n%s\n"%(
+                    ret['fields']['cust']['SLI']['PANIC']['summary'] += ("诊断原因:\n%s\n"%(
                         json.dumps(crash_ret['solution'],ensure_ascii=False)))
         else:
             ret['fields']['SLI']["summary"] += "None\n"
@@ -1493,8 +1494,8 @@ def check_highrisk_issues(ret):
     try:
         issue_mod = "process_engine"
         mod = importlib.import_module(issue_mod)
-        ret['fields']['ISSUE']['detail'] = mod.query(1,1,run_all)
-        if ret['fields']['ISSUE']['detail']['all_matched'] and 'cust' in ret['fields']['ISSUE']['detail']['all_matched']:
+        ret['fields']['ISSUE']['detail'] = mod.query(1,)
+        if ('all_matched' in ret['fields']['ISSUE']['detail'] and 'cust' in ret['fields']['ISSUE']['detail']['all_matched']):
             ret['fields']['cust']['ISSUE'] = ret['fields']['ISSUE']['detail']['all_matched']['cust']
             if len(ret['fields']['cust']['ISSUE']) > 0:
                 summary_info={}
@@ -1511,6 +1512,21 @@ def check_highrisk_issues(ret):
 
     except Exception as e:
         print( 'check_highrisk_issues exception:',repr(e))
+        traceback.print_exc()
+        pass
+
+def check_crashonly(ret,data):
+    ret['fields']['CRASH'] = {}
+    ret['fields']['CRASH']['summary'] = ""
+    try:
+        issue_mod = "process_engine"
+        mod = importlib.import_module(issue_mod)
+        result = mod.query(1,crashonly=1,data=data)
+        if ('all_matched' in result and result['all_matched']['PANIC']):
+            ret['fields']['CRASH']['detail'] = result['all_matched']['PANIC']
+            ret['fields']['CRASH']['summary'] = json.dumps(ret['fields']['CRASH']['detail'],ensure_ascii=False)
+    except Exception as e:
+        print( 'check_crashonly exception:',repr(e))
         traceback.print_exc()
         pass
 
@@ -1531,7 +1547,7 @@ def query(sn, data):
     ret['fields']['CONFIG']['HOTFIX'] = {}
     ret['fields']['CONFIG']['summary'] = ""
     ret['fields']['SLI'] = {}
-    ret['fields']['SLI']['CRASH'] = {}
+    ret['fields']['SLI']['PANIC'] = {}
     ret['fields']['SLI']['SCHED'] = {}
     ret['fields']['SLI']['MEM'] = {}
     ret['fields']['SLI']['IO'] = {}
@@ -1573,9 +1589,11 @@ def query(sn, data):
         check_highrisk_issues(ret)
     elif run_logcheck == 1 or run_panic == 1:
         check_log(ret,log_file)
+    elif run_crash == 1:
+        check_crashonly(ret,data)
     else:
         # crash check
-        check_crash(ret)
+        check_panic(ret)
         # log check
         check_log(ret,log_file)
         # hardware check
@@ -1659,7 +1677,7 @@ def query(sn, data):
         print( ret['fields']["summary"])
 
     if run_panic == 1:
-        summary = ret['fields']['SLI']['CRASH']['detail']
+        summary = ret['fields']['SLI']['PANIC']['detail']
         summary = json.dumps(summary,ensure_ascii=False)
         summary = "\n诊断结果:\n"+summary
         ret['fields']["summary"] = summary
@@ -1678,6 +1696,11 @@ def query(sn, data):
         summary = "\n诊断结果:\n"+summary
         ret['fields']["summary"] = summary
         print( summary)
+    elif run_crash == 1:
+        summary = ret['fields']['CRASH']['summary']
+        summary = "\n诊断结果:\n"+summary
+        ret['fields']["summary"] = summary
+        print(summary)
 
     if len(ret) > 0 and __name__=='__main__':
         result = {"ossre":ret}
@@ -1689,6 +1712,7 @@ def query(sn, data):
 def main():
     sn = ''
 
+    global cache_data
     global run_offline
     global run_all
     global run_diag
@@ -1697,6 +1721,9 @@ def main():
     global run_panic
     global run_verbose
     global log_file
+    global run_crash
+    global vmcore_file
+    global vmlinux_file
 
     os.environ['run_silent']="1"
     parser = argparse.ArgumentParser()
@@ -1707,6 +1734,9 @@ def main():
     parser.add_argument('-l','--log', help='run log parse with specified log file only.')
     parser.add_argument('-p','--panic', action='store_true', help='check panic dmesg.')
     parser.add_argument('-i','--issues', action='store_true', help='check known issues only.')
+    parser.add_argument('-c','--crash', action='store_true', help='parse vmcore by crash-utility, please specify vmcore and vmlinux file.')
+    parser.add_argument('--vmcore', help='specify vmcore to be parsed by crash-utility.')
+    parser.add_argument('--vmlinux', help='specify vmlinux for vmcore.')
     args = vars(parser.parse_args())
     if args.get('offline',False) == True:
         run_offline = 1
@@ -1734,11 +1764,23 @@ def main():
         os.environ['run_panic']=str(run_panic)
         run_diag = 1
         os.environ['run_diag']=str(run_diag)
-
-    args, left = parser.parse_known_args()
+    if args.get('crash',False) == True:
+        run_crash = 1
+        os.environ['run_crash']=str(run_crash)
+    if args.get('vmcore',None) is not None:
+        vmcore_file = args.get('vmcore',None)
+        cache_data['vmcore'] = vmcore_file
+    if args.get('vmlinux',None) is not None:
+        vmlinux_file = args.get('vmlinux',None)
+        cache_data['vmlinux'] = vmlinux_file
+    if (run_crash == 1 and ('vmcore' not in cache_data or
+        'vmlinux' not in cache_data)):
+        parser.print_help()
+        exit()
+        
+    args,left = parser.parse_known_args()
     sys.argv = sys.argv[:1]+left
 
-    global cache_data
     utils.set_cache_data(cache_data)
     ret = query(sn, cache_data)
 

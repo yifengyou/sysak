@@ -135,8 +135,8 @@ diskerr={
     "summary_format":"该机器存在硬盘硬件错误,建议硬件检修\n"
 }
 
-CRASH={
-    "category":"CRASH",
+PANIC={
+    "category":"PANIC",
     "level":"critical",
     "name":"宕机检查",
     "desc":"检查机器是否发生宕机,如果发生则机器存在严重稳定性风险",

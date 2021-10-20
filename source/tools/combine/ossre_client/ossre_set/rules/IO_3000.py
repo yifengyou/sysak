@@ -45,14 +45,18 @@ def need_attach_crash():
 def has_fast_mode():
     return True
 
+# We define a crash-only mode which can use crash-utility to analyze vmcore file.
+def has_crashonly_mode():
+    return False
+
 # Reference: https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/commit/?id=346c09f80459a3ad97df1816d6d606169a51001a
 def query(sn, data):
     ret = utils.get_script_result(sn,data)
     if ret:
         return ret
 
-    run_slow = os.environ.get('run_slow')
-    if run_slow is None or int(run_slow) != 1:
+    run_all = os.environ.get('run_all')
+    if run_all is None or int(run_all) != 1:
         return
 
     ret = {}
