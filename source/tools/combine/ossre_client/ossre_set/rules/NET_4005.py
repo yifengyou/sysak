@@ -38,6 +38,12 @@ if sys.version[0] == '2':
     reload(sys)
     sys.setdefaultencoding('utf8')
 
+# Return some categories of this issue, these categories will be used by ossre.
+# Available categories: ['HIGHSYS','HIGHLOAD','HANG','MEMLEAK','DEADLOCK','SOFTLOCKUP','CONFIG'
+# 'HUNGTASK','RCUSTALL','DATA_CORRUPTION','RESOURCE_LEAK','REFERENCE_LEAK','NET_DROP'...]
+def get_category():
+    return ['HANG','HIGHSYS']
+
 #Reference: https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/commit/?id=54ab49fde95605a1077f759ce454d94e84b5ca45
 
 # Return the severity level of the issue identified by this rule.

@@ -53,12 +53,6 @@ Reproduce:
    "rm: cannot remove ‘/etc/host.conf’: No such file or directory".
 '''
 
-# Return category of this rule
-# Current support category: ('memleak','highload','highsys',
-# 'highiowait','highnetretran')
-def get_category():
-    return ''
-
 # Return the severity level of the issue identified by this rule.
 # Current support level: ('fatal','critical','error','warning','info')
 # generally, hardware error is fatal, crash and hang is critical, and
@@ -82,6 +76,12 @@ def get_issue_keywords():
 # Like ["hung task", "io util 100%", "大量D任务", "load高","IO hang"]
 def get_input_hints():
     return ''
+
+# Return some categories of this issue, these categories will be used by ossre.
+# Available categories: ['HIGHSYS','HIGHLOAD','HANG','MEMLEAK','DEADLOCK','SOFTLOCKUP','CONFIG'
+# 'HUNGTASK','RCUSTALL','DATA_CORRUPTION','RESOURCE_LEAK','REFERENCE_LEAK','NET_DROP'...]
+def get_category():
+    return []
 
 # Return whether this script need high CPU resource,
 # like use 'search'|'foreach bt' in crash

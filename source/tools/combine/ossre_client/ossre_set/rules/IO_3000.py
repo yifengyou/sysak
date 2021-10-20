@@ -34,6 +34,12 @@ def get_issue_keywords():
 def get_input_hints():
     return ["hung task", "io util 100%", "大量D任务", "load高","IO hang"]
 
+# Return some categories of this issue, these categories will be used by ossre.
+# Available categories: ['HIGHSYS','HIGHLOAD','HANG','MEMLEAK','DEADLOCK','SOFTLOCKUP',
+# 'HUNGTASK','RCUSTALL','DATA_CORRUPTION','RESOURCE_LEAK','REFERENCE_LEAK','NET_DROP'...]
+def get_category():
+    return ['HIGHLOAD','HANG','HUNGTASK']
+
 # Return whether this script need high CPU resource,
 # like use 'search'|'foreach bt' in crash
 def need_high_res():

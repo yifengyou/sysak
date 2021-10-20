@@ -20,7 +20,6 @@ def query(sn, data):
     ret = {}
     ret['return'] = False
     ret['solution'] = {}
-    ret['solution']['io'] = {}
     vmcore_path = ''
     systime = None
     desc_mods = {}
@@ -31,11 +30,16 @@ def query(sn, data):
     for subdir, dirs, files in os.walk("%s/rules"%(sys.path[0])):
         for file in files:
             filepath = subdir + os.sep + file
-            if os.path.isfile(filepath) and file.endswith('.py') and (
-                    file.startswith('HANG_')):
+            if os.path.isfile(filepath) and file.endswith('.py'):
                 fixup_mod = file[:-3]
                 try:
                     mod = importlib.import_module(fixup_mod)
+                    if hasattr(mod,'get_category'):
+                        categories = mod.get_category()
+                        if "HANG" not in categories:
+                            continue
+                    else:
+                        continue
                     keywords = None
                     if hasattr(mod,'get_issue_keywords'):
                         keywords = mod.get_issue_keywords()

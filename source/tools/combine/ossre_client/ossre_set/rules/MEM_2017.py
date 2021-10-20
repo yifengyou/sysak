@@ -53,11 +53,11 @@ Reproduce:
    "rm: cannot remove ‘/etc/host.conf’: No such file or directory".
 '''
 
-# Return category of this rule
-# Current support category: ('memleak','highload','highsys',
-# 'highiowait','highnetretran')
+# Return some categories of this issue, these categories will be used by ossre.
+# Available categories: ['HIGHSYS','HIGHLOAD','HANG','MEMLEAK','DEADLOCK','SOFTLOCKUP',
+# 'HUNGTASK','RCUSTALL','DATA_CORRUPTION','RESOURCE_LEAK','REFERENCE_LEAK','NET_DROP'...]
 def get_category():
-    return 'memleak'
+    return ['MEMLEAK','HANG']
 
 # Return one line to indentify this issue, this description will be
 # displayed as a title for user to match the issue.

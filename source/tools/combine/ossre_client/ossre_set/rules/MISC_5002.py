@@ -34,8 +34,11 @@ def get_issue_keywords():
 def get_input_hints():
     return ''
 
+# Return some categories of this issue, these categories will be used by ossre.
+# Available categories: ['HIGHSYS','HIGHLOAD','HANG','MEMLEAK','DEADLOCK','SOFTLOCKUP','CONFIG'
+# 'HUNGTASK','RCUSTALL','DATA_CORRUPTION','RESOURCE_LEAK','REFERENCE_LEAK','NET_DROP'...]
 def get_category():
-    return 'systemd'
+    return ['MEMLEAK']
 
 def query(sn, data):
     ret = utils.get_script_result(sn,data)
