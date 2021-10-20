@@ -53,6 +53,12 @@ def need_input():
 def need_long_time():
     return False
 
+# Return some categories of this issue, these categories will be used by ossre.
+# Available categories: ['HIGHSYS','HIGHLOAD','HANG','MEMLEAK','DEADLOCK','SOFTLOCKUP',
+# 'HUNGTASK','RCUSTALL','DATA_CORRUPTION','RESOURCE_LEAK','REFERENCE_LEAK','NET_DROP'...]
+def get_category():
+    return ['HANG','OOM']
+
 def query(sn, data):
     ret = utils.get_script_result(sn,data)
     if ret:

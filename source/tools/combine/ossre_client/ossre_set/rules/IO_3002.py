@@ -59,6 +59,12 @@ def get_issue_keywords():
 def get_input_hints():
     return ["jbd2 hang","jbd2死锁"]
 
+# Return some categories of this issue, these categories will be used by ossre.
+# Available categories: ['HIGHSYS','HIGHLOAD','HANG','MEMLEAK','DEADLOCK','SOFTLOCKUP',
+# 'HUNGTASK','RCUSTALL','DATA_CORRUPTION','RESOURCE_LEAK','REFERENCE_LEAK','NET_DROP'...]
+def get_category():
+    return ['HIGHLOAD','HANG','DEADLOCK']
+
 # Return whether need crash to attach /proc/kcore
 def need_attach_crash():
     return True

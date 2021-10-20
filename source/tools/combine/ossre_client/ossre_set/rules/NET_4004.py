@@ -60,6 +60,12 @@ def get_issue_keywords():
 def get_input_hints():
     return ''
 
+# Return some categories of this issue, these categories will be used by ossre.
+# Available categories: ['HIGHSYS','HIGHLOAD','HANG','MEMLEAK','DEADLOCK','SOFTLOCKUP','CONFIG'
+# 'HUNGTASK','RCUSTALL','DATA_CORRUPTION','RESOURCE_LEAK','REFERENCE_LEAK','NET_DROP'...]
+def get_category():
+    return ['HANG','SOFTLOCKUP']
+
 #Reference: https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/commit/?id=a90e90b7d55e789c71d85b946ffb5c1ab2f137ca 
 
 def query(sn, data):
