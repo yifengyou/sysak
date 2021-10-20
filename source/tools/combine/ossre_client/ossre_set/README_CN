@@ -33,6 +33,7 @@ https://github.com/alibaba/tsar
 5) 日志分析：指定日志文件分析是否存在已知问题。
 命令： "sudo python ./ossre.py -l xxx.log", 
 如 "sudo python ./ossre.py -l /var/log/kern"
+6) crash分析：指定vmcore文件和带符号信息的vmlinux，扫描该vmcore的已知宕机问题和夯机问题，命令："sudo python ./ossre.py -c --vmcore /var/crash/127.0.0.1-2018-06-08-09\:08\:05/vmcore --vmlinux /lib/debug/lib/modules/xxx/vmlinux "
 
 输出结果说明
 目前ossre会做5大类检查，包括SLI／CONFIG／ISSUE／LOG／HW，输出结果也会按这五大类做归类。
