@@ -17,6 +17,6 @@ def fixup_issue_status(column, ret=None):
     if (column['dmesg'].find("[Hardware Error]") >= 0 and
         column['dmesg'].find("Internal error: synchronous external abort") >= 0):
         result = True
-        column['status'] = const.STATUS_HWERROR
+        column['status'] = vmcore_const.STATUS_HWERROR
 
     return result

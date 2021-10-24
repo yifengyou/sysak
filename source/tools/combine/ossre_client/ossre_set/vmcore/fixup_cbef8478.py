@@ -17,6 +17,6 @@ def fixup_issue_status(column, ret=None):
     if column['crashkey'].find("gup_pte_range") >= 0  and column['vertype'] == 310:
         print( "%s match %s"%(column['name'],__name__))
         result = True
-        column['commitid'] = 'cbef8478bee55775ac312a574aad48af7bb9cf9f'
+        column['commitid'] = 'https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/commit/?id=cbef8478bee55775ac312a574aad48af7bb9cf9f'
         column['status'] = 4
     return result

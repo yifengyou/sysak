@@ -121,8 +121,6 @@ def parse_file(name, column):
         result += line
         get_column_value(column, line)
     f.close()
-    #if len(result)>65536:
-    #    result=result[-65536:]
     column['dmesg'] = result
     column['dmesg_file'] = name
     fix_func_name(column)
@@ -136,8 +134,6 @@ def parse_rawdmesg(column):
             column['modules'] = line[line.find(':')+1:]
         result += line
         get_column_value(column, line)
-    #if len(result)>65536:
-    #    result=result[-65536:]
     column['dmesg'] = result
     fix_func_name(column)
 
@@ -313,7 +309,6 @@ def query(sn, data, log_file="", crashonly=0):
     try:
         conn = sqlite3.connect('%s/vmcore_sqlite.db'%(os.path.dirname(os.path.abspath(__file__))))
         conn.text_factory = str
-        #cursor = conn.cursor()
 
         if crashonly == 1:
             result = {}
@@ -403,7 +398,6 @@ def query(sn, data, log_file="", crashonly=0):
         column['dmesg'] = ""
         if (conn):
             conn.close()
-        #print(column)
         print ('VMCORE:%s' %( json.dumps(ret, ensure_ascii=False)))
         return ret
 
