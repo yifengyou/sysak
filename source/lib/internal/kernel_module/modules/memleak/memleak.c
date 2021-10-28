@@ -507,11 +507,11 @@ int memleak_trace_off(struct memleak_htab *htab)
 	return ret;
 }
 
-static int memleak_release(struct memleak_htab *htab)
+int memleak_release(void)
 {
 
-	memleak_trace_off(htab);
-    memleak_clear_leak(htab);
+	memleak_trace_off(tab);
+    memleak_clear_leak(tab);
 
 	return 0;
 }
@@ -546,7 +546,7 @@ int memleak_handler_cmd(int cmd, unsigned long arg)
 
 		case MEMLEAK_CMD_DISABLE:
 			pr_info("disable\n");
-			memleak_release(htab);
+			memleak_release();
 
     };
 
@@ -579,11 +579,12 @@ int memleak_uninit(void)
 	if (!tab)
 		return 0;
 
-	memleak_release(tab);
+	memleak_release();
 
 	memleak_mem_uninit(tab);
 
 	kfree(tab);
+	tab = NULL;
 
 	return 0;
 }
