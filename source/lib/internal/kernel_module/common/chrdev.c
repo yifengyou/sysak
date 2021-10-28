@@ -31,7 +31,6 @@ struct sysak_dev {
 };
 
 extern int memleak_handler_cmd(int cmd, unsigned long arg);
-extern int memleak_release(void);
 
 static long sysak_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
@@ -74,7 +73,6 @@ static int sysak_release(struct inode *inode, struct file *file)
 		return -EBUSY;
 
 	printk("sysak close\n");
-	memleak_release();
 	module_put(THIS_MODULE);
 	mutex_unlock(&dev_mutex);
 	return 0;

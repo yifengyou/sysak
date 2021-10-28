@@ -509,7 +509,7 @@ int memleak_trace_off(struct memleak_htab *htab)
 
 int memleak_release(void)
 {
-
+	printk("memleak release\n");
 	memleak_trace_off(tab);
     memleak_clear_leak(tab);
 
@@ -522,9 +522,12 @@ int memleak_handler_cmd(int cmd, unsigned long arg)
     struct memleak_settings set;
 	struct memleak_htab * htab = tab;
 
-    if (!htab || htab->state != MEMLEAK_STATE_OFF) {
-       	pr_info("htab is busy\n");
+	if (!htab)
 		return -EBUSY;
+
+    if (htab->state != MEMLEAK_STATE_OFF) {
+		pr_info("htab is busy\n");
+		memleak_release();
 	}
 
     switch (cmd) {

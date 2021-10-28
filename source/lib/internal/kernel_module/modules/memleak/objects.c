@@ -123,7 +123,6 @@ static int merge_similar_object(struct object_info *info, struct object *object,
 
 static int scan_one_page(struct page *page, struct object_info *info)
 {
-	void *p;
 	int n;
 	int num = PAGE_SIZE / info->size;
 	char unuse[num];
@@ -133,7 +132,6 @@ static int scan_one_page(struct page *page, struct object_info *info)
 	unsigned long long *tmp;
 
 	void *start = page_address(page);
-	void *end = start + PAGE_SIZE;
 
 	memset(unuse, 0, sizeof(unuse));
 
