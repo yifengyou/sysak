@@ -46,6 +46,8 @@ def get_column_value(column, line):
         if match.group(2) is None:
             column['rip'] = '[]'
         column['func_name'] = match.group(3)
+        if len(column['func_name']) > 0:
+            column['func_name']= column['func_name'].split('+')[0]
     match = bugat_pattern.match(line)
     if match:
         column['bugat'] = match.group(1)
@@ -176,6 +178,25 @@ def fixup_panic(column):
     finally:
         return result
 
+def clarify_panic_type(column):
+    column['panic_type'] = 0
+    if column['title'].find('divide error') >= 0:
+        column['panic_type'] = vmcore_const.PANIC_DIVIDEERROR
+    elif len(column['bugon_file']) > 0:
+        column['panic_type'] = vmcore_const.PANIC_BUGON
+    elif column['title'].find('NULL pointer dereference') >= 0:
+        column['panic_type'] = vmcore_const.PANIC_NULLPOINTER
+    elif column['title'].find('Kernel stack is corrupted') >= 0:
+        column['panic_type'] = vmcore_const.PANIC_STACKCORRUPTION
+    elif column['title'].find('hard LOCKUP') >= 0:
+        column['panic_type'] = vmcore_const.PANIC_HARDLOCKUP
+    elif column['title'].find('hung_task') >= 0:
+        column['panic_type'] = vmcore_const.PANIC_HUNGTASK
+    elif column['title'].find('RCU Stall') >= 0:
+        column['panic_type'] = vmcore_const.PANIC_RCUSTALL
+    elif (column['title'].find('soft lockup') >= 0 or column['title'].find('softlockup') >= 0):
+        column['panic_type'] = vmcore_const.PANIC_SOFTLOCKUP
+
 def check_panic(column,conn):
     if 'rawdmesg' not in column and os.path.isfile(column['filename']) == False:
         return
@@ -202,9 +223,11 @@ def check_panic(column,conn):
     elif column['crashkey_type'] == 3 and len(column['bugon_file']) > 0:
         column['crashkey'] = '%d$%s$%s'%(column['vertype'],column['bugon_file'],column['calltrace'])
 
+    clarify_panic_type(column)
+    
     cursor = conn.cursor()
     issue_id = ''
-    if len(column['bugon_file']) > 0:
+    if column['panic_type'] == vmcore_const.PANIC_BUGON:
         sql = 'select issue_id,vertype from panic where bugon_file=? and instr(?,calltrace)!=0'
         value = (column['bugon_file'],column['calltrace'],)
         cursor.execute(sql, value)
@@ -213,6 +236,14 @@ def check_panic(column,conn):
             sql = 'select issue_id,vertype from panic where bugon_file=? and instr(calltrace,?)!=0'
             cursor.execute(sql, value)
             rows = cursor.fetchall()
+        for row in rows:
+            if row[1] == column['vertype'] or len(issue_id) <= 0:
+                issue_id = row[0]
+    elif column['panic_type'] == vmcore_const.PANIC_DIVIDEERROR:
+        sql = 'select issue_id,vertype from panic where panic_type=? and func_name=?'
+        value = (column['panic_type'],column['func_name'],)
+        cursor.execute(sql, value)
+        rows = cursor.fetchall()
         for row in rows:
             if row[1] == column['vertype'] or len(issue_id) <= 0:
                 issue_id = row[0]
@@ -243,6 +274,10 @@ def check_panic(column,conn):
 
     cursor.close()
     fixup_panic(column)
+
+    column['dmesg'] = ''
+    column['rawdmesg'] = ''
+    print column
 
     if (len(column['commitid']) > 0 or len(column['solution']) > 0):
         matched = True
@@ -299,6 +334,7 @@ def init_column(column):
     column['cause'] = ''
     column['commitid'] = ''
     column['solution'] = ''
+    column['panic_type'] = 0
 
 def query(sn, data, log_file="", crashonly=0):
     ret = {}
