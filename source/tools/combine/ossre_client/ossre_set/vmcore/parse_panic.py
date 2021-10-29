@@ -277,7 +277,7 @@ def check_panic(column,conn):
 
     column['dmesg'] = ''
     column['rawdmesg'] = ''
-    print column
+    #print column
 
     if (len(column['commitid']) > 0 or len(column['solution']) > 0):
         matched = True
