@@ -1,0 +1,46 @@
+1. Build khotfix based on the below patch and load to kernel 3.10
+2. modprobe null_blk
+3. taskset 0x4 dd if=/dev/zero of=/dev/nullb0 bs=512 count=1
+Will hang and trigger hung task  
+
+
+
+//0001-Add-mq-debug.patch 
+From 25fc7386cddc5612a3f07cec34a867a40f6fa7bc Mon Sep 17 00:00:00 2001
+Date: Fri, 21 Feb 2020 10:29:08 +0800
+Subject: [PATCH] Add mq debug
+
+---
+ block/blk-mq.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/block/blk-mq.c b/block/blk-mq.c
+index 1c83d65..258aecd 100644
+--- a/block/blk-mq.c
++++ b/block/blk-mq.c
+@@ -715,6 +715,7 @@ static bool blk_mq_attempt_merge(struct request_queue *q,
+ 	return false;
+ }
+ 
++#include <linux/kallsyms.h>
+ /*
+  * Process software queues that have been marked busy, splicing them
+  * to the for-dispatch
+@@ -724,6 +725,14 @@ static void flush_busy_ctxs(struct blk_mq_hw_ctx *hctx, struct list_head *list)
+ 	struct blk_mq_ctx *ctx;
+ 	int i;
+ 
++	{
++		struct request_queue *queue = hctx->queue;
++		struct  blk_mq_ops *ops = (void *)kallsyms_lookup_name("null_mq_ops");
++	    if((void *)queue->mq_ops == (void *)ops) {
++		    struct blk_align_bitmap *bm = &hctx->ctx_map.map[0];
++		    clear_bit(2, &bm->word);
++	    }
++	}
+ 	for (i = 0; i < hctx->ctx_map.map_size; i++) {
+ 		struct blk_align_bitmap *bm = &hctx->ctx_map.map[i];
+ 		unsigned int off, bit;
+-- 
+1.8.3.1
+

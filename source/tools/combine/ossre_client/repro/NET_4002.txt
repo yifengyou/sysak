@@ -1,0 +1,12 @@
+问题复现方法：
+需要cpu比较多，才会出现本问题，如果cpu少，可以考虑先把
+/proc/sys/net/ipv4/ipfrag_high_thresh
+/proc/sys/net/ipv4/ipfrag_low_thresh
+先调小，再来复现。
+必须满足ipfrag_high_thresh < 13k * cpu_num，ipfrag_high_thresh越小，复现本问题概率越大。
+
+但以上条件满足后，
+1、使用脚本把网卡中断的 smp_affinity循环绑定到各个cpu上
+2、在第一步的同时，从外部启动多个（越多，复现概率越大），往该机器ping 大包（假定包大小为9000）
+3、观察机器上/proc/net/snmp中的ReasmFails数值，一旦ReasmFails数值增加，说明出现组包失败了。
+4、观察第二步中ping包，是否出现没有回包的情况，如果有，说明此刻问题完全复现，此时可以把第二步的多个ping包进程停掉。
