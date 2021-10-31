@@ -8,7 +8,7 @@
 #include"mem.h"
 #include"common/hook.h"
 
-#define HASH_SIZE (2048)
+#define HASH_SIZE (1024)
 #define PRE_ALLOC (2048)
 
 static struct memleak_htab *tab;
@@ -571,10 +571,13 @@ int memleak_handler_cmd(int cmd, unsigned long arg)
 	tab->state = MEMLEAK_STATE_OFF;
 
 	ret = memleak_mem_init(tab);
-	if (ret)
+	if (ret) {
 		kfree(tab);
+		ret = -ENOMEM;
+		tab = NULL;
+	}
 
-	return 0;
+	return ret;
 }
 
 int memleak_uninit(void)
