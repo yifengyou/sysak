@@ -138,9 +138,9 @@ def query(bysyscheck=0,crashonly=0,data=None):
                                 or (hasattr(mod, "need_input") and mod.need_input())
                                 or (hasattr(mod, "need_long_time") and mod.need_long_time()))):
                                 continue
-                            print("%s start>"%(mod.__name__))
+                            #print("%s start>"%(mod.__name__))
                             ret = mod.query(sn, data)
-                            print("%s end>"%(mod.__name__))
+                            #print("%s end>"%(mod.__name__))
                             rets['issue_result'][rule_mod] = {}
                             rets['issue_result'][rule_mod] = ret
                             if ret is not None and ret['return']:
