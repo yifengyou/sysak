@@ -73,7 +73,6 @@ static int sysak_release(struct inode *inode, struct file *file)
 		return -EBUSY;
 
 	printk("sysak close\n");
-
 	module_put(THIS_MODULE);
 	mutex_unlock(&dev_mutex);
 	return 0;

@@ -8,7 +8,7 @@
 # Function: 
 #***************************************************************#
 WORK_PATH=`dirname $0`/.sysak_compoents
-TOOLS_ROOT=$WORK_PATH/tools
+export TOOLS_ROOT=$WORK_PATH/tools
 TOOLS_PATH=$WORK_PATH/tools/`uname -r`
 LIB_PATH=$WORK_PATH/lib/`uname -r`
 SYSAK_MOD=$LIB_PATH/sysak.ko

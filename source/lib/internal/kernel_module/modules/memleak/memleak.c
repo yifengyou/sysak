@@ -8,7 +8,7 @@
 #include"mem.h"
 #include"common/hook.h"
 
-#define HASH_SIZE (2048)
+#define HASH_SIZE (1024)
 #define PRE_ALLOC (2048)
 
 static struct memleak_htab *tab;
@@ -507,11 +507,11 @@ int memleak_trace_off(struct memleak_htab *htab)
 	return ret;
 }
 
-static int memleak_release(struct memleak_htab *htab)
+int memleak_release(void)
 {
-
-	memleak_trace_off(htab);
-    memleak_clear_leak(htab);
+	printk("memleak release\n");
+	memleak_trace_off(tab);
+    memleak_clear_leak(tab);
 
 	return 0;
 }
@@ -522,9 +522,12 @@ int memleak_handler_cmd(int cmd, unsigned long arg)
     struct memleak_settings set;
 	struct memleak_htab * htab = tab;
 
-    if (!htab || htab->state != MEMLEAK_STATE_OFF) {
-       	pr_info("htab is busy\n");
+	if (!htab)
 		return -EBUSY;
+
+    if (htab->state != MEMLEAK_STATE_OFF) {
+		pr_info("htab is busy\n");
+		memleak_release();
 	}
 
     switch (cmd) {
@@ -546,7 +549,7 @@ int memleak_handler_cmd(int cmd, unsigned long arg)
 
 		case MEMLEAK_CMD_DISABLE:
 			pr_info("disable\n");
-			memleak_release(htab);
+			memleak_release();
 
     };
 
@@ -568,10 +571,13 @@ int memleak_handler_cmd(int cmd, unsigned long arg)
 	tab->state = MEMLEAK_STATE_OFF;
 
 	ret = memleak_mem_init(tab);
-	if (ret)
+	if (ret) {
 		kfree(tab);
+		ret = -ENOMEM;
+		tab = NULL;
+	}
 
-	return 0;
+	return ret;
 }
 
 int memleak_uninit(void)
@@ -579,11 +585,12 @@ int memleak_uninit(void)
 	if (!tab)
 		return 0;
 
-	memleak_release(tab);
+	memleak_release();
 
 	memleak_mem_uninit(tab);
 
 	kfree(tab);
+	tab = NULL;
 
 	return 0;
 }

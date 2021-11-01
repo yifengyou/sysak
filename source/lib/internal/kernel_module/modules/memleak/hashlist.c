@@ -253,7 +253,7 @@ int memleak_dump_leak(struct memleak_htab *htab, struct user_result __user *resu
 	int ret = 0;
 	unsigned long long curr_ts = sched_clock();
 
-	if (!count || copy_from_user(&res, result, sizeof(res))) {
+	if ((count <= 0) || copy_from_user(&res, result, sizeof(res))) {
 		ret = copy_to_user(result, &i, sizeof(i));
 		return 0;
 	}
@@ -261,7 +261,7 @@ int memleak_dump_leak(struct memleak_htab *htab, struct user_result __user *resu
 	if (!res.num || !res.desc) {
 		pr_err("num %d ,desc %p \n", res.num, res.desc);
 		ret = copy_to_user(result, &i, sizeof(i));
-		return -EFAULT;
+		return 0;
 	}
 
 	pr_info("total memleak number %d user %d ts=%llu\n", count, res.num, sched_clock());
@@ -272,7 +272,7 @@ int memleak_dump_leak(struct memleak_htab *htab, struct user_result __user *resu
 	desc = vmalloc(sizeof(*desc) * num);
 	if (!desc) {
 		ret = copy_to_user(result, &i, sizeof(i));
-		return -ENOMEM;
+		return 0;
 	}
 
 	tmp = res.desc;

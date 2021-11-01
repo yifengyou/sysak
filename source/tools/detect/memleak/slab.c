@@ -185,7 +185,7 @@ _retry:
 	free(res.desc);
 _out:
 	printf("\n");
-	if (call && mark_nr)
+	if (call)
 		printf("疑似泄漏函数: %s\n", call[0].function);
 	else
 		printf("疑似泄漏函数: 未知\n");

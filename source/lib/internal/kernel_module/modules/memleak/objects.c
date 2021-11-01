@@ -6,15 +6,21 @@
 
 #include "mem.h"
 
-static int rate = 75;
+static int rate = 65;
 
+static inline int is_invalid_byte(unsigned char byte)
+{
+	return (byte == 0x00 || byte == 0xff
+			|| byte == 0xbb || byte == 0xcc
+			|| byte == 0x5a || byte == 0x6a);
+}
 static int compute_valid_num(unsigned char *src, int size)
 {
 	int i ;
 	int valid = 0;
 
 	for (i = 0; i < size; i++) {
-		if (src[i] == 0x00 || src[i] == 0xFF)
+		if (is_invalid_byte(src[i]))
 			continue;
 		valid++;
 	}
@@ -29,7 +35,7 @@ static int compare_one_object(struct object *object, unsigned char *dst, int siz
 
 	for (i = 0; i < size; i++) {
 
-		if (src[i] == 0x00 || src[i] == 0xFF)
+		if (is_invalid_byte(src[i]))
 			continue;
 		if (src[i] == dst[i])
 			valid_num++;
@@ -117,7 +123,6 @@ static int merge_similar_object(struct object_info *info, struct object *object,
 
 static int scan_one_page(struct page *page, struct object_info *info)
 {
-	void *p;
 	int n;
 	int num = PAGE_SIZE / info->size;
 	char unuse[num];
@@ -127,10 +132,10 @@ static int scan_one_page(struct page *page, struct object_info *info)
 	unsigned long long *tmp;
 
 	void *start = page_address(page);
-	void *end = start + PAGE_SIZE;
 
 	memset(unuse, 0, sizeof(unuse));
 
+#if 0
 	for (p = page->freelist; p && p < end; p = (*(void **)p)) {
 		n = (p - start) / info->size ;
 		if (n < num) {
@@ -138,7 +143,7 @@ static int scan_one_page(struct page *page, struct object_info *info)
 			i--;
 		}
 	}
-
+#endif
 	if ( i <= (num >> 1))
 		return 0;
 
