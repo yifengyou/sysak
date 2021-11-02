@@ -129,7 +129,7 @@ echo "EXTRA_LDFLAGS = --static" >> $config_host_mak
 fi
 
 if [ $default_target = "yes" ]; then
-target_list="cpu_irq load_tasks sys_monitor $target_list"
+target_list="cpuirq loadtask sysmonitor $target_list"
 for i in $target_list;do
 	target_files="$(grep -nrw "target := $i" $(pwd)/source/tools/ | awk -F ":" '{print $1}') $target_files"
 done
