@@ -25,8 +25,8 @@ usage() {
 monitor() {
 	while :;
 	do
-		sys_util=`mpstat $cpuarg 1 1 | grep Average | awk '{print $5}' | awk -F. '{print $1}'`
-		if [ $sys_util -gt $maxsys ]; then
+		sys_util=`mpstat $cpuarg 1 1 | awk '{print $5}' | awk 'END{print $1}'`
+		if [ `expr $sys_util \> $maxsys` -eq 0 ]; then
 			perf record -a -g -o $datafile sleep $lasttime;
 			exit
 		fi
