@@ -8,6 +8,7 @@ MODULE_SRC := $(SRC)/lib/internal/kernel_module
 
 #common
 sysak-objs += ./common/chrdev.o  ./common/event.o ./common/hook.o ./common/stack.o ./common/proc.o
+sysak-objs += ./common/blackbox.o
 sysak-objs += ./entry.o sysak_mods.o
 
 #modules
