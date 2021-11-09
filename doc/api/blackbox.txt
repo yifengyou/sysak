@@ -1,0 +1,86 @@
+Introduce usage of blackbox by lmk.
+
+To use its APIs, #include "common/blackbox.h"
+
+In this version, there are two types of blackbox:
+   BBOX_TYPE_RING - store any data into it, it can use as a ringbuf
+                which is useful for runtime log.
+   BBOX_TYPE_RECORD - store data as key-value, it is useful
+                 for status statistics.
+
+
+1.  alloc a blackbox:
+1.1. int alloc_bbox(const char *name, int flags)
+   alloc a buffer by fixed size
+1.2. int bbox_alloc_dynamic(const char *name, int flags,
+                unsigned int pages)
+   alloc a buffer by custom size
+
+args:
+    - 'name': the name.
+    - 'flags': specifies the type and attributes.
+    - 'pages': specifies the pages of dynamic blackbox
+
+return value:
+    - '>= 0': bbox id.
+    - '< 0': error.
+
+NOTE: Don't call it under interrupt context.
+
+2.  access the blackbox:
+ssize_t bbox_read(unsigned int bbox_id,
+           struct bbox_data_info *data_info);
+
+ssize_t bbox_write(unsigned int bbox_id,
+           struct bbox_data_info *data_info);
+
+    - 'bbox_id': bbox id alloced by alloc_bbox()
+    - 'bbox_info': describes the data by read/write
+
+        struct bbox_data_info {
+            void *data;
+            unsigned int size;
+            unsigned int slot;
+            struct timespec64 mtime;
+        };
+        - 'data': memory for store data when reads,
+                  or the user data which will be written into blackbox.
+        - 'size': the size of 'data' memory
+        - 'slot': only used for BBOX_TYPE_RECORD blackbox.
+                  Indicates which record will be read or written.
+        - 'mtime': only used for BBOX_TYPE_RECORD blackbox.
+                  When read, return the write time(in date) of the data.
+
+return value:
+    - '>= 0': actual bytes of read/write.
+    - '< 0': error.
+
+3.  use the BBOX_TYPE_RECORD blackbox.
+3.1.  alloc a slot for a specific record.
+int bbox_alloc_record_slot(unsigned int bbox_id, unsigned int size,
+           unsigned int type);
+
+    - 'bbox_id': bbox id
+    - 'size': size of record data
+    - 'type': type of record data, can be string, call trace or other data:
+              BBOX_DATA_TYPE_STRING
+              BBOX_DATA_TYPE_TRACE
+              BBOX_DATA_TYPE_DATA
+
+return value:
+    - '>= 0': slot id.
+    - '< 0': error.
+
+4. show content of blackbox buffer by procfs
+4.1. int bbox_ring_show(struct seq_file *seq, unsigned int bbox_id)
+4.2. int bbox_record_show(struct seq_file *seq, unsigned int bbox_id, int slot_id)
+
+args:
+    - 'seq': out seqfile for procfile
+    - 'bbox_id': bbox id
+    - 'slot_id': slot id alloced by bbox_alloc_record_slot()
+
+5. free a blackbox buffer
+void bbox_free(unsigned int bbox_id)
+
+    - 'bbox_id': bbox id
