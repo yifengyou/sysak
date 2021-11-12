@@ -32,6 +32,7 @@ if sys.version[0] == '2':
 
 ltime_pattern = re.compile(r'^\[\s*([0-9]+)\..*\]')
 rip_pattern = re.compile(r'\[\s*\S+\] RIP: 0010:.*(\[<([0-9a-f]+)>\]|\[.*\]) (.+)')
+rip_pattern_1 = re.compile(r'\[\s*\S+\] RIP: 0010:(\S+)')
 bugat_pattern = re.compile(r'.+\] kernel BUG at (\S+)!')
 ver_pattern = re.compile(r'Comm: (\S*).*(Tainted:|Not tainted).* (\S+) #')
 unload_pattern = re.compile(r'\[last unloaded: (\S+)\]')
@@ -48,6 +49,15 @@ def get_column_value(column, line):
         column['func_name'] = match.group(3)
         if len(column['func_name']) > 0:
             column['func_name']= column['func_name'].split('+')[0]
+            column['func_name'] = column['func_name'].split('.')[0]
+    else:
+        match = rip_pattern_1.match(line)
+        if match:
+            column['rip'] = '[]'
+            column['func_name'] = match.group(1)
+            if len(column['func_name']) > 0:
+                column['func_name']= column['func_name'].split('+')[0]
+                column['func_name'] = column['func_name'].split('.')[0]
     match = bugat_pattern.match(line)
     if match:
         column['bugat'] = match.group(1)
@@ -139,7 +149,8 @@ def parse_rawdmesg(column):
     column['dmesg'] = result
     fix_func_name(column)
 
-line_pattern = re.compile(r'.+[0-9]+\]\s+\[.*\][? ]* (\S+)\+0x')
+line_pattern = re.compile(r'.+[0-9]+\].+\[.*\][? ]* (\S+)\+0x')
+line_pattern_1 = re.compile(r'.+[0-9]+\][? ]*(\S+)\+0x')
 def get_calltrace(column):
     list1 = []
     lines = column['dmesg'].split('\n')
@@ -151,7 +162,19 @@ def get_calltrace(column):
             if m.group(1) == 'panic':
                 del list1[:]
                 continue
-            list1.append(m.group(1))
+            tmp = m.group(1)
+            tmp = tmp.split('.')[0]
+            list1.append(tmp)
+        else:
+            m = line_pattern_1.match(r)
+            if m:
+                if m.group(1) == 'panic':
+                    del list1[:]
+                    continue
+                tmp = m.group(1)
+                tmp = tmp.split('.')[0]
+                list1.append(tmp)
+
     calltrace = column['func_name']
     if calltrace != '':
         calltrace = calltrace.split('+')[0]
@@ -174,6 +197,8 @@ def fixup_panic(column):
                     if result == True:
                         return result
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print( 'fixup_issue_status Exception!',e)
     finally:
         return result
@@ -196,6 +221,8 @@ def clarify_panic_type(column):
         column['panic_type'] = vmcore_const.PANIC_RCUSTALL
     elif (column['title'].find('soft lockup') >= 0 or column['title'].find('softlockup') >= 0):
         column['panic_type'] = vmcore_const.PANIC_SOFTLOCKUP
+    elif column['title'].find('stack-protector: Kernel stack is corrupted in') >= 0:
+        column['panic_type'] = vmcore_const.PANIC_STACKCORRUPTION
 
 def check_panic(column,conn):
     if 'rawdmesg' not in column and os.path.isfile(column['filename']) == False:
@@ -228,7 +255,8 @@ def check_panic(column,conn):
     cursor = conn.cursor()
     issue_id = ''
     if column['panic_type'] == vmcore_const.PANIC_BUGON:
-        sql = 'select issue_id,vertype from panic where bugon_file=? and instr(?,calltrace)!=0'
+        #sql = 'select issue_id,vertype from panic where bugon_file=? and instr(?,calltrace)!=0'
+        sql = 'select issue_id,vertype from panic where bugon_file=? and instr(?,funcname)!=0'
         value = (column['bugon_file'],column['calltrace'],)
         cursor.execute(sql, value)
         rows = cursor.fetchall()
@@ -248,12 +276,12 @@ def check_panic(column,conn):
             if row[1] == column['vertype'] or len(issue_id) <= 0:
                 issue_id = row[0]
     else:
-        sql = 'select issue_id,vertype from panic where instr(?,calltrace)!=0'
+        sql = 'select issue_id,vertype from panic where instr(?,calltrace)!=0 and calltrace <> "" '
         value = (column['calltrace'],)
         cursor.execute(sql, value)
         rows = cursor.fetchall()
         if len(rows) <= 0:
-            sql = 'select issue_id,vertype from panic where instr(?,calltrace)!=0'
+            sql = 'select issue_id,vertype from panic where instr(calltrace,?)!=0'
             cursor.execute(sql, value)
             rows = cursor.fetchall()
         for row in rows:
@@ -343,6 +371,7 @@ def query(sn, data, log_file="", crashonly=0):
     column = {}
 
     try:
+        conn = None
         conn = sqlite3.connect('%s/vmcore_sqlite.db'%(os.path.dirname(os.path.abspath(__file__))))
         conn.text_factory = str
 
