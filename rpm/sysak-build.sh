@@ -18,7 +18,7 @@ Name: sysak
 Summary: system analyse kit
 Version: ${RPM_VERSION}
 Release: ${RELEASE}%{?dist}
-License: GPLv3+
+License: MulanPSL2
 
 %description
 system analyse kit
