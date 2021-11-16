@@ -120,6 +120,19 @@ static void trace_slab_alloc_node(unsigned long call_site, const void *ptr,
 
 #endif
 
+static unsigned long get_stack_rip(void)
+{
+    struct stack_trace stack_trace;
+	unsigned long trace[16] = {0};
+
+    stack_trace.max_entries = 16;
+    stack_trace.nr_entries = 0;
+    stack_trace.entries = trace;
+    stack_trace.skip = 2;
+    save_stack_trace(&stack_trace);
+
+    return trace[4];
+}
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
 static void trace_page_alloc(void *ignore, struct page *page,
@@ -134,7 +147,7 @@ static void trace_page_alloc(struct page *page,
 		return;
 	}
 
-	memleak_alloc_desc_push(tab, (unsigned long )__builtin_return_address(3), page, order);
+	memleak_alloc_desc_push(tab, get_stack_rip(), page, order);
 
 }
 
@@ -149,7 +162,7 @@ static void trace_page_free(struct page *page,
 	if (((unsigned long)page->mapping & PAGE_MAPPING_FLAGS) != 0)
 		return;
 
-	memleak_alloc_desc_pop(tab, (unsigned long)__builtin_return_address(3), page, order);
+	memleak_alloc_desc_pop(tab, get_stack_rip(), page, order);
 }
 
 
