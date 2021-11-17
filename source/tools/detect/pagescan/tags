@@ -1,0 +1,372 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.8	//
+ANONHUGEPAGES	pagescan.h	/^	ANONHUGEPAGES,$/;"	e	enum:__anon36
+ARCH	Makefile	/^ARCH := $(shell uname -m | sed -e s\/i.86\/x86\/ -e s\/x86_64\/x86\/ \\$/;"	m
+BITS_PER_LONG	arch/generic/bitops.h	6;"	d
+BITS_PER_LONG	arch/x86/bitops.h	6;"	d
+BIT_MASK	arch/generic/bitops.h	7;"	d
+BIT_MASK	arch/x86/bitops.h	7;"	d
+BIT_WORD	arch/generic/bitops.h	8;"	d
+BIT_WORD	arch/x86/bitops.h	8;"	d
+BUDDY_PAGES	movability.h	/^	BUDDY_PAGES,        \/* free pages *\/$/;"	e	enum:__anon34
+BUFF_MAX	pagescan.h	18;"	d
+CC	Makefile	/^CC = gcc$/;"	m
+CFLAGS	Makefile	/^CFLAGS = -Wall -g$/;"	m
+FILEPMDMAPPED	pagescan.h	/^	FILEPMDMAPPED,$/;"	e	enum:__anon36
+GET_PAGE_COMPOUND_HEAD	kernel/mm_types.h	311;"	d
+GET_PAGE_COMPOUND_MAPCOUNT	kernel/mm_types.h	313;"	d
+GET_PAGE_COMPOUND_ORDER	kernel/mm_types.h	291;"	d
+GET_PAGE_COMPOUND_ORDER	kernel/mm_types.h	312;"	d
+GET_PAGE_FIELD	kernel/mm_types.h	18;"	d
+GET_PAGE_FLAGS	kernel/mm_types.h	283;"	d
+GET_PAGE_MAPCOUNT	kernel/mm_types.h	287;"	d
+GET_PAGE_MAPPING	kernel/mm_types.h	284;"	d
+GET_PAGE_PRIVATE	kernel/mm_types.h	285;"	d
+GET_PAGE_REFCOUNT	kernel/mm_types.h	290;"	d
+GET_PAGE_REFCOUNT	kernel/mm_types.h	310;"	d
+GET_PAGE_SLAB_CACHE	kernel/mm_types.h	286;"	d
+HEADERS	Makefile	/^HEADERS = $(wildcard *.h)$/;"	m
+HUGE_CANDIDATE	movability.h	/^	HUGE_CANDIDATE,     \/* 2M blocks that contain free pages *\/$/;"	e	enum:__anon34
+HUGE_COMPACT	movability.h	/^	HUGE_COMPACT,       \/* 2M blocks that only contain free and movable pages *\/$/;"	e	enum:__anon34
+HUGE_FREE	movability.h	/^	HUGE_FREE,          \/* 2M blocks that only contain free pages *\/$/;"	e	enum:__anon34
+HUGE_PAGE_NR	pagescan.h	16;"	d
+HUGE_PIN	movability.h	/^	HUGE_PIN,           \/* 2M blocks that contain pinned pages *\/$/;"	e	enum:__anon34
+HUGE_PIN_FREE	movability.h	/^	HUGE_PIN_FREE,      \/* 2M blocks that contain pinned and free pages *\/$/;"	e	enum:__anon34
+HUGE_PIN_MOVE	movability.h	/^	HUGE_PIN_MOVE,      \/* 2M blocks that contain pinned and movable pages *\/$/;"	e	enum:__anon34
+HUGE_P_PIN	movability.h	/^	HUGE_P_PIN,         \/* 2M blocks that contain pinned pages of specified process *\/$/;"	e	enum:__anon34
+HUGE_SIZE	pagescan.h	17;"	d
+HUGE_SLAB	movability.h	/^	HUGE_SLAB,          \/* 2M blocks that contain slab pages *\/$/;"	e	enum:__anon34
+HUGE_SLAB_FREE	movability.h	/^	HUGE_SLAB_FREE,     \/* 2M blocks that contain slab and free pages *\/$/;"	e	enum:__anon34
+HUGE_SLAB_MOVE	movability.h	/^	HUGE_SLAB_MOVE,     \/* 2M blocks that contain slab and movable pages *\/$/;"	e	enum:__anon34
+HUGE_UNMOVABLE	movability.h	/^	HUGE_UNMOVABLE,     \/* 2M blocks that contain slab or pinned pages *\/$/;"	e	enum:__anon34
+KERNEL	Makefile	/^KERNEL := $(shell echo KERNEL_$(KMAJ)_$(KMIN))$/;"	m
+KMAJ	Makefile	/^KMAJ := $(shell uname -r | awk -F "." '{print $$1}')$/;"	m
+KMIN	Makefile	/^KMIN := $(shell uname -r | awk -F "." '{print $$2}')$/;"	m
+KPF_SIZE	pagescan.h	80;"	d
+KPF_ZERO_PAGE	zero_subpage.c	15;"	d	file:
+LDFLAGS	Makefile	/^LDFLAGS = -Wall$/;"	m
+LIBS	Makefile	/^LIBS =$/;"	m
+LOG_DEBUG	pagescan.h	30;"	d
+LOG_DEBUG	pagescan.h	32;"	d
+LOG_ERROR	pagescan.h	37;"	d
+LOG_INFO	pagescan.h	35;"	d
+LOG_WARN	pagescan.h	36;"	d
+MAX	pagescan.h	27;"	d
+MAX_KCORE_ELF_HEADER_SIZE	pagescan.c	42;"	d	file:
+MAX_MOVABILITY_COUNTER	movability.h	/^	MAX_MOVABILITY_COUNTER,$/;"	e	enum:__anon34
+MAX_NUMA_NODES	pagescan.h	39;"	d
+MAX_ORDER	pagescan.h	13;"	d
+MAX_PROCMAP_COUNTER	pagescan.h	/^	MAX_PROCMAP_COUNTER,$/;"	e	enum:__anon36
+MAX_SLAB	slab.c	17;"	d	file:
+MIN	pagescan.h	26;"	d
+OBJECTS	Makefile	/^OBJECTS = $(patsubst %.c, %.o, $(wildcard *.c))$/;"	m
+PAGEMAP_PFN_MASK	pagescan.h	23;"	d
+PAGEMAP_PRESENT	pagescan.h	22;"	d
+PAGE_MAPPING_ANON	kernel/mm_types.h	13;"	d
+PAGE_SHIT	pagescan.h	14;"	d
+PAGE_SIZE	pagescan.h	15;"	d
+PAGE_STRUCT_SIZE	kernel/mm_types.h	12;"	d
+PFN_TO_PAGE	kernel/mm_types.h	16;"	d
+PFN_TO_VIRT	kernel/mm_types.h	15;"	d
+PIN_PAGES	movability.h	/^	PIN_PAGES,          \/* pinned pages *\/$/;"	e	enum:__anon34
+PIN_SWCH_PAGES	movability.h	/^	PIN_SWCH_PAGES,     \/* pinned swapcache pages *\/$/;"	e	enum:__anon34
+PRINT	movability.h	58;"	d
+PROCMAP_SZ	pagescan.h	58;"	d
+PROT_SZ	pagescan.h	66;"	d
+P_PIN_PAGES	movability.h	/^	P_PIN_PAGES,        \/* pinned pages of specified process *\/$/;"	e	enum:__anon34
+ROUND_UP	pagescan.h	25;"	d
+RSS	pagescan.h	/^	RSS,$/;"	e	enum:__anon36
+SHMEMPMDMAPPED	pagescan.h	/^	SHMEMPMDMAPPED,$/;"	e	enum:__anon36
+SIZE	pagescan.h	/^	SIZE,$/;"	e	enum:__anon36
+SIZE_KB	pagescan.h	19;"	d
+SIZE_MB	pagescan.h	20;"	d
+SLAB_PAGES	movability.h	/^	SLAB_PAGES,         \/* slab pages *\/$/;"	e	enum:__anon34
+TARGET	Makefile	/^TARGET = pagescan$/;"	m
+TOTAL_SIGNS	fragement.c	105;"	d	file:
+TOTAL_SIGNS	zero_subpage.c	28;"	d	file:
+VMFLAGS_MAX	pagescan.h	54;"	d
+_ASM_ARM_BITOPS_H	arch/arm/bitops.h	2;"	d
+_ASM_GENERIC_BITOPS_H	arch/generic/bitops.h	2;"	d
+_ASM_X86_BITOPS_H	arch/x86/bitops.h	2;"	d
+_GNU_SOURCE	fragement.c	5;"	d	file:
+_GNU_SOURCE	pagescan.c	5;"	d	file:
+_GNU_SOURCE	slab.c	5;"	d	file:
+_LARGEFILE64_SOURCE	pagescan.c	8;"	d	file:
+_MM_TYPES_H	kernel/mm_types.h	2;"	d
+_MOVABILITY_H	movability.h	5;"	d
+_PAGESCAN_UTIL_H	pagescan.h	5;"	d
+__clear_bit	arch/generic/bitops.h	/^static inline void __clear_bit(long nr, volatile unsigned long *addr)$/;"	f
+__clear_bit	arch/x86/bitops.h	/^static inline void __clear_bit(long nr, volatile unsigned long *addr)$/;"	f
+__ffs	arch/generic/bitops.h	/^static inline unsigned long __ffs(unsigned long word)$/;"	f
+__ffs	arch/x86/bitops.h	/^static inline unsigned long __ffs(unsigned long word)$/;"	f
+__fls	arch/generic/bitops.h	/^static inline unsigned long __fls(unsigned long word)$/;"	f
+__fls	arch/x86/bitops.h	/^static inline unsigned long __fls(unsigned long word)$/;"	f
+__pad	kernel/mm_types.h	/^			unsigned long __pad;$/;"	m	struct:page::__anon16::__anon19
+__set_bit	arch/generic/bitops.h	/^static inline void __set_bit(long nr, volatile unsigned long *addr)$/;"	f
+__set_bit	arch/x86/bitops.h	/^static inline void __set_bit(long nr, volatile unsigned long *addr)$/;"	f
+__test_bit	arch/generic/bitops.h	/^static inline bool __test_bit(long nr, volatile const unsigned long *addr)$/;"	f
+__test_bit	arch/x86/bitops.h	/^static inline bool __test_bit(long nr, volatile const unsigned long *addr)$/;"	f
+_compound_pad_1	kernel/mm_types.h	/^			unsigned long _compound_pad_1;$/;"	m	struct:page::__anon21::__anon29
+_compound_pad_2	kernel/mm_types.h	/^			unsigned long _compound_pad_2;$/;"	m	struct:page::__anon21::__anon29
+_count	kernel/mm_types.h	/^				int _count;$/;"	m	struct:page::__anon1::__anon3::__anon4
+_find_next_bit	fragement.c	/^static inline unsigned long _find_next_bit(const unsigned long *addr1,$/;"	f	file:
+_mapcount	kernel/mm_types.h	/^					int _mapcount;$/;"	m	union:page::__anon1::__anon3::__anon4::__anon5
+_mapcount	kernel/mm_types.h	/^				int _mapcount;$/;"	m	union:page::__anon12::__anon13::__anon14
+_mapcount	kernel/mm_types.h	/^		int _mapcount;$/;"	m	union:page::__anon33
+_pt_pad_1	kernel/mm_types.h	/^			unsigned long _pt_pad_1;$/;"	m	struct:page::__anon21::__anon30
+_pt_pad_2	kernel/mm_types.h	/^			unsigned long _pt_pad_2;$/;"	m	struct:page::__anon21::__anon30
+_refcount	kernel/mm_types.h	/^			int _refcount;$/;"	m	struct:page::__anon12::__anon13
+_refcount	kernel/mm_types.h	/^	int _refcount;$/;"	m	struct:page
+_zd_pad_1	kernel/mm_types.h	/^			unsigned long _zd_pad_1;$/;"	m	struct:page::__anon21::__anon32
+active	kernel/mm_types.h	/^				unsigned int active;$/;"	m	union:page::__anon12::__anon13::__anon14
+active	kernel/mm_types.h	/^		unsigned int active;$/;"	m	union:page::__anon33
+align	kernel/mm_types.h	/^	int align;$/;"	m	struct:kmem_cache
+align	kernel/mm_types.h	/^	unsigned int align;$/;"	m	struct:kmem_cache
+allocflags	kernel/mm_types.h	/^	unsigned int allocflags;$/;"	m	struct:kmem_cache
+bitmap	pagescan.h	/^	void     *bitmap;$/;"	m	struct:buddy_info
+bitmap_size	pagescan.h	/^	uint64_t bitmap_size;$/;"	m	struct:buddy_info
+buddy_info	pagescan.h	/^struct buddy_info {$/;"	s
+buddy_info_create	pagescan.c	/^static struct buddy_info *buddy_info_create(uint64_t phy_mem_in_bytes)$/;"	f	file:
+buddy_info_destroy	pagescan.c	/^static void buddy_info_destroy(struct buddy_info *buddy_info)$/;"	f	file:
+buddy_info_set_bit	pagescan.c	/^static void buddy_info_set_bit(struct buddy_info *buddy_info, uint64_t pos)$/;"	f	file:
+buddy_info_test_bit	pagescan.c	/^bool buddy_info_test_bit(struct buddy_info *buddy_info, uint64_t pos)$/;"	f
+buddy_stat	fragement.c	/^static struct buddy_stat {$/;"	s	file:
+buddy_stat	fragement.c	/^} buddy_stat = {{0}, 0};$/;"	v	typeref:struct:buddy_stat	file:
+buddy_stat_generate	fragement.c	/^static void buddy_stat_generate(struct buddy_info *buddy_info)$/;"	f	file:
+buddy_stat_mark_used	fragement.c	/^static void buddy_stat_mark_used(uint64_t first, ssize_t len)$/;"	f	file:
+buddy_stat_show	fragement.c	/^static void buddy_stat_show()$/;"	f	file:
+callback_head	kernel/mm_types.h	/^		uintptr_t callback_head[2];$/;"	m	union:page::__anon16
+callback_head	kernel/mm_types.h	/^		uintptr_t callback_head[2];$/;"	m	union:page::__anon21
+cleanup	pagescan.c	/^static void cleanup(void)$/;"	f	file:
+clear_bit	arch/generic/bitops.h	/^static inline void clear_bit(long nr, volatile unsigned long *addr)$/;"	f
+clear_bit	arch/x86/bitops.h	/^static inline void clear_bit(long nr, volatile unsigned long *addr)$/;"	f
+compound_dtor	kernel/mm_types.h	/^			unsigned char compound_dtor;$/;"	m	struct:page::__anon21::__anon28
+compound_dtor	kernel/mm_types.h	/^			unsigned int compound_dtor;$/;"	m	struct:page::__anon16::__anon18
+compound_head	kernel/mm_types.h	/^			unsigned long compound_head;$/;"	m	struct:page::__anon16::__anon18
+compound_head	kernel/mm_types.h	/^			unsigned long compound_head;$/;"	m	struct:page::__anon21::__anon28
+compound_mapcount	kernel/mm_types.h	/^			int compound_mapcount;$/;"	m	struct:page::__anon21::__anon28
+compound_mapcount	kernel/mm_types.h	/^		int compound_mapcount;$/;"	m	union:page::__anon10
+compound_order	kernel/mm_types.h	/^			unsigned char compound_order;$/;"	m	struct:page::__anon21::__anon28
+compound_order	kernel/mm_types.h	/^			unsigned int compound_order;$/;"	m	struct:page::__anon16::__anon18
+counter	pagescan.h	/^	uint64_t counter[MAX_PROCMAP_COUNTER];$/;"	m	struct:procmap_stat
+counters	kernel/mm_types.h	/^				unsigned long counters;$/;"	m	union:page::__anon21::__anon23::__anon26
+counters	kernel/mm_types.h	/^			unsigned long counters;$/;"	m	union:page::__anon1::__anon3
+counters	kernel/mm_types.h	/^		unsigned long counters;$/;"	m	union:page::__anon12
+cpu_partial	kernel/mm_types.h	/^	int cpu_partial;$/;"	m	struct:kmem_cache
+cpu_partial	kernel/mm_types.h	/^	unsigned int cpu_partial;$/;"	m	struct:kmem_cache
+cpu_slab	kernel/mm_types.h	/^	uintptr_t cpu_slab;$/;"	m	struct:kmem_cache
+ctor	kernel/mm_types.h	/^	uintptr_t ctor;$/;"	m	struct:kmem_cache
+deferred_list	kernel/mm_types.h	/^			uintptr_t deferred_list[2];$/;"	m	struct:page::__anon21::__anon29
+elf_header	pagescan.c	/^	char *elf_header;$/;"	m	struct:proc_kcore_data	file:
+exec_vma	pagescan.c	/^	bool exec_vma;$/;"	m	struct:options	file:
+exist	pagescan.c	/^	int		exist;$/;"	m	struct:__anon35	file:
+ffz	arch/generic/bitops.h	17;"	d
+ffz	arch/x86/bitops.h	/^static inline unsigned long ffz(unsigned long word)$/;"	f
+find_next_bit	fragement.c	/^unsigned long find_next_bit(const unsigned long *addr, unsigned long size,$/;"	f
+find_next_zero_bit	fragement.c	/^unsigned long find_next_zero_bit(const unsigned long *addr, unsigned long size,$/;"	f
+first_page	kernel/mm_types.h	/^		uintptr_t first_page;$/;"	m	union:page::__anon9
+flags	kernel/mm_types.h	/^	unsigned int flags;$/;"	m	struct:kmem_cache
+flags	kernel/mm_types.h	/^	unsigned long flags;$/;"	m	struct:kmem_cache
+flags	kernel/mm_types.h	/^	unsigned long flags;$/;"	m	struct:page
+flags	pagescan.c	/^	unsigned int flags;$/;"	m	struct:proc_kcore_data	file:
+fls	arch/generic/bitops.h	/^static inline int fls(int x)$/;"	f
+fls	arch/x86/bitops.h	/^static inline int fls(int x)$/;"	f
+fls64	arch/generic/bitops.h	/^static inline int fls64(unsigned long long x)$/;"	f
+fls64	arch/x86/bitops.h	/^static inline int fls64(unsigned long long x)$/;"	f
+fname	pagescan.h	/^	char     fname[PATH_MAX];$/;"	m	struct:procmap
+fragment	pagescan.c	/^	bool fragment;$/;"	m	struct:options	file:
+freelist	kernel/mm_types.h	/^			uintptr_t freelist;$/;"	m	struct:page::__anon21::__anon23
+freelist	kernel/mm_types.h	/^			uintptr_t freelist;$/;"	m	union:page::__anon1::__anon2
+freelist	kernel/mm_types.h	/^		uintptr_t freelist;$/;"	m	union:page::__anon11
+frozen	kernel/mm_types.h	/^						unsigned int frozen : 1;$/;"	m	struct:page::__anon1::__anon3::__anon4::__anon5::__anon6
+frozen	kernel/mm_types.h	/^					unsigned int frozen : 1;$/;"	m	struct:page::__anon12::__anon13::__anon14::__anon15
+frozen	kernel/mm_types.h	/^					unsigned int frozen : 1;$/;"	m	struct:page::__anon21::__anon23::__anon26::__anon27
+g_max_phy_addr	pagescan.c	/^static uint64_t g_max_phy_addr;$/;"	v	file:
+get_cmdline	pagescan.c	/^static char *get_cmdline(pid_t pid)$/;"	f	file:
+get_max_phy_addr	pagescan.c	/^static uint64_t get_max_phy_addr()$/;"	f	file:
+get_memory_map	pagescan.c	/^static int get_memory_map(pid_t pid, struct procmap **p_procmap)$/;"	f	file:
+get_page_count	kernel/mm_types.h	/^static inline unsigned int get_page_count(struct page *page,$/;"	f
+get_page_mapcount	kernel/mm_types.h	/^static inline unsigned int get_page_mapcount(struct page *page,$/;"	f
+header_size	pagescan.c	/^	size_t header_size;$/;"	m	struct:proc_kcore_data	file:
+hmm_data	kernel/mm_types.h	/^			unsigned long hmm_data;$/;"	m	struct:page::__anon21::__anon32
+huge_stat	zero_subpage.c	/^static struct huge_stat {$/;"	s	file:
+huge_stat	zero_subpage.c	/^} huge_stat = {{0}, 0, {0}, 0, 0, 0, 0};$/;"	v	typeref:struct:huge_stat	file:
+huge_stat_dump	zero_subpage.c	/^static void huge_stat_dump(int base)$/;"	f	file:
+index	kernel/mm_types.h	/^			unsigned long index;$/;"	m	struct:page::__anon21::__anon22
+index	kernel/mm_types.h	/^			unsigned long index;$/;"	m	union:page::__anon1::__anon2
+index	kernel/mm_types.h	/^		unsigned long index;$/;"	m	union:page::__anon11
+ino	pagescan.h	/^	uint32_t ino;$/;"	m	struct:procmap
+inuse	kernel/mm_types.h	/^						unsigned int inuse : 16;$/;"	m	struct:page::__anon1::__anon3::__anon4::__anon5::__anon6
+inuse	kernel/mm_types.h	/^					unsigned int inuse : 16;$/;"	m	struct:page::__anon12::__anon13::__anon14::__anon15
+inuse	kernel/mm_types.h	/^					unsigned int inuse : 16;$/;"	m	struct:page::__anon21::__anon23::__anon26::__anon27
+inuse	kernel/mm_types.h	/^	int inuse;$/;"	m	struct:kmem_cache
+inuse	kernel/mm_types.h	/^	unsigned int inuse;$/;"	m	struct:kmem_cache
+kcore_elf_init	pagescan.c	/^static int kcore_elf_init(void)$/;"	f	file:
+kcore_exit	pagescan.c	/^static void kcore_exit(void)$/;"	f	file:
+kcore_fd	pagescan.c	/^static int kcore_fd = 0;$/;"	v	file:
+kcore_init	pagescan.c	/^static int kcore_init(void)$/;"	f	file:
+kcore_readmem	pagescan.c	/^ssize_t kcore_readmem(unsigned long kvaddr, void *buf, ssize_t size)$/;"	f
+kmem_cache	kernel/mm_types.h	/^struct kmem_cache {$/;"	s
+kobj	kernel/mm_types.h	/^	uint64_t kobj[8];$/;"	m	struct:kmem_cache
+kobj_remove_work	kernel/mm_types.h	/^	uint64_t kobj_remove_work[4];$/;"	m	struct:kmem_cache
+kpageflags_fd	pagescan.c	/^static int kpageflags_fd = 0;$/;"	v	file:
+kpageflags_read	pagescan.c	/^ssize_t kpageflags_read(void *buf, size_t count, off_t offset)$/;"	f
+list	kernel/mm_types.h	/^		uintptr_t list[2];$/;"	m	union:page::__anon7
+list	kernel/mm_types.h	/^	uintptr_t list[2];$/;"	m	struct:kmem_cache
+load32	pagescan.c	/^	Elf32_Phdr *load32;$/;"	m	struct:proc_kcore_data	file:
+load64	pagescan.c	/^	Elf64_Phdr *load64;$/;"	m	struct:proc_kcore_data	file:
+lookup_kernel_symbol	pagescan.c	/^uintptr_t lookup_kernel_symbol(const char *symbol_name)$/;"	f
+lookup_slab_addrs	slab.c	/^static int lookup_slab_addrs(void)$/;"	f	file:
+lru	kernel/mm_types.h	/^			uintptr_t lru[2];$/;"	m	struct:page::__anon21::__anon22
+lru	kernel/mm_types.h	/^		uintptr_t lru[2];$/;"	m	union:page::__anon16
+lru	kernel/mm_types.h	/^		uintptr_t lru[2];$/;"	m	union:page::__anon7
+main	pagescan.c	/^int main(int argc, char *argv[])$/;"	f
+maj	pagescan.h	/^	uint32_t maj;$/;"	m	struct:procmap
+mapping	kernel/mm_types.h	/^			uintptr_t mapping;$/;"	m	struct:page::__anon21::__anon22
+mapping	kernel/mm_types.h	/^		uintptr_t mapping;$/;"	m	union:page::__anon10
+mapping	kernel/mm_types.h	/^	uintptr_t mapping;$/;"	m	struct:page
+max	kernel/mm_types.h	/^	unsigned int max;$/;"	m	struct:kmem_cache
+max	kernel/mm_types.h	/^	unsigned long max;$/;"	m	struct:kmem_cache
+max_attr_size	kernel/mm_types.h	/^	int max_attr_size;$/;"	m	struct:kmem_cache
+max_attr_size	kernel/mm_types.h	/^	unsigned int max_attr_size;$/;"	m	struct:kmem_cache
+mem_cgroup	kernel/mm_types.h	/^	uintptr_t mem_cgroup;$/;"	m	struct:page
+memcg_kset	kernel/mm_types.h	/^	uintptr_t memcg_kset;$/;"	m	struct:kmem_cache
+memcg_params	kernel/mm_types.h	/^	uint64_t memcg_params[11];$/;"	m	struct:kmem_cache
+memcg_params	kernel/mm_types.h	/^	uint64_t memcg_params[5];$/;"	m	struct:kmem_cache
+memcg_params	kernel/mm_types.h	/^	uintptr_t memcg_params;$/;"	m	struct:kmem_cache
+min	kernel/mm_types.h	/^	unsigned int min;$/;"	m	struct:kmem_cache
+min	kernel/mm_types.h	/^	unsigned long min;$/;"	m	struct:kmem_cache
+min	pagescan.h	/^	uint32_t min;$/;"	m	struct:procmap
+min_partial	kernel/mm_types.h	/^	unsigned long min_partial;$/;"	m	struct:kmem_cache
+mmap_size	pagescan.h	/^	size_t   mmap_size;$/;"	m	struct:buddy_info
+movability	pagescan.c	/^	bool movability;$/;"	m	struct:options	file:
+name	kernel/mm_types.h	/^	uintptr_t name;$/;"	m	struct:kmem_cache
+next	kernel/mm_types.h	/^					uintptr_t next;$/;"	m	struct:page::__anon21::__anon23::__anon24::__anon25
+next	kernel/mm_types.h	/^			uintptr_t next;$/;"	m	struct:page::__anon16::__anon17
+next	kernel/mm_types.h	/^			uintptr_t next;$/;"	m	struct:page::__anon7::__anon8
+nice	kernel/mm_types.h	/^	unsigned int nice;$/;"	m	struct:kmem_cache
+node	kernel/mm_types.h	/^	uintptr_t node[1024];$/;"	m	struct:kmem_cache
+node	kernel/mm_types.h	/^	uintptr_t node[64];$/;"	m	struct:kmem_cache
+notes32	pagescan.c	/^	Elf32_Phdr *notes32;$/;"	m	struct:proc_kcore_data	file:
+notes64	pagescan.c	/^	Elf64_Phdr *notes64;$/;"	m	struct:proc_kcore_data	file:
+nr	fragement.c	/^	uint64_t	nr[MAX_ORDER];$/;"	m	struct:buddy_stat	file:
+nr_numa_node	pagescan.c	/^int nr_numa_node = -1;$/;"	v
+numa_info	pagescan.c	/^} numa_info[MAX_NUMA_NODES];$/;"	v	typeref:struct:__anon35
+object_size	kernel/mm_types.h	/^	int object_size;$/;"	m	struct:kmem_cache
+object_size	kernel/mm_types.h	/^	unsigned int object_size;$/;"	m	struct:kmem_cache
+objects	kernel/mm_types.h	/^						unsigned int objects : 15;$/;"	m	struct:page::__anon1::__anon3::__anon4::__anon5::__anon6
+objects	kernel/mm_types.h	/^					unsigned int objects : 15;$/;"	m	struct:page::__anon12::__anon13::__anon14::__anon15
+objects	kernel/mm_types.h	/^					unsigned int objects : 15;$/;"	m	struct:page::__anon21::__anon23::__anon26::__anon27
+offset	kernel/mm_types.h	/^	int offset;$/;"	m	struct:kmem_cache
+offset	kernel/mm_types.h	/^	unsigned int offset;$/;"	m	struct:kmem_cache
+offsetof_list_in_kmem_cache	slab.c	21;"	d	file:
+offsetof_name_in_kmem_cache	slab.c	22;"	d	file:
+oo	kernel/mm_types.h	/^	unsigned int oo;$/;"	m	struct:kmem_cache
+oo	kernel/mm_types.h	/^	unsigned long oo;$/;"	m	struct:kmem_cache
+opt	pagescan.c	/^} opt = { 0 };$/;"	v	typeref:struct:options
+options	pagescan.c	/^struct options {$/;"	s	file:
+padding1	kernel/mm_types.h	/^	unsigned int padding1;	\/* explicitly add 4 padding *\/$/;"	m	struct:kmem_cache
+padding2	kernel/mm_types.h	/^	unsigned int padding2;	\/* explicitly add 4 padding *\/$/;"	m	struct:kmem_cache
+padding3	kernel/mm_types.h	/^	unsigned int padding3;	\/* explicitly add 4 padding *\/$/;"	m	struct:kmem_cache
+padding4	kernel/mm_types.h	/^	unsigned int padding4;	\/* explicitly add 4 padding *\/$/;"	m	struct:kmem_cache
+padding5	kernel/mm_types.h	/^	unsigned int padding5;	\/* explicitly add 4 padding *\/$/;"	m	struct:kmem_cache
+page	kernel/mm_types.h	/^struct page {$/;"	s
+page_offset_base	pagescan.c	/^unsigned long page_offset_base = 0xffff880000000000UL;$/;"	v
+page_type	kernel/mm_types.h	/^		unsigned int page_type;$/;"	m	union:page::__anon33
+pages	kernel/mm_types.h	/^					int pages;$/;"	m	struct:page::__anon21::__anon23::__anon24::__anon25
+pages	kernel/mm_types.h	/^			int pages;$/;"	m	struct:page::__anon16::__anon17
+pages	kernel/mm_types.h	/^			int pages;$/;"	m	struct:page::__anon7::__anon8
+parse_numa_info	pagescan.c	/^static int parse_numa_info(void)$/;"	f	file:
+parse_procmap_stat	pagescan.c	121;"	d	file:
+parse_slab_names	slab.c	/^static int parse_slab_names(char *slabs)$/;"	f	file:
+pfmemalloc	kernel/mm_types.h	/^			bool pfmemalloc;$/;"	m	union:page::__anon1::__anon2
+pfn_to_node	pagescan.c	/^int pfn_to_node(unsigned long pfn)$/;"	f
+pgmap	kernel/mm_types.h	/^			uintptr_t pgmap;$/;"	m	struct:page::__anon21::__anon32
+pgmap	kernel/mm_types.h	/^		uintptr_t pgmap;$/;"	m	union:page::__anon16
+pgoff	pagescan.h	/^	uint64_t pgoff;$/;"	m	struct:procmap
+phy_mem_in_bytes	pagescan.h	/^	uint64_t phy_mem_in_bytes;$/;"	m	struct:buddy_info
+pid_num	pagescan.c	/^	int pid_num;$/;"	m	struct:options	file:
+pid_parse	pagescan.c	/^int pid_parse(const char *arg, pid_t **p_pids)$/;"	f
+pids	pagescan.c	/^	pid_t *pids;$/;"	m	struct:options	file:
+pkd	pagescan.c	/^static struct proc_kcore_data *pkd = &proc_kcore_data;$/;"	v	typeref:struct:proc_kcore_data	file:
+pmd_huge_pte	kernel/mm_types.h	/^			uintptr_t pmd_huge_pte;$/;"	m	struct:page::__anon16::__anon19
+pmd_huge_pte	kernel/mm_types.h	/^			uintptr_t pmd_huge_pte;$/;"	m	struct:page::__anon21::__anon30
+pmd_huge_pte	kernel/mm_types.h	/^			uintptr_t pmd_huge_pte;$/;"	m	union:page::__anon1::__anon2
+pobjects	kernel/mm_types.h	/^					int pobjects;$/;"	m	struct:page::__anon21::__anon23::__anon24::__anon25
+pobjects	kernel/mm_types.h	/^			int pobjects;$/;"	m	struct:page::__anon16::__anon17
+pobjects	kernel/mm_types.h	/^			int pobjects;$/;"	m	struct:page::__anon7::__anon8
+print_body	movability.h	/^static inline void print_body(const char *prefix, unsigned type,$/;"	f
+print_header	movability.h	/^static inline void print_header(void)$/;"	f
+proc_kcore_data	pagescan.c	/^static struct proc_kcore_data proc_kcore_data = { 0 };$/;"	v	typeref:struct:proc_kcore_data	file:
+proc_kcore_data	pagescan.c	/^struct proc_kcore_data {$/;"	s	file:
+procmap	pagescan.h	/^struct procmap {$/;"	s
+procmap_stat	pagescan.h	/^struct procmap_stat {$/;"	s
+prot	pagescan.h	/^	char     prot[PROT_SZ];$/;"	m	struct:procmap
+pt_frag_refcount	kernel/mm_types.h	/^				int pt_frag_refcount;$/;"	m	union:page::__anon21::__anon30::__anon31
+pt_mm	kernel/mm_types.h	/^				uintptr_t pt_mm;$/;"	m	union:page::__anon21::__anon30::__anon31
+ptl	kernel/mm_types.h	/^			unsigned int ptl;$/;"	m	struct:page::__anon21::__anon30
+ptl	kernel/mm_types.h	/^		unsigned int ptl;$/;"	m	union:page::__anon20
+ptl	kernel/mm_types.h	/^		unsigned int ptl;$/;"	m	union:page::__anon9
+red_left_pad	kernel/mm_types.h	/^	int red_left_pad;$/;"	m	struct:kmem_cache
+red_left_pad	kernel/mm_types.h	/^	unsigned int red_left_pad;$/;"	m	struct:kmem_cache
+refcount	kernel/mm_types.h	/^	int refcount;$/;"	m	struct:kmem_cache
+remote_node_defrag_ratio	kernel/mm_types.h	/^	int remote_node_defrag_ratio;$/;"	m	struct:kmem_cache
+remote_node_defrag_ratio	kernel/mm_types.h	/^	unsigned int remote_node_defrag_ratio;$/;"	m	struct:kmem_cache
+reserved	kernel/mm_types.h	/^	int reserved;$/;"	m	struct:kmem_cache
+s_mem	kernel/mm_types.h	/^				uintptr_t s_mem;$/;"	m	union:page::__anon21::__anon23::__anon26
+s_mem	kernel/mm_types.h	/^		uintptr_t s_mem;$/;"	m	union:page::__anon10
+scan_exec_vma	exec_vma.c	/^void scan_exec_vma(struct procmap *procmap, int procmap_num)$/;"	f
+scan_fragment	fragement.c	/^void scan_fragment(struct buddy_info *buddy_info)$/;"	f
+scan_memory_region	pagescan.c	/^static void scan_memory_region(struct buddy_info *buddy_info, int pagemap_fd,$/;"	f	file:
+scan_movability	movability.c	/^void scan_movability(struct buddy_info *buddy_info)$/;"	f
+scan_movability_help	movability.c	/^void scan_movability_help(void)$/;"	f
+scan_pids	pagescan.c	/^static struct buddy_info *scan_pids(pid_t *pids, int pid_num)$/;"	f	file:
+scan_slabs	slab.c	/^void scan_slabs(char *slabs)$/;"	f
+scan_step	pagescan.c	/^static int scan_step(uint64_t va_start, uint64_t va_end, uint64_t *va_idx)$/;"	f	file:
+scan_zero_subpages	zero_subpage.c	/^void scan_zero_subpages(struct buddy_info *buddy_info)$/;"	f
+scan_zero_subpages_in_base	zero_subpage.c	/^void scan_zero_subpages_in_base(uint64_t raw_pfn, int idx, int end)$/;"	f
+scan_zero_subpages_in_thp	zero_subpage.c	/^static void scan_zero_subpages_in_thp(struct buddy_info *buddy_info)$/;"	f	file:
+segments	pagescan.c	/^	unsigned int segments;$/;"	m	struct:proc_kcore_data	file:
+set_bit	arch/generic/bitops.h	/^static inline void set_bit(long nr, volatile unsigned long *addr)$/;"	f
+set_bit	arch/x86/bitops.h	/^static inline void set_bit(long nr, volatile unsigned long *addr)$/;"	f
+setup	pagescan.c	/^static int setup(void)$/;"	f	file:
+show_exec_vma	exec_vma.c	/^static void show_exec_vma(struct procmap *procmap)$/;"	f	file:
+show_usage	pagescan.c	/^static void show_usage(const char *name)$/;"	f	file:
+size	kernel/mm_types.h	/^	int size;$/;"	m	struct:kmem_cache
+size	kernel/mm_types.h	/^	unsigned int size;$/;"	m	struct:kmem_cache
+size_vmcoreinfo	pagescan.c	/^	unsigned int size_vmcoreinfo;$/;"	m	struct:proc_kcore_data	file:
+slab_addrs	slab.c	/^static uintptr_t slab_addrs[MAX_SLAB + 1];$/;"	v	file:
+slab_cache	kernel/mm_types.h	/^			uintptr_t slab_cache;$/;"	m	struct:page::__anon21::__anon23
+slab_cache	kernel/mm_types.h	/^		uintptr_t slab_cache;$/;"	m	union:page::__anon20
+slab_cache	kernel/mm_types.h	/^		uintptr_t slab_cache;$/;"	m	union:page::__anon9
+slab_list	kernel/mm_types.h	/^				uintptr_t slab_list[2];$/;"	m	union:page::__anon21::__anon23::__anon24
+slab_names	slab.c	/^static char *slab_names[MAX_SLAB + 1];$/;"	v	file:
+slab_page	kernel/mm_types.h	/^		uintptr_t slab_page;$/;"	m	union:page::__anon7
+slabs	pagescan.c	/^	char *slabs;$/;"	m	struct:options	file:
+start_pfn	pagescan.c	/^	uint64_t	start_pfn;$/;"	m	struct:__anon35	file:
+stat	pagescan.h	/^	struct procmap_stat stat;$/;"	m	struct:procmap	typeref:struct:procmap::procmap_stat
+test_bit	arch/generic/bitops.h	/^static inline bool test_bit(long nr, volatile const unsigned long *addr)$/;"	f
+test_bit	arch/x86/bitops.h	/^static inline bool test_bit(long nr, volatile const unsigned long *addr)$/;"	f
+total_huge_pages_base	zero_subpage.c	/^	uint64_t total_huge_pages_base;$/;"	m	struct:huge_stat	file:
+total_huge_pages_thp	zero_subpage.c	/^	uint64_t total_huge_pages_thp;$/;"	m	struct:huge_stat	file:
+total_rss_pages	zero_subpage.c	/^	uint64_t total_rss_pages;$/;"	m	struct:huge_stat	file:
+total_thp_deferred_split	zero_subpage.c	/^	uint64_t total_thp_deferred_split;$/;"	m	struct:huge_stat	file:
+total_thp_readonly_zero	zero_subpage.c	/^	uint64_t total_thp_readonly_zero;$/;"	m	struct:huge_stat	file:
+units	kernel/mm_types.h	/^					int units;$/;"	m	union:page::__anon1::__anon3::__anon4::__anon5
+units	kernel/mm_types.h	/^				int units;$/;"	m	union:page::__anon12::__anon13::__anon14
+units	kernel/mm_types.h	/^		int units;$/;"	m	union:page::__anon33
+used	fragement.c	/^	uint64_t	used;$/;"	m	struct:buddy_stat	file:
+useroffset	kernel/mm_types.h	/^	unsigned int useroffset;$/;"	m	struct:kmem_cache
+usersize	kernel/mm_types.h	/^	unsigned int usersize;$/;"	m	struct:kmem_cache
+va_end	pagescan.h	/^	uint64_t va_end;$/;"	m	struct:procmap
+va_start	pagescan.h	/^	uint64_t va_start;$/;"	m	struct:procmap
+vmcoreinfo	pagescan.c	/^	void *vmcoreinfo;$/;"	m	struct:proc_kcore_data	file:
+vmemmap_base	pagescan.c	/^unsigned long vmemmap_base = 0xffffea0000000000UL;$/;"	v
+vmflags	pagescan.h	/^	char     vmflags[VMFLAGS_MAX];$/;"	m	struct:procmap_stat
+zero_pages_base	zero_subpage.c	/^	uint64_t zero_pages_base[HUGE_PAGE_NR];     \/* at most 511 not present pages *\/$/;"	m	struct:huge_stat	file:
+zero_pages_thp	zero_subpage.c	/^	uint64_t zero_pages_thp[HUGE_PAGE_NR + 1];  \/* at most 512 zero subpages *\/$/;"	m	struct:huge_stat	file:
+zero_subpages	pagescan.c	/^	bool zero_subpages;$/;"	m	struct:options	file:

@@ -1,0 +1,25 @@
+Author Declaration
+==================
+
+The work is initiated by Gang Deng, and the implementation of fundamental
+framework and the fragment scan feature is accomplished.
+
+Cao Zou develops the part of the movability scan feature, wherein Gang Deng
+and Zhiheng Tao contribute function extension and some bug fixes.
+
+Xu Yu implements the features of fine-grained slab scan and zero subpages
+scan.
+
+Finally, Xu Yu refactors all the codes and enables the ability to support
+different architectures.
+
+Rongwei Wang develops the feature of exec vma scan, which is polished by
+Xu Yu.
+
+Author List
+===========
+Gang Deng <gavin.dg@linux.alibaba.com>
+Xu Yu <xuyu@linux.alibaba.com>
+Rongwei Wang <rongwei.wang@linux.alibaba.com>
+Zhiheng Tao <zhihengtao@linux.alibaba.com>
+Zou Cao <zoucao@linux.alibaba.com>
