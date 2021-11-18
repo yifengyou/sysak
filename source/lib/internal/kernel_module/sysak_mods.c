@@ -1,13 +1,44 @@
 #include "sysak_mods.h"
 
-extern int trace_sig_init(void);
-extern int trace_sig_exit(void);
-extern int memleak_init(void);
-extern int memleak_uninit(void);
-extern int trace_irqoff_init(void);
-extern int trace_irqoff_exit(void);
-extern int task_ctl_init(void);
-extern int task_ctl_exit(void);
+int __attribute__((weak)) trace_sig_init(void)
+{
+	return 0;
+}
+
+int __attribute__((weak)) trace_sig_exit(void)
+{
+	return 0;
+}
+
+int __attribute__((weak)) memleak_init(void)
+{
+	return 0;
+}
+
+int __attribute__((weak)) memleak_uninit(void)
+{
+	return 0;
+}
+
+int __attribute__((weak)) trace_irqoff_init(void)
+{
+	return 0;
+}
+
+int __attribute__((weak)) trace_irqoff_exit(void)
+{
+	return 0;
+}
+
+int __attribute__((weak)) task_ctl_init(void)
+{
+	return 0;
+}
+
+int __attribute__((weak)) task_ctl_exit(void)
+{
+	return 0;
+}
 
 struct sysak_module sysak_modules[] = {
 	{ "trace_sig", trace_sig_init, trace_sig_exit},

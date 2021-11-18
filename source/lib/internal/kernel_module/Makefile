@@ -12,12 +12,20 @@ sysak-objs += ./entry.o sysak_mods.o
 
 #modules
 #sysak-objs += modules/test_module/test.o
+ifneq ($(findstring tracesig,$(TARGET_LIST)),)
 sysak-objs += modules/signal/trace_sig.o
+endif
+ifneq ($(findstring memleak,$(TARGET_LIST)),)
 sysak-objs += modules/memleak/memleak.o
 sysak-objs += modules/memleak/objects.o
 sysak-objs += modules/memleak/hashlist.o
+endif
+ifneq ($(findstring runlatency,$(TARGET_LIST)),)
 sysak-objs += modules/sched/noschedule.o modules/sched/trace_irqoff.o modules/sched/trace_runqlat.o
+endif
+ifneq ($(findstring taskctl,$(TARGET_LIST)),)
 sysak-objs += modules/task_ctl/task_ctrl.o
+endif
 
 obj-m += sysak.o
 

@@ -30,7 +30,10 @@ struct sysak_dev {
 	struct cdev cdev;
 };
 
-extern int memleak_handler_cmd(int cmd, unsigned long arg);
+int __attribute__((weak)) memleak_handler_cmd(int cmd, unsigned long arg)
+{
+	return -ENOSYS;
+}
 
 static long sysak_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
