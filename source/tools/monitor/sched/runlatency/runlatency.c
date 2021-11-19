@@ -101,12 +101,10 @@ int main(int argc, char *argv[])
 				break;
 			case 'p':
 				pid = atoi(optarg);
-				fprintf(stderr, "debug_p_pid=%d\n", pid);
 				break;
 			case 'e':
 				if (optarg)
 					en_opt = atoi(optarg);
-				fprintf(stderr, "debug_e_pid=%d\n", pid);
 				will_switch = 1;
 				enable = 1;
 				break;
