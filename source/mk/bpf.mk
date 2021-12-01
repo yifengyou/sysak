@@ -13,9 +13,7 @@ else
 OUTPUT := $(OBJ_TOOLS_ROOT)
 endif
 
-INCLUDES := -I$(SRC)/lib/internal/ebpf/vmlinux -I$(OUTPUT) -I$(OBJ_LIB_PATH) -I$(SRC)/lib/internal/ebpf/libbpf/include/uapi 
-
-APPS := $(target)
+INCLUDES := -I$(OBJPATH) -I$(SRC)/lib/internal/ebpf -I$(OUTPUT) -I$(OBJ_LIB_PATH) -I$(SRC)/lib/internal/ebpf/libbpf/include/uapi 
 
 ifeq ($(V),1)
 	Q =
@@ -29,40 +27,30 @@ else
 	MAKEFLAGS += --no-print-directory
 endif
 
-.PHONY: all
-all: $(APPS)
+cobjs := $(foreach n, $(cobject), $(OBJPATH)/$(n))
+bpfobjs := $(foreach n, $(bpfobject), $(OBJPATH)/$(n))
+bpfskel := $(patsubst %.bpf.o, %.skel.h, $(bpfobjs))
 
-.PHONY: clean
-clean:
-	rm -rf $(OUTPUT) $(APPS)
+$(target): $(cobjs) $(bpfskel) $(LIBBPF_OBJ)
+	$(call msg,BINARY,$@)
+	$(Q)$(CC) $(CFLAGS) $(INCLUDES) $^ -lelf -lz -o $(OUTPUT)/$@
+	echo $(target):$(DEPEND) >> $(OUTPUT)/$(SYSAK_RULES)
+$(cobjs): $(cobject)
 
-$(OUTPUT)/vmlinux.h: $(wildcard vmlinux/*.h)
-	ln -sf $(SRC)/lib/internal/ebpf/vmlinux/vmlinux-$(KERNEL_VERSION).h $(OUTPUT)/vmlinux.h
+$(cobject): %.o : %.c $(bpfskel)
+	$(call msg,CC,$@) 
+	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $(OBJPATH)/$@
 
-# Build BPF code
-$(OUTPUT)/%.bpf.o: $(APPS_DIR)/%.bpf.c $(LIBBPF_OBJ) $(wildcard $(APPS_DIR)/%.h) $(OUTPUT)/vmlinux.h| $(OUTPUT)
-	$(call msg,BPF,$@)
-	$(Q)$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) $(INCLUDES) -c $(filter %.c,$^) -o $@
-	$(Q)$(LLVM_STRIP) -g $@ # strip useless DWARF info
-
-# Generate BPF skeletons
-$(OUTPUT)/%.skel.h: $(OUTPUT)/%.bpf.o | $(OUTPUT)
+$(bpfskel): %.skel.h : %.bpf.o $(bpfobjs)
 	$(call msg,GEN-SKEL,$@)
 	$(Q)$(BPFTOOL) gen skeleton $< > $@
 
-# Build user-space code
-$(patsubst %,$(OUTPUT)/%.o,$(APPS)): %.o: %.skel.h
+$(bpfobjs): $(bpfobject)
 
-$(OUTPUT)/%.o: $(APPS_DIR)/%.c $(wildcard $(APPS_DIR)%.h) | $(OUTPUT)
-	$(call msg,CC,$@)
-	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $(filter %.c,$^) -o $@
-
-# Build application binary
-$(APPS): %: $(OUTPUT)/%.o $(LIBBPF_OBJ) | $(OUTPUT)
-	$(call msg,BINARY,$@)
-	$(Q)$(CC) $(CFLAGS) $^ -lelf -lz -o $@
-	mv $@ $(OUTPUT)/$@
-	echo $(APPS):$(DEPEND) >> $(OUTPUT)/$(SYSAK_RULES)
+$(bpfobject) : %.o : %.c
+	$(call msg,BPF,$@)
+	$(Q)$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) $(INCLUDES) -c $< -o $(OBJPATH)/$@
+	$(Q)$(LLVM_STRIP) -g $(OBJPATH)/$@ # strip useless DWARF info
 
 # delete failed targets
 .DELETE_ON_ERROR:
