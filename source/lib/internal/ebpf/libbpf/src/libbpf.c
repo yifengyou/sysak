@@ -475,6 +475,7 @@ struct bpf_object {
 	struct btf *btf;
 	struct btf_ext *btf_ext;
 
+	char *btf_custom_path;
 	/* Parse and load BTF vmlinux if any of the programs in the object need
 	 * it at load time.
 	 */
@@ -2573,7 +2574,12 @@ static int bpf_object__load_vmlinux_btf(struct bpf_object *obj, bool force)
 	if (!force && !obj_needs_vmlinux_btf(obj))
 		return 0;
 
-	obj->btf_vmlinux = libbpf_find_kernel_btf();
+	if (obj->btf_custom_path) {
+		obj->btf_vmlinux = btf__parse(obj->btf_custom_path, NULL);
+		pr_debug("loading custom vmlinux BTF '%s'\n", obj->btf_custom_path);
+	} else {
+		obj->btf_vmlinux = libbpf_find_kernel_btf();
+	}
 	if (IS_ERR(obj->btf_vmlinux)) {
 		err = PTR_ERR(obj->btf_vmlinux);
 		pr_warn("Error loading vmlinux BTF: %d\n", err);
@@ -7090,7 +7096,7 @@ static struct bpf_object *
 __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 		   const struct bpf_object_open_opts *opts)
 {
-	const char *obj_name, *kconfig;
+	const char *obj_name, *kconfig, *btf_tmp_path;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
 	char tmp_name[64];
@@ -7120,6 +7126,13 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 	obj = bpf_object__new(path, obj_buf, obj_buf_sz, obj_name);
 	if (IS_ERR(obj))
 		return obj;
+
+	btf_tmp_path = OPTS_GET(opts, btf_custom_path, NULL);
+	if (btf_tmp_path && strlen(btf_tmp_path) < PATH_MAX) {
+		obj->btf_custom_path = strdup(btf_tmp_path);
+		if (!obj->btf_custom_path)
+			return ERR_PTR(-ENOMEM);
+	}
 
 	kconfig = OPTS_GET(opts, kconfig, NULL);
 	if (kconfig) {
@@ -7495,9 +7508,9 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 	}
 
 	err = bpf_object__probe_loading(obj);
-	// err = err ? : bpf_object__load_vmlinux_btf(obj, false);
+	err = err ? : bpf_object__load_vmlinux_btf(obj, false);
 	err = err ? : bpf_object__resolve_externs(obj, obj->kconfig);
-	// err = err ? : bpf_object__sanitize_and_load_btf(obj);
+	err = err ? : bpf_object__sanitize_and_load_btf(obj);
 	err = err ? : bpf_object__sanitize_maps(obj);
 	err = err ? : bpf_object__init_kern_struct_ops_maps(obj);
 	err = err ? : bpf_object__create_maps(obj);
@@ -8139,6 +8152,7 @@ void bpf_object__close(struct bpf_object *obj)
 
 	zfree(&obj->kconfig);
 	zfree(&obj->externs);
+	zfree(&obj->btf_custom_path);
 	obj->nr_extern = 0;
 
 	zfree(&obj->maps);
