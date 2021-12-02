@@ -3715,33 +3715,33 @@ int bpf_map__resize(struct bpf_map *map, __u32 max_entries)
 static int
 bpf_object__probe_loading(struct bpf_object *obj)
 {
-	struct bpf_load_program_attr attr;
-	char *cp, errmsg[STRERR_BUFSIZE];
-	struct bpf_insn insns[] = {
-		BPF_MOV64_IMM(BPF_REG_0, 0),
-		BPF_EXIT_INSN(),
-	};
-	int ret;
+	// struct bpf_load_program_attr attr;
+	// char *cp, errmsg[STRERR_BUFSIZE];
+	// struct bpf_insn insns[] = {
+	// 	BPF_MOV64_IMM(BPF_REG_0, 0),
+	// 	BPF_EXIT_INSN(),
+	// };
+	// int ret;
 
-	/* make sure basic loading works */
+	// /* make sure basic loading works */
 
-	memset(&attr, 0, sizeof(attr));
-	attr.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
-	attr.insns = insns;
-	attr.insns_cnt = ARRAY_SIZE(insns);
-	attr.license = "GPL";
+	// memset(&attr, 0, sizeof(attr));
+	// attr.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
+	// attr.insns = insns;
+	// attr.insns_cnt = ARRAY_SIZE(insns);
+	// attr.license = "GPL";
 
-	ret = bpf_load_program_xattr(&attr, NULL, 0);
-	if (ret < 0) {
-		ret = errno;
-		cp = libbpf_strerror_r(ret, errmsg, sizeof(errmsg));
-		pr_warn("Error in %s():%s(%d). Couldn't load trivial BPF "
-			"program. Make sure your kernel supports BPF "
-			"(CONFIG_BPF_SYSCALL=y) and/or that RLIMIT_MEMLOCK is "
-			"set to big enough value.\n", __func__, cp, ret);
-		return -ret;
-	}
-	close(ret);
+	// ret = bpf_load_program_xattr(&attr, NULL, 0);
+	// if (ret < 0) {
+	// 	ret = errno;
+	// 	cp = libbpf_strerror_r(ret, errmsg, sizeof(errmsg));
+	// 	pr_warn("Error in %s():%s(%d). Couldn't load trivial BPF "
+	// 		"program. Make sure your kernel supports BPF "
+	// 		"(CONFIG_BPF_SYSCALL=y) and/or that RLIMIT_MEMLOCK is "
+	// 		"set to big enough value.\n", __func__, cp, ret);
+	// 	return -ret;
+	// }
+	// close(ret);
 
 	return 0;
 }
