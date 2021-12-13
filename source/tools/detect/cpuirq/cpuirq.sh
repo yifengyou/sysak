@@ -18,13 +18,7 @@ usage() {
 }
 
 irq_bind() {
-maxcpu=`lscpu | grep "On-line" | awk -F- '{print $3}'`
-if [ "$cpu" -ge 0 ] 2>/dev/null; then
-	if [ $cpu -gt $maxcpu ]; then
-		echo cpu is not valid
-		exit
-	fi
-else
+if [ "$cpu" -lt 0 ] 2>/dev/null; then
 	usage
 	exit
 fi
@@ -58,6 +52,7 @@ datadir="/var/log/sysak"
 interval=5
 show_top="false"
 show_bind="false"
+cpu=-1
 
 top_irq() {
 echo > $datadir/cpuirq1.log
@@ -77,6 +72,23 @@ cat $datadir/cpuirq.log | while read line; do
 done
 }
 
+top_irq_cpu() {
+echo > $datadir/cpuirq1.log
+echo > $datadir/cpuirq2.log
+cat /proc/interrupts | while read line; do echo $line |awk -v cpu=$cpu '{print $1$(2+cpu)":"$NF}' >> $datadir/cpuirq1.log;done
+sleep $interval
+cat /proc/interrupts | while read line; do echo $line |awk -v cpu=$cpu '{print $1$(2+cpu)":"$NF}' >> $datadir/cpuirq2.log;done
+diff -y --suppress-common-line -B /var/log/sysak/cpuirq1.log /var/log/sysak/cpuirq2.log | awk -F ":" '{print $4-$2" "$1":"$5}' |  sort  -nr > $datadir/cpuirq.log
+
+echo the top interrups on cpu$cpu at last $interval seconds:
+cat $datadir/cpuirq.log | while read line; do
+	irqcnt=`echo $line | awk '{print $1}'`
+	if [ $irqcnt -lt 1000 ]; then
+		exit;
+	fi
+	echo $line
+done
+}
 
 while getopts 'i:c:bth' OPT; do
         case $OPT in
@@ -85,6 +97,17 @@ while getopts 'i:c:bth' OPT; do
                         exit 0
                         ;;
                 "c")
+			maxcpu=`lscpu | grep "On-line" | awk -F- '{print $3}'`
+			echo maxcpu=$maxcpu
+			if [ "$OPTARG" -ge 0 ] 2>/dev/null; then
+				if [ "$OPTARG" -gt "$maxcpu" ]; then
+					echo cpu is not valid
+					exit -1
+				fi
+			else
+				echo cpu is not valid
+				exit -1
+			fi
                         cpu=$OPTARG
                         ;;
                 "i")
@@ -104,7 +127,11 @@ while getopts 'i:c:bth' OPT; do
 done
 
 if [ $show_top == "true" ];then
-	top_irq
+	if [ "$cpu" -ge 0 ] 2>/dev/null; then
+		top_irq_cpu
+	else
+		top_irq
+	fi
 fi
 
 if [ $show_bind == "true" ];then
