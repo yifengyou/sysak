@@ -40,7 +40,8 @@ struct user_alloc_desc {
     char function[NAME_LEN];
 	unsigned long long call_site;
     unsigned long long ts;
-    unsigned long long  backtrace[];
+	int num;
+    char backtrace[32][128];
 };
 
 struct user_call_site {

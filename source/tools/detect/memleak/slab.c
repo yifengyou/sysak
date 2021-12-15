@@ -165,7 +165,11 @@ _retry:
 	desc = res.desc;
 	printf("未释放内存详细列表:\n");
 	for (ret = 0; ret < res.num; ret++) {
+		int j;
 		printf("%s:%-15d  %15s  ptr=%p mark %d delta = %llu\n", desc->comm, desc->pid, desc->function, desc->ptr, desc->mark, desc->ts);
+		for(j = 0; j < desc->num; j++)
+			printf("%s\n",desc->backtrace[j]);
+		printf("\n");
 		desc++;
 	}
 

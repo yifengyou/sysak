@@ -75,6 +75,7 @@ int  memleak_hashlist_init(struct memleak_htab *htab)
 	for (i = 0; i < htab->total; i++) {
 		desc = internal_alloc(size, GFP_KERNEL | __GFP_ZERO);
 		if (desc) {
+			desc->num = htab->stack_deep;
 			list_add(&desc->node, &htab->freelist);
 			htab->free++;
 		}
@@ -89,14 +90,21 @@ struct alloc_desc *  memleak_alloc_desc(struct memleak_htab *htab)
 	unsigned long flags;
 	int size = sizeof(struct alloc_desc) + sizeof(u64) * htab->stack_deep;
 
-	if (!htab->free)
-		return internal_alloc(size, GFP_ATOMIC | __GFP_ZERO);
+	if (!htab->set.ext)
+		htab->stack_deep = 0;
 
+	if (!htab->free) {
+		desc = internal_alloc(size, GFP_ATOMIC | __GFP_ZERO);
+		if (desc)
+			desc->num = htab->stack_deep;
+		return desc;
+	}
 	spin_lock_irqsave(&htab->lock, flags);
 
 	desc = list_first_entry_or_null(&htab->freelist, struct alloc_desc, node);
 	if (desc) {
 		htab->free--;
+		desc->num = htab->stack_deep;
 		list_del_init(&desc->node);
 	}
 
@@ -254,6 +262,7 @@ int memleak_dump_leak(struct memleak_htab *htab, struct user_result __user *resu
 	unsigned long long curr_ts = sched_clock();
 
 	if ((count <= 0) || copy_from_user(&res, result, sizeof(res))) {
+		pr_err("count zero %d:%d\n",count,__LINE__);
 		ret = copy_to_user(result, &i, sizeof(i));
 		return 0;
 	}
@@ -271,6 +280,7 @@ int memleak_dump_leak(struct memleak_htab *htab, struct user_result __user *resu
 
 	desc = vmalloc(sizeof(*desc) * num);
 	if (!desc) {
+		pr_err("vmalloc error %d:%d\n",count,__LINE__);
 		ret = copy_to_user(result, &i, sizeof(i));
 		return 0;
 	}
@@ -287,6 +297,7 @@ int memleak_dump_leak(struct memleak_htab *htab, struct user_result __user *resu
 	}
 
 	for (i = 0; i < htab->n_buckets; i++) {
+		int z = 0;
 		bucket = &htab->buckets[i];
 		if (bucket->nr <= 0) {
 			continue;
@@ -306,7 +317,10 @@ int memleak_dump_leak(struct memleak_htab *htab, struct user_result __user *resu
 			desc->call_site = tmp1->call_site;
 			strcpy(desc->comm,tmp1->comm);
 			snprintf(desc->function, NAME_LEN, "%pS", (void *)tmp1->call_site);
-
+			desc->num = tmp1->num;
+			for (z = 0; z < desc->num; z++) {
+				snprintf(desc->backtrace[z], 128, "%pS", tmp1->backtrace[z]);
+			}
 			desc++;
 			j++;
 _skip:

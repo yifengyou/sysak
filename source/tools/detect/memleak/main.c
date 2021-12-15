@@ -18,7 +18,7 @@ extern int slab_main(struct memleak_settings *set);
 extern int vmalloc_main(int argc, char **argv);
 extern int page_main(struct memleak_settings *set);
 static int error = 0;
-
+static int off = 0;
 
 static void show_usage(void)
 {
@@ -27,6 +27,8 @@ static void show_usage(void)
 	printf("  page: trace alloc page  leak\n");
     printf("  vmalloc: trace vmalloc  leak, must use root \n");
 	printf("-i: trace internal,default 300s \n");
+	printf("-s: stacktrace for memory alloc \n");
+	printf("-d: memleak off \n");
 	printf("-n: trace slab name, defualt select the max size or objects \n");
 
 }
@@ -35,7 +37,7 @@ int get_arg(struct memleak_settings *set, int argc, char * argv[])
 {
     int ch;
 
-	while ((ch = getopt(argc, argv, "hi:r:n:t:")) != -1)
+	while ((ch = getopt(argc, argv, "dshi:r:n:t:")) != -1)
 	{
 		switch (ch)
         {
@@ -60,6 +62,12 @@ int get_arg(struct memleak_settings *set, int argc, char * argv[])
 				show_usage();
 				error = 1;
 				break;
+			case 's':
+				set->ext = 1;
+				break;
+			case 'd':
+				off = 1;
+				break;
 			case '?':
                 printf("Unknown option: %c\n",(char)optopt);
 				error = 1;
@@ -68,6 +76,20 @@ int get_arg(struct memleak_settings *set, int argc, char * argv[])
 	}
 }
 
+
+static int memleak_off(void)
+{
+	int fd = 0;
+
+	fd = open("/dev/sysak", O_RDWR);
+    if (fd < 0) {
+        printf("open memleak check error\n");
+        return -1;
+    }
+	ioctl(fd, MEMLEAK_OFF);
+	close(fd);
+	return 0;
+}
 
 int main(int argc, char **argv)
 {
@@ -80,7 +102,11 @@ int main(int argc, char **argv)
 
 	if (error)
 		return 0;
-
+	if (off) {
+		memleak_off();
+		printf("memleak off success\n");
+		return 0;
+	}
 	printf("type %d\n", set.type);
 
 	switch (set.type) {

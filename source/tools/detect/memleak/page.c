@@ -107,9 +107,8 @@ int page_main(struct memleak_settings *set)
 
 	if (!set->monitor_time)
 		set->monitor_time = detect_time;
-
+	set->ext = 1;
 	detect_time = set->monitor_time;
-
 	ret = ioctl(fd, MEMLEAK_ON, set);
 	if (ret) {
 		printf("ioctl error %s \n", strerror(ret));
@@ -144,7 +143,11 @@ _retry:
 	desc = res.desc;
 	printf("未释放内存详细列表:\n");
 	for (ret = 0; ret < res.num; ret++) {
+		int j = 0;
 		printf("%s:%d  %s  ptr=%p order %d ts_delta=%llu\n", desc->comm, desc->pid, desc->function, desc->ptr, desc->order, desc->ts);
+		for (j = 0; j < desc->num; j++)
+			printf("%s\n", desc->backtrace[j]);
+		printf("\n");
 		desc++;
 	}
 

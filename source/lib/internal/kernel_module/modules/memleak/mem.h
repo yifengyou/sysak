@@ -5,7 +5,6 @@
 #include <linux/printk.h>
 #include <linux/kobject.h>
 #include <linux/kernel.h>
-#include <asm/unistd_64.h>
 #include <linux/syscalls.h>
 #include <linux/delay.h>
 #include <linux/kallsyms.h>
@@ -86,6 +85,7 @@ struct alloc_desc {
 	int order;
 	char comm[TASK_COMM_LEN];
 	u32 hash;
+	u32 num;
 	u64 backtrace[];
 };
 
