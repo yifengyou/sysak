@@ -4,7 +4,7 @@
 #include<linux/version.h>
 #include <linux/mmzone.h>
 #include <linux/page-flags.h>
-
+#include <linux/stacktrace.h>
 #include "sysak_mods.h"
 #include"mem.h"
 #include"common/hook.h"
@@ -12,8 +12,8 @@
 #define HASH_SIZE (1024)
 #define PRE_ALLOC (2048)
 
-static int memleak_ref;
 static struct memleak_htab *tab;
+static int memleak_ref;
 static ssize_t (*show_slab_objects)(struct kmem_cache *s, char *buf);
 
 static int memleak_is_target(struct memleak_htab *htab, const void *x)
@@ -33,6 +33,26 @@ static int memleak_is_target(struct memleak_htab *htab, const void *x)
 	}
 
 	return (page->slab_cache == htab->check.cache);
+}
+
+static unsigned long get_stack_rip(unsigned long *arr, int max_entries)
+{
+    struct stack_trace stack_trace;
+    unsigned long trace[16] = {0};
+
+    stack_trace.nr_entries = 0;
+    stack_trace.skip = 3;
+    if (arr && max_entries) {
+        stack_trace.max_entries = max_entries;
+        stack_trace.entries = arr;
+    } else {
+        stack_trace.max_entries = 16;
+        stack_trace.entries = trace;
+    }
+
+    save_stack_trace(&stack_trace);
+
+    return stack_trace.nr_entries;
 }
 
 
@@ -58,6 +78,12 @@ static void memleak_alloc_desc_push(struct memleak_htab *htab, unsigned long cal
 	desc->ts = sched_clock();
 	desc->pid = current->pid;
 	strcpy(desc->comm, current->comm);
+
+	if (desc->num) {
+		desc->num = get_stack_rip((unsigned long *)desc->backtrace, desc->num);
+	}
+	if (!call_site && desc->num)
+		desc->call_site = desc->backtrace[2];
 
 	memleak_insert_desc(htab, desc);
 
@@ -122,20 +148,6 @@ static void trace_slab_alloc_node(unsigned long call_site, const void *ptr,
 
 #endif
 
-static unsigned long get_stack_rip(void)
-{
-    struct stack_trace stack_trace;
-	unsigned long trace[16] = {0};
-
-    stack_trace.max_entries = 16;
-    stack_trace.nr_entries = 0;
-    stack_trace.entries = trace;
-    stack_trace.skip = 2;
-    save_stack_trace(&stack_trace);
-
-    return trace[4];
-}
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
 static void trace_page_alloc(void *ignore, struct page *page,
         unsigned int order, gfp_t gfp_flags, int migratetype)
@@ -149,7 +161,7 @@ static void trace_page_alloc(struct page *page,
 		return;
 	}
 
-	memleak_alloc_desc_push(tab, get_stack_rip(), page, order);
+	memleak_alloc_desc_push(tab, 0, page, order);
 
 }
 
@@ -164,7 +176,7 @@ static void trace_page_free(struct page *page,
 	if (((unsigned long)page->mapping & PAGE_MAPPING_FLAGS) != 0)
 		return;
 
-	memleak_alloc_desc_pop(tab, get_stack_rip(), page, order);
+	memleak_alloc_desc_pop(tab, 0, page, order);
 }
 
 
@@ -395,7 +407,7 @@ static int memleak_mem_init(struct memleak_htab *htab)
 
 	htab->n_buckets = HASH_SIZE;
 	htab->total = PRE_ALLOC;
-	htab->stack_deep = 0;
+	htab->stack_deep = 16;
 
 	return memleak_hashlist_init(tab);
 }
@@ -527,7 +539,7 @@ int memleak_release(void)
 	printk("memleak release\n");
 	memleak_trace_off(tab);
     memleak_clear_leak(tab);
-	sysak_module_put(&memleak_ref);
+
 	return 0;
 }
 
@@ -540,7 +552,13 @@ int memleak_handler_cmd(int cmd, unsigned long arg)
 	if (!htab)
 		return -EBUSY;
 
-    if (htab->state != MEMLEAK_STATE_OFF) {
+	if (htab->state != MEMLEAK_STATE_OFF &&
+		(cmd == MEMLEAK_CMD_RESULT)) {
+		pr_info("htab off busy wait\n");
+		return -EAGAIN;
+	}
+    if ((htab->state != MEMLEAK_STATE_OFF) &&
+		(cmd == MEMLEAK_CMD_ENALBE)) {
 		pr_info("htab is busy\n");
 		memleak_release();
 	}
@@ -554,8 +572,8 @@ int memleak_handler_cmd(int cmd, unsigned long arg)
             pr_info("type = %d time = %d,slabname %s ext %d,rate=%d\n",set.type, set.monitor_time, set.name, set.ext,set.rate);
             htab->set = set;
             ret = memleak_trace_on(htab);
-            if (!ret)
-                sysak_module_get(&memleak_ref);
+			if (!ret)
+				sysak_module_get(&memleak_ref);
             break;
 
         case MEMLEAK_CMD_RESULT:
@@ -564,9 +582,8 @@ int memleak_handler_cmd(int cmd, unsigned long arg)
             break;
 
 		case MEMLEAK_CMD_DISABLE:
-			pr_info("disable\n");
 			memleak_release();
-
+			sysak_module_put(&memleak_ref);
     };
 
     return ret;
