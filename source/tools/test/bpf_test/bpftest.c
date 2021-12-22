@@ -1,8 +1,8 @@
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 #include "bpftest.h"
-#include "bpftest1.skel.h"
-#include "bpftest2.skel.h"
+#include "bpf/bpftest1.skel.h"
+#include "bpf/bpftest2.skel.h"
 
 static int libbpf_print_fn(enum libbpf_print_level level,
                            const char *format, va_list args)
