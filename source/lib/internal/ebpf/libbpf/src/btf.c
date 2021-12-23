@@ -4598,11 +4598,24 @@ struct btf *libbpf_find_kernel_btf(void)
 		{ "/usr/lib/debug/lib/modules/%1$s/vmlinux" },
 	};
 	char path[PATH_MAX + 1];
+	char *sysak_env_path;
 	struct utsname buf;
 	struct btf *btf;
 	int i;
 
 	uname(&buf);
+	sysak_env_path = getenv("SYSAK_WORK_PATH");
+	if (sysak_env_path) {
+		snprintf(path, PATH_MAX, "%s/tools/vmlinux-%s", sysak_env_path, buf.release);
+		
+		btf = btf__parse(path, NULL);
+		pr_debug("loading kernel BTF '%s': %ld\n",
+			path, IS_ERR(btf) ? PTR_ERR(btf) : 0);
+		if (IS_ERR(btf))
+			goto out;
+		
+		return btf;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(locations); i++) {
 		snprintf(path, PATH_MAX, locations[i].path_fmt, buf.release);
@@ -4623,6 +4636,7 @@ struct btf *libbpf_find_kernel_btf(void)
 		return btf;
 	}
 
+out:
 	pr_warn("failed to find valid kernel BTF\n");
 	return ERR_PTR(-ESRCH);
 }
