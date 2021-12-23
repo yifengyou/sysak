@@ -139,8 +139,8 @@ more details see /var/log/sysak/iosdiag/latency/result.log*
 }
 ```
 #### /var/log/sysak/iosdiag/latency/result.log.stat
-```c
 该日志文件描述的是在磁盘角度，所有IO的延迟分布统计信息
+```c
 {
 	"summary":[			//以磁盘为一个单位的数组
 		{
