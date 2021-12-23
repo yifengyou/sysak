@@ -57,7 +57,7 @@ int main(int argc, char **argv)
         goto cleanup;
 
     printf("bpftest2 program load done, test finished. exit.\n");
-    while(1){}
+    // while(1){}
 cleanup:
     // destory the bpf program
     bpftest1_bpf__destroy(bpftest1);
