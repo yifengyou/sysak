@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <string.h>
+#include <stdbool.h>
 #include "parser.h"
 
 #define OPT_MASK 0x7
@@ -23,10 +24,10 @@ static void usage(char *prog)
 	"  Usage: %s [OPTIONS]\n"
 	"  Options:\n"
 	"  -f              the output file\n"
-	"  -r              read the result to file or stdio\n"
-	"  -d              disable the monitor, 7-all, 1-irq, 2-nosched, 4-runlat\n"
-	"  -e              enable the monitor, 7-all, 1-irq, 2-nosched, 4-runlat\n"
-	"\n";
+	"  -r              read the result to file or stdout, default stdout\n"
+	"  -d              disable the monitor, 7-all, 1-irq, 2-nosched, 4-runlat, default=7\n"
+	"  -e              enable the monitor, 7-all, 1-irq, 2-nosched, 4-runlat, default=7\n"
+	;
 
 	fprintf(stderr, str, prog);
 	exit(EXIT_FAILURE);
@@ -66,6 +67,25 @@ int switch_func(int opt, int enable, int arg)
 	}
 }
 
+bool ready[MAX_CMD] = {false};
+int retno[MAX_CMD] = {0};
+
+static int not_ready(bool ready[], int retno[])
+{
+	int i, ret = MAX_CMD;
+
+	for (i = 0; i < MAX_CMD; i++) {
+		if (ready[i]) {
+			ret--;
+		} else {
+			fprintf(stderr, "%s: access() %s\n",
+				strerror(retno[i]), cmdstr[i]);	
+		}
+	}
+
+	return ret;
+}
+
 int main(int argc, char *argv[])
 {
 	char *refile = NULL;
@@ -80,10 +100,11 @@ int main(int argc, char *argv[])
 	cmdstr[2] = flat;
 	for (i = 0; i < MAX_CMD; i++) {
 		if (access(cmdstr[i], F_OK)) {
-			ret = errno;
-			fprintf(stderr, "%s:access() %s\n",
-				strerror(errno), cmdstr[i]);
-			return ret;
+			retno[i] = errno;
+			ready[i] = false;
+		} else {
+			retno[i] = 0;
+			ready[i] = true;
 		}
 	}
 	for (;;) {
@@ -97,28 +118,34 @@ int main(int argc, char *argv[])
 				refile = optarg;
 				break;
 			case 'r':
+				if (!not_ready(ready, retno))
+					return -1;
 				pasre_dump(refile);//do something
 				break;
 			case 'p':
 				pid = atoi(optarg);
 				break;
 			case 'e':
+				if (!not_ready(ready, retno))
+					return -1;
 				if (optarg)
 					en_opt = atoi(optarg);
 				will_switch = 1;
 				enable = 1;
 				break;
 			case 'd':
+				if (!not_ready(ready, retno))
+					return -1;
 				if (optarg)
 					dis_opt = atoi(optarg);
 				will_switch = 1;
 				enable = 0;
 				break;
 			case 'h':
-				usage(argv[0]);
+				usage("sysak runlatency");
 				break;
 			default:
-				usage(argv[0]);
+				usage("sysak runlatency");
 		}
 	}
 	if (will_switch)
