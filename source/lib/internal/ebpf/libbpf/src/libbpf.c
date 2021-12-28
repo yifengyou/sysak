@@ -2589,7 +2589,7 @@ static int bpf_object__load_vmlinux_btf(struct bpf_object *obj, bool force)
 	return 0;
 }
 
-static int __attribute__((unused))bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
+static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 {
 	struct btf *kern_btf = obj->btf;
 	bool btf_mandatory, sanitize;
@@ -6038,7 +6038,7 @@ patch_insn:
 }
 
 static int
-__attribute__((unused))bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
+bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 {
 	const struct btf_ext_info_sec *sec;
 	const struct bpf_core_relo *rec;
@@ -6570,14 +6570,14 @@ bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_path)
 	size_t i;
 	int err;
 
-	// if (obj->btf_ext) {
-	// 	err = bpf_object__relocate_core(obj, targ_btf_path);
-	// 	if (err) {
-	// 		pr_warn("failed to perform CO-RE relocations: %d\n",
-	// 			err);
-	// 		return err;
-	// 	}
-	// }
+	if (obj->btf_ext) {
+		err = bpf_object__relocate_core(obj, targ_btf_path);
+		if (err) {
+			pr_warn("failed to perform CO-RE relocations: %d\n",
+				err);
+			return err;
+		}
+	}
 	/* relocate data references first for all programs and sub-programs,
 	 * as they don't change relative to code locations, so subsequent
 	 * subprogram processing won't need to re-calculate any of them
