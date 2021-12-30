@@ -11,7 +11,9 @@ data_analysis  IO诊断数据分析与结果输出代码
 
 # 编译
 在编译sysak的之前，需要在执行configure配置的时候加上--enable-libbpf --enable-target-btf --enable-target-iosdiag才能编译进sysak
-因为要依赖内核btf文件，目前还只支持如下版本：
+
+# 运行
+因为程序运行要依赖内核btf文件，目前sysak仓库默认的只具备如下内核版本的btf：
 ```c
 3.10.0-1062.an7.x86_64
 3.10.0-1160.11.1.el7.x86_64
