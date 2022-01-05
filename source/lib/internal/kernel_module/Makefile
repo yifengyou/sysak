@@ -27,6 +27,9 @@ endif
 ifneq ($(findstring taskctl,$(TARGET_LIST)),)
 sysak-objs += modules/task_ctl/task_ctrl.o
 endif
+ifneq ($(findstring schedtrace,$(TARGET_LIST)),)
+sysak-objs += modules/schedtrace/schedtrace.o
+endif
 
 obj-m += sysak.o
 
