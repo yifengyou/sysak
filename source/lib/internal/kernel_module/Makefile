@@ -30,6 +30,9 @@ endif
 ifneq ($(findstring schedtrace,$(TARGET_LIST)),)
 sysak-objs += modules/schedtrace/schedtrace.o
 endif
+ifneq ($(findstring mmaptrace,$(TARGET_LIST)),)
+sysak-objs += modules/mmaptrace/mmaptrace.o
+endif
 
 obj-m += sysak.o
 
