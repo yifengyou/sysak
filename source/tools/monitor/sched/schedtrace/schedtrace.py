@@ -15,6 +15,7 @@ MAX_OUT_FILE = 512*1024*1024
 ONE_FILE_MAX = 64*1024*1024
 FILE_CACHE_SIZE = 4096
 
+anal_file=''
 traceoutf = "/sys/kernel/debug/tracing/trace"
 pidfile = "/sys/kernel/debug/tracing/set_event_pid"
 traceswfile = "/proc/sysak/schedtrace/pid"
@@ -130,6 +131,79 @@ def switch_fp(curr, t1, t2):
 		print 'Warn: switch_fp() curr not in t1 nor t2'
 		return curr
 
+def analysis_log(outfile, pid):
+	switch_out = 0
+	prv_time = 0.0000
+	next_time = 0.0000
+	wake_time = 0.0000
+	prvtm_strs = ""
+	nxttm_strs = ""
+	prvstat = ""
+	sched_swc = "sched_switch"
+	sched_wkp = "sched_wakeup"
+	splits = ""
+	prev_pid = "prev_pid="+str(pid)
+	next_pid = "next_pid="+str(pid)
+	wkup_pid = "pid="+str(pid)
+	fr = open(outfile, "r")
+	
+	for lines in fr.readlines():
+		if (sched_swc not in lines and sched_wkp not in lines):
+			continue
+		if wkup_pid in lines and sched_wkp in lines:
+			splits = lines.split(": sched_wakeup:")
+			wake_time = float(splits[0].split()[-1])
+		if prev_pid in lines:
+			splits = lines.split("==>")
+			splits1 = splits[0].split()
+			#prv_events = splits1[-5].split(":")[0]
+			prv_sta = splits1[-1]
+			splits = lines.split(": sched_switch:")
+			splits2 = splits[0].split()
+			prvtm_strs = splits2[-1]
+			try:
+				prv_time = float(prvtm_strs);
+			except:
+				print 'prev:float excetpion'
+				print '>>>%s' % lines
+			else:
+				#prvstat = splits[-7]
+				switch_out = 1
+		elif next_pid in lines and switch_out == 1:
+			splits = lines.split(": sched_switch:")
+			splits1 = splits[0].split()
+			nxttm_strs = splits1[-1]
+			try:
+				next_time = float(nxttm_strs)
+			except:
+				print 'next:float excetpion'
+				print '>>>%s' % lines
+			else:
+				total_delay = next_time - prv_time
+				if total_delay > 0.009:
+					if "=R" in prv_sta:
+						print '%s was preempted %f sec\n%s ' % (pid, total_delay, lines)
+						print '------------------------------------'
+					if "=S" in prv_sta:
+						s_delay = wake_time - prv_time
+						w_delay = next_time - wake_time
+						if wake_time > prv_time:
+							print '%s sleep to wake:%f sec, wake to run:%f sec\n%s ' % (pid, s_delay, w_delay, lines)
+						else:
+							print '%s sleeped %f sec\n%s ' % (pid, total_delay, lines)
+						print '------------------------------------'
+						wake_time = 0.0000
+					if "=D" in prv_sta:
+						d_delay = wake_time - prv_time
+						w_delay = next_time - wake_time
+						if wake_time > prv_time:
+							print '%s block to wake:%f sec, wake to run:%f sec\n%s ' % (pid, d_delay, w_delay, lines)
+						else:
+							print '%s blocked %f sec\n%s ' % (pid, total_delay, lines)
+						print '------------------------------------'
+						wake_time = 0.0000
+			switch_out = 0
+
 def record_traceinfo(outfile):
 	tmp1 = outfile+'1'
 	tmp2 = outfile+'2'
@@ -193,6 +267,8 @@ def usage(app):
 	print '            stdout: will print the result to stdout console'
 	print '  -j/--json <logfile>       trans the trace logfile to json'
 	print '            logfile: the source file for json'
+	print '  -a/--analy <logfile>      analysis trace logfile'
+	print '            logfile: the source file for json'
 	print '  -e/--enable <l|m|h>       enable sched trace with -p/--pid'
 	print '            l: enabel low-level trace' 
 	print '            m: enabel middle-level trace' 
@@ -210,7 +286,7 @@ if len(sys.argv) < 2:
 	sys.exit("invalide args")
 
 try:
-	opts,args = getopt.getopt(sys.argv[1:], 'hle:d:p:s:r:j:',['help','list', 'enable=','disable=','pid=','size=','read=','json='])
+	opts,args = getopt.getopt(sys.argv[1:], 'hle:d:p:s:r:j:a:',['help','list', 'enable=','disable=','pid=','size=','read=','json=','analy'])
 except getopt.GetoptError, e:
 	sys.stderr.write("Error:[%s] %s\n" % (sys.argv[0].strip(".py"), e.msg))
 	print 'Use -h/--help see useage!'
@@ -231,6 +307,9 @@ for opt_name,opt_value in opts:
 		continue
 	if opt_name in ('-j', '--json'):
 		raw_to_json(opt_value, opt_value+'.json')
+		continue
+	if opt_name in ('-a', '--analy'):
+		anal_file = opt_value
 		continue
 	if opt_name in ('-r', '--read'):
 		outfile = opt_value
@@ -315,3 +394,9 @@ elif disable_level:
 				subprocess.call("echo 0 >"+tracefile, shell=True)
 		i = i + 1
 	subprocess.call("echo -1 >"+traceswfile, shell=True)
+
+elif anal_file != '':
+	if eventpid == 0:
+		sys.exit("  ::analysis trace log must used with -p <pid>")
+	else:
+		analysis_log(anal_file, eventpid)
