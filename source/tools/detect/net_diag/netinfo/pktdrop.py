@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 -------------------------------------------------
-   File Name：     pktdrop
+   File Name:     pktdrop
    Description :
    Author :       liaozhaoyan
-   date：          2021/6/22
+   date:          2021/6/22
 -------------------------------------------------
    Change Activity:
                    2021/6/22:

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 -------------------------------------------------
-   File Name：     pingSls.py
+   File Name:     pingSls.py
    Description :
    Author :       liaozhaoyan
-   date：          2021/8/3
+   date:          2021/8/3
 -------------------------------------------------
    Change Activity:
                    2021/8/3:

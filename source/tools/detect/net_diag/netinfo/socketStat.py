@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 -------------------------------------------------
-   File Name：     socketStat
+   File Name:     socketStat
    Description :
    Author :       liaozhaoyan
-   date：          2021/7/1
+   date:          2021/7/1
 -------------------------------------------------
    Change Activity:
                    2021/7/1:
