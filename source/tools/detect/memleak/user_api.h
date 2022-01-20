@@ -6,6 +6,26 @@
 
 #include "common.h"
 
+struct meminfo {
+    unsigned long frmkb;
+    unsigned long bufkb;
+    unsigned long camkb;
+    unsigned long tlmkb;
+    unsigned long acmkb;
+    unsigned long iamkb;
+    unsigned long slmkb;
+    unsigned long frskb;
+    unsigned long tlskb;
+    unsigned long caskb;
+    unsigned long comkb;
+    unsigned long uslabkb;
+    unsigned long slabkb;
+    unsigned long kernel;
+    unsigned long huge2M;
+    unsigned long huge1G;
+    unsigned long lock;
+};
+
 typedef enum _memleak_type {
     MEMLEAK_TYPE_SLAB = 1,
     MEMLEAK_TYPE_PAGE,

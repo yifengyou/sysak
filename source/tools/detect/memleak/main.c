@@ -14,11 +14,13 @@
 #include "memleak.h"
 #include "user_api.h"
 
+extern int read_meminfo(struct meminfo *mem);
 extern int slab_main(struct memleak_settings *set);
 extern int vmalloc_main(int argc, char **argv);
 extern int page_main(struct memleak_settings *set);
 static int error = 0;
 static int off = 0;
+static struct meminfo mem;
 
 static void show_usage(void)
 {
@@ -29,15 +31,41 @@ static void show_usage(void)
 	printf("-i: trace internal,default 300s \n");
 	printf("-s: stacktrace for memory alloc \n");
 	printf("-d: memleak off \n");
+	printf("-c: only check memleak,don't diagnose \n");
 	printf("-n: trace slab name, defualt select the max size or objects \n");
 
+}
+
+static int memleak_check_only(struct meminfo *mi)
+{
+    int ret = 0;
+    int vmalloc = 0;
+
+    read_meminfo(mi);
+    vmalloc = vmalloc_main(0, NULL);
+    printf("allocPages:%dM, uslab:%dM vmalloc:%dM\n", (mi->kernel)/1024, mi->uslabkb/1024, vmalloc/1024);
+    if (mi->kernel < vmalloc)
+        mi->kernel = vmalloc + 1;
+
+    if ((mi->kernel - vmalloc) > 1024*1024*1.5) {
+        printf("alloc page memleak\n");
+        return MEMLEAK_TYPE_PAGE;
+    } else if (mi->uslabkb > 5*1024*1024 ||
+                mi->uslabkb > mi->tlmkb*0.15) {
+        printf("slab memleak\n");
+        return MEMLEAK_TYPE_SLAB;
+    } else if (vmalloc > 2*1024 * 1024) {
+        printf("vmalloc memleak\n");
+        return MEMLEAK_TYPE_VMALLOC;
+    }
+    return 0;
 }
 
 int get_arg(struct memleak_settings *set, int argc, char * argv[])
 {
     int ch;
 
-	while ((ch = getopt(argc, argv, "dshi:r:n:t:")) != -1)
+	while ((ch = getopt(argc, argv, "dshci:r:n:t:")) != -1)
 	{
 		switch (ch)
         {
@@ -54,6 +82,10 @@ int get_arg(struct memleak_settings *set, int argc, char * argv[])
                 break;
 			case 'r':
 				set->rate = atoi(optarg);
+                break;
+            case 'c':
+                memleak_check_only(&mem);
+                error = 1;
                 break;
 			case 'n':
 				strncpy(set->name, optarg, NAME_LEN - 1);
@@ -90,6 +122,8 @@ static int memleak_off(void)
 	close(fd);
 	return 0;
 }
+
+
 
 int main(int argc, char **argv)
 {

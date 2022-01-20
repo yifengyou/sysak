@@ -75,6 +75,7 @@ int vmalloc_main(int argc, char **argv)
 
 	int size = 0;
 	int ret = 0;
+    unsigned int total = 0;
 
 	fd = fopen("/proc/vmallocinfo", "r");
 	if (!fd) {
@@ -91,7 +92,8 @@ int vmalloc_main(int argc, char **argv)
 
 		if (!fgets(lines, sizeof(lines), fd))
 			break;
-
+        if (!strstr(lines,"vmalloc"))
+            continue;
 		if (sscanf(lines, "%s %d %s", addrs, &size, funcs) != 3)
 			continue;
 
@@ -103,14 +105,18 @@ int vmalloc_main(int argc, char **argv)
 
 	qsort(call, call_index, sizeof(struct call_site), cmp);
 
-	printf("VMALLOC 未释放函数汇总:\n");
-	printf("次数   总大小              函数\n");
+    if (argc) {
+	    printf("VMALLOC 未释放函数汇总:\n");
+	    printf("次数   总大小              函数\n");
+    }
 	for (ret = 0; ret < call_index; ret++) {
-		if (call[ret].size >> 20)
+        total += (call[ret].size >> 10);
+		if (argc && call[ret].size >> 20)
 			printf("%d   %2dMB               %s \n", call[ret].nr, call[ret].size >> 20, call[ret].funcs);
 	}
 
 	fclose(fd);
+    return total;
 }
 
 
