@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 -------------------------------------------------
-   File Name：     runlantency
+   File Name:     runlantency
    Description :
    Author :       liaozhaoyan
-   date：          2021/7/28
+   date:          2021/7/28
 -------------------------------------------------
    Change Activity:
                    2021/7/28:

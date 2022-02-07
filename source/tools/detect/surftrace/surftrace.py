@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 -------------------------------------------------
-   File Name：     surftrace
+   File Name:     surftrace
    Description :
    Author :       liaozhaoyan
-   date：          2021/1/4
+   date:          2021/1/4
 -------------------------------------------------
    Change Activity:
                    2021/1/4:
@@ -227,7 +227,7 @@ class CasyncPipe(Thread):
         self.__pipe = open(f, 'r')
         self.__loop = True
         self.start()
-        
+
     def newCb(self, func):
         self.__callBack = func
 
@@ -1008,7 +1008,7 @@ class surftrace(ftrace):
         for ePath in self._events:
             self._echoPath(ePath, 0)
         self._events = []
-        
+
     def __transFilter(self, filter, i, beg):
         decisions = ('==', '!=', '~', '>=', '<=', '>', '<')
         s = filter[beg:i]
@@ -1099,13 +1099,13 @@ class surftrace(ftrace):
         if res is None:
             raise ExprException("error in expr %s." % e)
         return res
-    
+
     def _splitXpr(self, xpr):
         for i, c in enumerate(xpr):
             if c in ('.', '-'):
                 return xpr[:i], xpr[i:]
         return xpr, ''
-    
+
     def __checkVar(self, var):
         if var in probeReserveVars:
             raise ExprException('%s is reserve word, can not used for args' % var)
@@ -1113,7 +1113,7 @@ class surftrace(ftrace):
     def __checkSkbStruct(self, sStrcut):
         if sStrcut.strip("* ") not in self._netStructs:
             raise ExprException("type: %s is no not a legal struct." % sStrcut)
-    
+
     def __filtType(self, s):
         try:
             return self._reBrackets.findall(s)[0]
@@ -1125,7 +1125,7 @@ class surftrace(ftrace):
         if self._reLayer.match(pr):
             pr = pr[2:]
         return pr
-    
+
     def showTypeSize(self, sType):
         multi = 1
         if "[" in sType:
@@ -1183,15 +1183,15 @@ class surftrace(ftrace):
         except DbException as e:
             raise ExprException('db get %s return %s' % (sType, e.message))
         return res
-    
+
     def _getVmFunc(self, func):
         try:
             res = self._parser.getFunc(func)
         except DbException as e:
             raise ExprException('db get %s return %s' % (func, e.message))
         return res
-    
-    def __getExprArgi(self, e): 
+
+    def __getExprArgi(self, e):
         # expression: a=@(struct iphdr *)l4%1->saddr uesrs=!(struct task_struct *)%0->mm->mm_users
         # e is already checked at self.__checkBegExpr
         var, expr = e.split("=", 1)
@@ -1221,7 +1221,7 @@ class surftrace(ftrace):
                 argt = types
             regArch = '$retval'
         return showType, regArch, argt, xpr
-    
+
     def _splitPr(self, argt, prs):
         cells = []
         beg = 0
@@ -1269,7 +1269,7 @@ class surftrace(ftrace):
                     raise ExprException("remote type %s error" % name)
                 if iMem >= iName:
                     raise ExprException("%s max index is %d, you set %d, overflow" % (name, iName, iMem))
-    
+
     def _fxprAddPoint(self, off):
         self._strFxpr = "+0x%x(" % off + self._strFxpr + ')'
 
@@ -1315,7 +1315,7 @@ class surftrace(ftrace):
             else:
                 raise ExprException(
                     "last cell type: %s, can not show." % (lastCell["type"]))
-    
+
     def _procSkb(self, member, sStruct, layer):
         # struct is already checked in _cellCheck __getCellMem, func
         off = self.showMemberOffset('data', 'struct sk_buff')
@@ -1374,13 +1374,13 @@ class surftrace(ftrace):
             if sym == '@':
                 v = self.__netParse(sType, v)
         return sType, v
-    
+
     def _cellCheck(self, cells, reg):
         if reg == "$retval":
             self._strFxpr = reg
         else:
             self._strFxpr = "%" + reg
-            
+
         i = 0; end = len(cells); lastCell = None
         sMem = ""; origType = sType = "unkown"; tStruct = None; origMode = '->'
 
@@ -1431,7 +1431,7 @@ class surftrace(ftrace):
             i += 2
         self._fxprAddSuffix(lastCell)
         return lastCell
-            
+
     def _checkExpr(self, e):
         self.__checkBegExpr(e)
         self.__checkFormat(e)
@@ -1470,7 +1470,7 @@ class surftrace(ftrace):
         if not self._checkAvailable(func):
             raise InvalidArgsException("%s is not in available_filter_functions" % func)
         cmd += "%s" % symbol
-        
+
         vars = []
         for expr in splitExpr(res['args']):
             if expr == "":
@@ -1496,7 +1496,7 @@ class surftrace(ftrace):
                 self._echoPath(fPath, "'%s'" % filter)
         fPath = self.baseDir + "/tracing/instances/surftrace/events/kprobes/" + name + "/enable"
         self._echoPath(fPath, 1)
-        
+
         self._probes.append(name)
 
     def _initEvents(self, args):
@@ -1536,7 +1536,7 @@ class surftrace(ftrace):
             if res == name:
                 return True
         return False
-    
+
     def _cbLine(self, line):
         print("%s" % line)
 

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 -------------------------------------------------
-   File Name：     influxSend
+   File Name:     influxSend
    Description :
    Author :       liaozhaoyan
-   date：          2021/6/26
+   date:          2021/6/26
 -------------------------------------------------
    Change Activity:
                    2021/6/26:

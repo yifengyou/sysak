@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 -------------------------------------------------
-   File Name：     main
+   File Name:     main
    Description :
    Author :       liaozhaoyan
-   date：          2021/8/12
+   date:          2021/8/12
 -------------------------------------------------
    Change Activity:
                    2021/8/12:
