@@ -1,0 +1,16 @@
+[package]
+name = "rtrace-delay"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0"
+structopt = "0.3"
+rtrace-rs = { version = "0.1.0", path = "../rtrace-rs"}
+rtrace-parser = { version = "0.1.0", path = "../rtrace-parser"}
+crossbeam-channel = "0.5"
+log = "0.4.14"
+env_logger = "0.9.0"
+uname = "0.1.1"
