@@ -120,12 +120,12 @@ params = ["basic"]
 
 [[function]]
 name = "__netif_receive_skb_core"
-enable = false
+enable = true
 params = ["basic"]
 
 [[function]]
 name = "tcp_rcv_state_process"
-enable = false
+enable = true
 params = ["basic"]
     "#;
     path.push("syn-sender.toml");
