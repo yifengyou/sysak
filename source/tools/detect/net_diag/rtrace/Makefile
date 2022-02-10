@@ -18,7 +18,7 @@ TARGET_PATH := $(OBJ_TOOLS_ROOT)
 
 .PHONY: rtrace
 
-rtrace: lib bin rs parser delay drop
+rtrace: lib bin
 
 lib:
 	make -C ebpf
@@ -33,10 +33,12 @@ parser:
 
 delay: 
 	cd rtrace-delay && cargo build --release
+	cp rtrace-delay/target/release/rtrace-delay $(TARGET_PATH)/
 	@echo "rtrace-delay" >> $(TARGET_PATH)/$(SYSAK_RULES)
 
 drop:
 	cd rtrace-drop && cargo build --release
+	cp rtrace-drop/target/release/rtrace-drop $(TARGET_PATH)/
 	@echo "rtrace-drop" >> $(TARGET_PATH)/$(SYSAK_RULES)
 
 target := rtrace
