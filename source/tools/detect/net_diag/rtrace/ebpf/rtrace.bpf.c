@@ -143,44 +143,16 @@ static __always_inline void set_seq(struct cache_data *cd, uint32_t *seq, uint32
     uint32_t len, tmp_seq, tmp_end_seq, tmp_rseq, tmp_rend_seq;
     struct tcp_skb_cb *tsc;
     uint32_t protocol = cd->sk_protocol & 0xff;
-    // uint16_t offset;
-    // handle icmp
     if (protocol == IPPROTO_ICMP)
     {
         struct icmphdr *ih = ((struct icmphdr *)(&cd->th));
         uint16_t sequence;
         uint8_t type = ih->type;
         sequence = ih->un.echo.sequence;
-        if (cd->send) // send path
-        {
-            if (type == ICMP_ECHO)
-            {
-                // sender
-                *seq = sequence;
-                *end_seq = sequence + 1;
-            }
-            else if (type == ICMP_ECHOREPLY)
-            {
-                // receiver
-                *rseq = sequence;
-                *rend_seq = sequence + 1;
-            }
-        }
-        else // receive path
-        {
-            if (type == ICMP_ECHOREPLY)
-            {
-                // sender
-                *seq = sequence;
-                *end_seq = sequence + 1;
-            }
-            else if (type == ICMP_ECHO)
-            {
-                // receiver
-                *rseq = sequence;
-                *rend_seq = sequence + 1;
-            }
-        }
+        *seq = sequence;
+        *end_seq = sequence + 1;
+        *rseq = sequence;
+        *rend_seq = sequence + 1;
         return;
     }
 
@@ -384,11 +356,11 @@ static __always_inline void set_cache_data(struct cache_data *cd, struct sk_buff
 
 /**
  * @brief Filter out unwanted packets
- * 
- * @param protocol 
- * @param pid 
- * @param ap 
- * @return __always_inline 
+ *
+ * @param protocol
+ * @param pid
+ * @param ap
+ * @return __always_inline
  */
 static __always_inline int builtin_filter(uint32_t protocol, int pid, struct addr_pair *ap)
 {
@@ -432,11 +404,11 @@ static __always_inline int builtin_filter(uint32_t protocol, int pid, struct add
 
 /**
  * @brief Main processing function entry
- * 
- * @param ctx 
- * @param sk 
- * @param skb 
- * @return __always_inline 
+ *
+ * @param ctx
+ * @param sk
+ * @param skb
+ * @return __always_inline
  */
 static __always_inline int do_trace_sk_skb(void *ctx, struct sock *sk, struct sk_buff *skb)
 {
