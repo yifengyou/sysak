@@ -4,7 +4,7 @@ struct bpf_map_def SEC("maps") iosdiag_virtblk_maps = {
 	.type = BPF_MAP_TYPE_HASH,
 	.key_size = sizeof(pid_t),
 	.value_size = sizeof(unsigned long),
-	.max_entries = 20480,
+	.max_entries = 2048,
 };
 
 SEC("kprobe/virtio_queue_rq")
