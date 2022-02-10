@@ -7,14 +7,14 @@ use crate::trace::trace::Trace;
 use crate::utils::gdb::Gdb;
 use anyhow::anyhow;
 use anyhow::Result;
-use serde_derive::Deserialize;
+use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ffi::CString;
-use std::os::raw::{c_char, c_int, c_void};
+use std::os::raw::{c_char, c_int};
 use std::path::PathBuf;
 use toml;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Basic {
     pub debug: bool,
     pub btf_path: Option<String>,
@@ -26,14 +26,14 @@ pub struct Basic {
     pub recv: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Filterx {
     pub pid: usize,
     pub dst: String,
     pub src: String,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Function {
     pub name: String,
     pub enable: Option<bool>,
@@ -46,7 +46,7 @@ pub struct Function {
     offsets: Option<Vec<u64>>,
 }
 // see: https://github.com/alexcrichton/toml-rs/issues/395
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 struct FunctionContainer {
     function: Vec<Function>,
 }
@@ -60,7 +60,7 @@ impl Function {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     pub basic: Basic,
     pub filter: Option<Vec<Filterx>>,
@@ -74,6 +74,13 @@ impl Config {
             Err(_) => Err(anyhow!("str to Config failed")),
         }
     }
+
+    pub fn to_string(&self) -> Result<String> {
+        match toml::to_string(self) {
+            Ok(x) => Ok(x),
+            Err(_) => Err(anyhow!("config to string failed")),
+        }
+    }
 }
 
 pub struct Probe {
@@ -83,7 +90,6 @@ pub struct Probe {
 }
 
 impl Probe {
-
     pub fn get_exprs(&self) -> &Vec<String> {
         self.dynamic.get_exprs()
     }
