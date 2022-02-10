@@ -190,6 +190,7 @@ static int tracepoint_block_rq_complete(struct block_rq_complete_args *args)
 		ioreq->cpu[2] = bpf_get_smp_processor_id();
 	} else
 		return 0;
+
 	if (ioreq->complete) {
 		bpf_map_update_elem(&iosdiag_maps, &key, ioreq, BPF_ANY);
 		bpf_perf_event_output(args, &iosdiag_maps_notify, 0, &val, sizeof(val));

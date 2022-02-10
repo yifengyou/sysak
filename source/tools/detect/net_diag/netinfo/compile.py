@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 -------------------------------------------------
-   File Name：     compile
+   File Name:     compile
    Description :
    Author :       liaozhaoyan
-   date：          2021/9/8
+   date:          2021/9/8
 -------------------------------------------------
    Change Activity:
                    2021/9/8:

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 -------------------------------------------------
-   File Name：     mon_connect
+   File Name:     mon_connect
    Description :
    Author :       liaozhaoyan
-   date：          2021/4/1
+   date:          2021/4/1
 -------------------------------------------------
    Change Activity:
                    2021/4/1:
@@ -88,12 +88,12 @@ class CconnAna():
     #include <uapi/linux/ptrace.h>
     #include <net/sock.h>
     #include <bcc/proto.h>
-    
+
     struct cell{
         u32 ip;
         u16 port;
     };
-    
+
     BPF_HASH(close_var, u16, u64, 4);
     BPF_HASH(in_port_var, struct cell, u64, 65536);
     BPF_HASH(out_port_var, u16, u64, 65536);
@@ -110,7 +110,7 @@ class CconnAna():
         v ++;
         in_port_var.update(&k, &v);
     }
-    
+
     static void increase_out_port_val(u16 k){
         u64 v = 0;
         u64 *r;
@@ -122,7 +122,7 @@ class CconnAna():
         v ++;
         out_port_var.update(&k, &v);
     }
-    
+
     static void increase_udp_port_val(u16 k){
         u64 v = 0;
         u64 *r;
@@ -134,12 +134,12 @@ class CconnAna():
         v ++;
         udp_port_var.update(&k, &v);
     }
-    
+
     int kretprobe__inet_csk_accept(struct pt_regs *ctx)
     {
         struct cell k;
         struct sock *sk = (struct sock *)PT_REGS_RC(ctx);
-        
+
         if (sk == NULL) {
             return 0;
         }
@@ -148,13 +148,13 @@ class CconnAna():
         increase_in_port_val(k);
         return 0;
     }
-    
+
     int kretprobe__tcp_close(struct pt_regs *ctx)
     {
         close_var.increment(0);
         return 0;
     }
-    
+
     int j_tcp_v4_conn_request(struct pt_regs *ctx, struct sock *sk, struct sk_buff *skb) {
         struct cell k;
         k.port = sk->__sk_common.skc_num;
@@ -162,14 +162,14 @@ class CconnAna():
         increase_in_port_val(k);
         return 0;
     }
-    
+
     int j_tcp_connect(struct pt_regs *ctx, struct sock *sk) {
         u16 dport;
         dport = sk->__sk_common.skc_dport;
         increase_out_port_val(dport);
         return 0;
     }
-    
+
     int j_udp_sendmsg(struct pt_regs *ctx, struct sock *sk, struct msghdr *msg, size_t len) {
         u16 dport;
         if (sk->__sk_common.skc_dport == 0)

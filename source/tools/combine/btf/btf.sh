@@ -2,9 +2,8 @@
 # author: Shuyi Cheng
 # email: chengshuyi@linux.alibaba.com
 
-TOOLS_ROOT=$(dirname "$0")
-zip_path=${TOOLS_ROOT}/BTF/btf.7z
-btf_dir=${TOOLS_ROOT}/BTF
+zip_path=${SYSAK_WORK_PATH}/tools/BTF/btf.7z
+btf_dir=${SYSAK_WORK_PATH}/tools
 btf_path=${btf_dir}/vmlinux-$(uname -r)
 
 usage() {
@@ -14,7 +13,7 @@ usage() {
 }
 
 extract_btf() {
-    ${TOOLS_ROOT}/BTF/7za e ${zip_path} -o${btf_dir} vmlinux-btf/vmlinux-$(uname -r)
+    ${SYSAK_WORK_PATH}/tools/BTF/7za e ${zip_path} -o${btf_dir} vmlinux-btf/vmlinux-$(uname -r)
 }
 
 while getopts 'd:h' OPT; do

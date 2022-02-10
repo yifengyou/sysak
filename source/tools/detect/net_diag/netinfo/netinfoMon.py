@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 -------------------------------------------------
-   File Name：     netinfoMon
+   File Name:     netinfoMon
    Description :
    Author :       liaozhaoyan
-   date：          2021/7/14
+   date:          2021/7/14
 -------------------------------------------------
    Change Activity:
                    2021/7/14:

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 -------------------------------------------------
-   File Name：     netCollect.py
+   File Name:     netCollect.py
    Description :
    Author :       liaozhaoyan
-   date：          2021/8/5
+   date:          2021/8/5
 -------------------------------------------------
    Change Activity:
                    2021/8/5:

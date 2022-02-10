@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 -------------------------------------------------
-   File Name：     __init__.py
+   File Name:     __init__.py
    Description :
    Author :       liaozhaoyan
-   date：          2021/7/15
+   date:          2021/7/15
 -------------------------------------------------
    Change Activity:
                    2021/7/15:
