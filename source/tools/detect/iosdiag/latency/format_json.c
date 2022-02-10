@@ -38,7 +38,7 @@ struct ts_info g_delays[] = {
 	{"complete", IO_COMPLETE_TIME_POINT},
 };
 
-static char *g_check_date;
+static char g_check_date[24];
 
 static char *point_idx_to_str(int idx)
 {
@@ -64,14 +64,19 @@ static char *delay_idx_to_str(int idx)
 
 void set_check_time_date(void)
 {
-	time_t t;
-	struct tm *date;
+	struct timeval tv;
+	struct tm *p;
 
-	t = time(NULL);
-
-	date = localtime(&t);
-	g_check_date = asctime(date);
-	g_check_date[24] = '\0';
+	gettimeofday(&tv, NULL);
+	p = localtime(&tv.tv_sec);
+	sprintf(g_check_date, "%d-%d-%d %d:%d:%d.%ld", 
+		    1900+p->tm_year,
+			1+p->tm_mon,
+			p->tm_mday,
+			p->tm_hour,
+			p->tm_min,
+			p->tm_sec,
+			tv.tv_usec / 1000);
 }
 
 static char *get_check_time_date(void)
