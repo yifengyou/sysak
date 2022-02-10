@@ -1,0 +1,15 @@
+[package]
+name = "rtrace-parser"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+libbpf-sys = { git = "https://github.com/chengshuyi/libbpf-sys" }
+rtrace-rs = { version = "0.1.0", path = "../rtrace-rs"}
+anyhow = "1.0"
+once_cell = "1.8.0"
+crossbeam-channel = "0.5"
+log = "0.4.0"
+nix = "0.22"
