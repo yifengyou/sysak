@@ -38,6 +38,20 @@ rtrace-delay是一款基于eBPF的网络抖动诊断工具，目前icmp（ping�
 
 ### tcp抖动诊断原理
 
+下图是tcp的数据报文和ack报文路径，黑色箭头是数据报文路径，红色箭头是ack报文路径。
+
+发送端报文路径包括：报文发送路径及ack报文接收路径。
+
+* 报文发送路径是：tcp_sendmsg->dev_hard_start_xmit->驱动；
+* ack报文接收路径是：驱动->__netif_receive_skb_core->tcp_ack；
+
+接收端报文路径包括：报文接收路径及ack报文发送路径。
+
+* 报文接收路径包括：驱动->__netif_receive_skb_core->tcp_queue_rcv->tcp_cleanup_rbuf；
+* ack报文发送路径是：__tcp_transmit_skb->驱动->__netif_receive_skb_core->驱动；
+
+![tcp抖动诊断默认打点路径](../image/tcp-delay.png)
+
 ## 使用说明
 
 使用流程：
@@ -153,3 +167,56 @@ params = ["basic"]
 
 ### tcp抖动诊断
 
+#### 步骤一
+
+运行`sysak rtrace-delay --gen ./config`生成toml配置文件到config目录下。这里我们主要关注`./config/ping-sender.toml`和`./config/ping-receiver.toml`两个配置文件。
+
+#### 步骤二：
+
+根据需求修改配置文件
+
+#### 步骤三
+
+* 诊断syn报文发送端路径，命令是`sysak rtrace-delay --config ./config/syn-sender.toml --delay 0 --latency 1000`，下面是样例输出；
+
+```shell
+FUNCTION DELAY: 11.160.62.52:57580 - 100.67.130.98:80
+
+    (0,0)__ip_queue_xmit+0               (0,1)tcp_rcv_state_process+0 
+              ↓                                       ↑                         
+             48us                                    39us                       
+              ↓                                       ↑                         
+  (0,0)dev_hard_start_xmit+0  →27662us→ (0,1)__netif_receive_skb_core+0
+```
+
+* 诊断tcp数据报文发送端路径，命令是`sysak rtrace-delay --config ./config/tcp-sender.toml --delay 0 --latency 1000`，下面是样例输出；
+
+```shell
+FUNCTION DELAY: 127.0.0.1:36360 - 127.0.0.1:30197
+
+     (0,20)tcp_sendmsg+0      
+              ↓                         
+             18us                       
+              ↓                         
+   (0,20)__ip_queue_xmit+0                     (0,20)tcp_ack+0        
+              ↓                                       ↑                         
+             12us                                    6us                        
+              ↓                                       ↑                         
+ (0,20)dev_hard_start_xmit+0   →2342us→ (0,20)__netif_receive_skb_core+0
+```
+
+* 诊断tcp数据报文接收端路径，`sysak rtrace-delay --config ./config/tcp-receiver.toml --delay 0 --latency 1000`，下面是样例输出；
+
+```shell
+FUNCTION DELAY: 127.0.0.1:36362 - 127.0.0.1:30197
+
+(0,21)__netif_receive_skb_core+0             (0,21)tcp_cleanup_rbuf+0   
+              ↓                                       ↑                         
+             5us                                     28us                       
+              ↓                                       ↑                         
+ (0,21)tcp_rcv_established+0             (0,21)dev_hard_start_xmit+0  
+              ↓                                       ↑                         
+             6us                                     6us                        
+              ↓                                       ↑                         
+    (0,21)tcp_queue_rcv+0       →14us→     (0,21)__ip_queue_xmit+0   
+```

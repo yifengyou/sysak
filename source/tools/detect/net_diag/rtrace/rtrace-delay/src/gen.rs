@@ -135,13 +135,96 @@ params = ["basic"]
 }
 
 fn gen_config_tcp_receiver(path: &mut PathBuf) -> Result<()> {
+    let text = r#"
+    [basic]
+debug = false
+duration = 0
+protocol = "tcp"
+recv = true
+
+[[filter]]
+pid = 0
+dst = "0.0.0.0:0"
+src = "0.0.0.0:0"
+
+[[function]]
+name = "__ip_queue_xmit"
+enable = true
+params = ["basic"]
+
+[[function]]
+name = "dev_hard_start_xmit"
+enable = true
+params = ["basic"]
+
+[[function]]
+name = "__netif_receive_skb_core"
+enable = true
+params = ["basic"]
+
+[[function]]
+name = "tcp_rcv_established"
+enable = true
+params = ["basic"]
+
+[[function]]
+name = "tcp_queue_rcv"
+enable = true
+params = ["basic"]
+
+[[function]]
+name = "tcp_cleanup_rbuf"
+enable = true
+params = ["basic"]
+    "#;
     path.push("tcp-receiver.toml");
+    gen_config_common(path, &text)?;
     path.pop();
     Ok(())
 }
 
 fn gen_config_tcp_sender(path: &mut PathBuf) -> Result<()> {
+    let text = r#"
+    # sudo  RUST_BACKTRACE=1 cargo run -- --config /work/rtrace_parser/delay_send.toml --delay
+
+[basic]
+debug = false
+duration = 0
+protocol = "tcp"
+recv = false
+
+[[filter]]
+pid = 0
+dst = "0.0.0.0:0"
+src = "0.0.0.0:0"
+
+[[function]]
+name = "tcp_sendmsg"
+enable = true
+params = ["basic"]
+
+[[function]]
+name = "__ip_queue_xmit"
+enable = true
+params = ["basic"]
+
+[[function]]
+name = "dev_hard_start_xmit"
+enable = true
+params = ["basic"]
+
+[[function]]
+name = "__netif_receive_skb_core"
+enable = true
+params = ["basic"]
+
+[[function]]
+name = "tcp_ack"
+enable = true
+params = ["basic"]
+    "#;
     path.push("tcp-sender.toml");
+    gen_config_common(path, &text)?;
     path.pop();
     Ok(())
 }
