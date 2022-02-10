@@ -96,7 +96,40 @@ params = ["basic"]
 }
 
 fn gen_config_syn_sender(path: &mut PathBuf) -> Result<()> {
+    let text = r#"
+[basic]
+debug = false
+duration = 0
+protocol = "tcp-syn"
+recv = false
+
+[[filter]]
+pid = 0
+dst = "0.0.0.0:0"
+src = "0.0.0.0:0"
+
+[[function]]
+name = "__ip_queue_xmit"
+enable = true
+params = ["basic"]
+
+[[function]]
+name = "dev_hard_start_xmit"
+enable = true
+params = ["basic"]
+
+[[function]]
+name = "__netif_receive_skb_core"
+enable = false
+params = ["basic"]
+
+[[function]]
+name = "tcp_rcv_state_process"
+enable = false
+params = ["basic"]
+    "#;
     path.push("syn-sender.toml");
+    gen_config_common(path, &text)?;
     path.pop();
     Ok(())
 }
