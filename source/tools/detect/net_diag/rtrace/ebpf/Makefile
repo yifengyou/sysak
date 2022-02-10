@@ -36,7 +36,7 @@ else
 endif
 
 
-librtrace: $(OBJ_LIB_PATH)/librtrace.so
+librtrace: $(OBJ_LIB_PATH)/librtrace.a
 
 $(OBJ_LIB_PATH)/librtrace.a: $(target_cobjs)
 	$(Q) ar -rcs $@ $^
