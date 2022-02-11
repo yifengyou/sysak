@@ -25,17 +25,6 @@ def humConvert(value):
 			return "%.2f%s/s" % (value, units[i])
 		value = value / size
 
-def timeConvert(value, withUnit):
-	units = ["us", "ms", "s"]
-	size = 1000.0
-	for i in range(len(units)):
-		if (value / size) < 1:
-			if withUnit:
-				return "%.2f %s" % (value, units[i])
-			else:
-				return "%.2f" % (value)
-		value = value / size
-
 class latencyAnalysis:
 	def __init__(self):
 		self.delayStatDicts = {}
@@ -112,9 +101,9 @@ class latencyAnalysis:
 		diskIdx = diskIdxDicts[disk]
 		del sDict['diskname']
 		listAbnormal=[i for i in sDict['abnormal'].split(' ') if i != ''];
-		delay=timeConvert(int(listAbnormal[-2].strip('(').split(':')[0]), False)
-		totalDelay=timeConvert(int(listAbnormal[-2].strip('(').split(':')[1]), True)
-		sDict['abnormal']=listAbnormal[0]+' '+listAbnormal[1]+" ("+delay+":"+totalDelay+")"
+		msDelay=int(listAbnormal[-2].strip('(').split(':')[0]) / 1000.000
+		msTotalDelay=int(listAbnormal[-2].strip('(').split(':')[1]) / 1000.000
+		sDict['abnormal']=listAbnormal[0]+' '+listAbnormal[1]+" ("+str(msDelay)+":"+str(msTotalDelay)+" ms)"
 		summaryDicts['summary'][diskIdx]['slow ios'].append(sDict)
 
 	def processOneLatencySeq(self, sDict):
@@ -153,15 +142,6 @@ class latencyAnalysis:
 					maxPercent = percent
 				delayStatDicts['summary'][diskIdx]['delays'][idx]['percent'] = str(percent)+"%"
 
-			summaryDicts['summary'][diskIdx]['slow ios']=\
-				sorted(summaryDicts['summary'][diskIdx]['slow ios'],\
-				       key=lambda e:float(re.split(':| ', e['abnormal'])[-2]),\
-				       reverse=True)
-			delayDicts['summary'][diskIdx]['slow ios']=\
-				sorted(delayDicts['summary'][diskIdx]['slow ios'],\
-				       key=lambda e:e['totaldelay'],\
-				       reverse=True)
-
 	def latencyPrint(self, threshold):
 		diskIdxDicts = self.diskIdxDicts
 		totalIosDicts = self.totalIosDicts
@@ -171,6 +151,10 @@ class latencyAnalysis:
 
 		for disk, diskIdx in diskIdxDicts.items():
 			totalIos = totalIosDicts[disk]
+			summaryDicts['summary'][diskIdx]['slow ios']=\
+				sorted(summaryDicts['summary'][diskIdx]['slow ios'],\
+				       key=lambda e:float(re.split(':| ', e['abnormal'])[-2]),\
+				       reverse=True)
 			print("\n%d IOs of disk %s over %d ms, delay distribution:" %(totalIos, disk, threshold))
 			for component,idx in componentDicts.items():
 				percent = delayStatDicts['summary'][diskIdx]['delays'][idx]['percent']
@@ -178,12 +162,12 @@ class latencyAnalysis:
 
 			end = totalIos if totalIos < 10 else 10
 			print("The first %d IOs with the largest delay, more details:" % end)
-			print("seq".ljust(6)+"comm".ljust(20)+"pid".ljust(10)+"iotype".ljust(8)+\
+			print("time".ljust(26)+"comm".ljust(20)+"pid".ljust(10)+"iotype".ljust(8)+\
 			      "datalen".ljust(16)+"abnormal(delay:totaldelay)".ljust(40))
 
 			for i in range(0,end):
 				eDict=summaryDicts['summary'][diskIdx]['slow ios'][i]
-				print(str(eDict["seq"]).ljust(6)+eDict["comm"].ljust(20)+\
+				print(str(eDict["time"]).ljust(26)+eDict["comm"].ljust(20)+\
 				      str(eDict["pid"]).ljust(10)+eDict["iotype"].ljust(8)+\
 				      str(eDict["datalen"]).ljust(16)+eDict["abnormal"].ljust(40))
 
