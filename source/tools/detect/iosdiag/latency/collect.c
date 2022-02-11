@@ -66,25 +66,15 @@ static int over_threshold(struct iosdiag_req *iop)
 
 static void iosdiag_store_result(void *ctx, int cpu, void *data, __u32 size)
 {
-	struct iosdiag_key key, next_key;
-	struct iosdiag_req iop;
+	struct iosdiag_req *iop = (struct iosdiag_req *)data;
 	char *buf = g_json_buf;
-	unsigned int seq = 0;
 	int fd = g_log_fd;
 
-	while (bpf_map_get_next_key(iosdiag_map, &key, &next_key) == 0) {
-		bpf_map_lookup_elem(iosdiag_map, &next_key, &iop);
-		if (iop.complete) {
-			if (over_threshold(&iop)) {
-				seq++;
-				set_check_time_date();
-				summary_convert_to_json(buf, &iop, seq);
-				delay_convert_to_json(buf + strlen(buf), &iop, seq);
-				write(fd, buf, strlen(buf));
-			}
-			bpf_map_delete_elem(iosdiag_map, &next_key);
-		}
-		key = next_key;
+	if (over_threshold(iop)) {
+		set_check_time_date();
+		summary_convert_to_json(buf, iop);
+		delay_convert_to_json(buf + strlen(buf), iop);
+		write(fd, buf, strlen(buf));
 	}
 }
 
@@ -109,7 +99,7 @@ static void iosdiag_collect(void)
 
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
 {
-        //return vfprintf(stderr, format, args);
+    //return vfprintf(stderr, format, args);
 	return 0;
 }
 

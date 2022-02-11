@@ -25,8 +25,7 @@ struct bpf_map_def SEC("maps") iosdiag_maps_targetdevt = {
 struct bpf_map_def SEC("maps") iosdiag_maps_notify = {
 	.type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
 	.key_size = sizeof(int),
-	.value_size = sizeof(u32),
-	.max_entries = 0,
+	.value_size = sizeof(int),
 };
 
 static inline int iosdiag_pkg_check(void *data, unsigned int len)
@@ -170,11 +169,11 @@ SEC("tracepoint/block/block_rq_complete")
 static int tracepoint_block_rq_complete(struct block_rq_complete_args *args)
 {
 	struct iosdiag_req *ioreq;
-	struct iosdiag_req new_ioreq = {0};
+	struct iosdiag_req data = {0};
 	struct iosdiag_key key = {0};
 	unsigned long long now = bpf_ktime_get_ns();
 	u32 target_devt = get_target_devt();
-	int val = 1;
+	int complete = 0;
 
 	if (target_devt && args->dev != target_devt)
 		return 0;
@@ -186,17 +185,15 @@ static int tracepoint_block_rq_complete(struct block_rq_complete_args *args)
 			ioreq->ts[IO_COMPLETE_TIME_POINT] = now;
 		if (ioreq->ts[IO_ISSUE_DEVICE_POINT] &&
 		    ioreq->ts[IO_RESPONCE_DRIVER_POINT])
-				ioreq->complete = 1;
+				complete = 1;
 		ioreq->cpu[2] = bpf_get_smp_processor_id();
 	} else
 		return 0;
-
-	if (ioreq->complete) {
-		bpf_map_update_elem(&iosdiag_maps, &key, ioreq, BPF_ANY);
-		bpf_perf_event_output(args, &iosdiag_maps_notify, 0, &val, sizeof(val));
+	if (complete) {
+		memcpy(&data, ioreq, sizeof(data));
+		bpf_perf_event_output(args, &iosdiag_maps_notify, 0xffffffffULL, &data, sizeof(data));
 	}
-	else
-		bpf_map_delete_elem(&iosdiag_maps, &key);
+	bpf_map_delete_elem(&iosdiag_maps, &key);
 	return 0;
 }
 #endif
