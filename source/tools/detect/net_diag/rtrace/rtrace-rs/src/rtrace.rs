@@ -47,8 +47,17 @@ pub struct Function {
 }
 // see: https://github.com/alexcrichton/toml-rs/issues/395
 #[derive(Clone, Debug, Deserialize, Serialize)]
-struct FunctionContainer {
-    function: Vec<Function>,
+pub struct FunctionContainer {
+    pub function: Vec<Function>,
+}
+
+impl FunctionContainer {
+    pub fn from_str(s: &str) -> Result<FunctionContainer> {
+        match toml::from_str(s) {
+            Ok(x) => Ok(x),
+            Err(y) => Err(anyhow!("str to FunctionContainer failed: {}", y)),
+        }
+    }
 }
 
 impl Function {
@@ -298,6 +307,11 @@ impl Rtrace {
     pub fn probe_functions_from_str(&mut self, s: &str) -> Result<()> {
         let functions: FunctionContainer = toml::from_str(s).expect("functions str parsed failed");
         self.__probe_functions(&functions.function)?;
+        Ok(())
+    }
+
+    pub fn probe_functions_from_functions(&mut self, functions: &Vec<Function>) -> Result<()> {
+        self.__probe_functions(functions)?;
         Ok(())
     }
 
