@@ -4,7 +4,7 @@ BPFTOOL ?= $(SRC)/lib/internal/ebpf/tools/bpftool
 APPS_DIR := $(abspath .)
 prefix ?= /usr/local
 ARCH := $(shell uname -m | sed 's/x86_64/x86/')
-LIBBPF_OBJ := $(OBJ_LIB_PATH)/libbpf.a
+LIBBPF_OBJ += $(OBJ_LIB_PATH)/libbpf.a
 
 ifeq ($(KERNEL_DEPEND), Y)
 OUTPUT := $(OBJ_TOOLS_PATH)
