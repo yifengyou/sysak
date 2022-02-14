@@ -2,21 +2,26 @@
 # -*- coding: UTF-8 -*-
 
 import sys,os
-import getopt
+#import getopt
+import argparse
 import json
 import linecache
 import subprocess
 from collections import OrderedDict
 
+stack_trace = 0
 eventpid = 0
-enable_level = 0
-disable_level = 0
+lev_mask = 0
+list_arg = 0
+disable_arg = 0
+enable_arg = 0
 MAX_OUT_FILE = 512*1024*1024
 ONE_FILE_MAX = 64*1024*1024
 FILE_CACHE_SIZE = 4096
 
+anal_file=''
 traceoutf = "/sys/kernel/debug/tracing/trace"
-pidfile = "/sys/kernel/debug/tracing/set_event_pid"
+event_pid_f = "/sys/kernel/debug/tracing/set_event_pid"
 traceswfile = "/proc/sysak/schedtrace/pid"
 
 #level low
@@ -40,15 +45,64 @@ tracefs3 = ("/sys/kernel/debug/tracing/events/irq/irq_handler_entry/enable",
 
 tracefiles = (tracefs1, tracefs2, tracefs3)
 
-def check_essential_files():
-	if not os.path.isfile(traceswfile):
+def usage():
+	print '---usage---'
+def do_enable(args):
+	if len(args) == 0:
+		usage()
+def disable_args(strs):
+	lenth = len(strs)
+	if lenth == 0:
+		print 'lenth == 0'
+		return ['schedtrace_out.log', 512]
+	elif lenth == 1:
+		print 'lenth == 1'
+		onearg = strs[0]
+		if onearg.isdigit():
+			if int(onearg) > 0:
+				return ['schedtrace_out.log', int(onearg)]
+			else:
+				return []
+		else:
+			return [onearg, 512]
+	elif lenth == 2:
+		print 'lenth == 2'
+		a0 = strs[0]
+		a1 = strs[1]
+		if a0.isdigit() and int(a0) > 0:
+			return [a1, int(a0)]
+		elif a1.isdigit() and int(a1) > 0:
+			return [a0, int(a1)]
+		else:
+			return []
+	else:
+		print 'lenth == %d'% lenth
+		return []
+def parse_en_args(strs):
+	maks = 0
+	if not strs:
+		mask = 1
+	else:
+		level_arg = strs[0]
+		if level_arg == 'l':
+			mask = 1
+		elif level_arg == 'm':
+			mask = 3
+		elif level_arg == 's':
+			mask = 7
+		else:
+			usage(sys.argv[0])
+			sys.exit(" ::-e/--enable with invalid value")
+	return mask
+def check_essential_files(stack):
+	if stack == 1 and not os.path.isfile(traceswfile):
 		print 'WARN: no such file:%s' % traceswfile
 		print ' --use root or check [schedtrace.ko] loaded yet?\n'
 	if not os.path.isfile(traceoutf):
 		print 'WARN: no such file:%s' % traceoutf
 		print ' --use root or  check debugfs/tracefs mounted yet?--\n'
-	if not os.path.isfile(pidfile):
-		print 'WARN: no such file:%s' % pidfile
+	if not os.path.isfile(event_pid_f):
+		print 'WARN: no such file:%s' % event_pid_f
 		print ' --use root or check debugfs/tracefs mounted yet?--\n'
 	i = 0
 	not_exist = 0
@@ -108,9 +162,9 @@ def raw_to_json(inf, outf):
 	ofp.close()
 
 def list_config():
-	p = subprocess.Popen("cat "+pidfile, shell=True, stdout=subprocess.PIPE)
+	p = subprocess.Popen("cat "+event_pid_f, shell=True, stdout=subprocess.PIPE)
 	p.wait()
-	print '%s=%s' % (pidfile, p.stdout.readline().strip('\n'))
+	print '%s=%s' % (event_pid_f, p.stdout.readline().strip('\n'))
 	i = 0
 	while i < 3:
 		traces = tracefiles[i]
@@ -130,6 +184,79 @@ def switch_fp(curr, t1, t2):
 		print 'Warn: switch_fp() curr not in t1 nor t2'
 		return curr
 
+def analysis_log(outfile, pid):
+	switch_out = 0
+	prv_time = 0.0000
+	next_time = 0.0000
+	wake_time = 0.0000
+	prvtm_strs = ""
+	nxttm_strs = ""
+	prvstat = ""
+	sched_swc = "sched_switch"
+	sched_wkp = "sched_wakeup"
+	splits = ""
+	prev_pid = "prev_pid="+str(pid)
+	next_pid = "next_pid="+str(pid)
+	wkup_pid = "pid="+str(pid)
+	fr = open(outfile, "r")
+	
+	for lines in fr.readlines():
+		if (sched_swc not in lines and sched_wkp not in lines):
+			continue
+		if wkup_pid in lines and sched_wkp in lines:
+			splits = lines.split(": sched_wakeup:")
+			wake_time = float(splits[0].split()[-1])
+		if prev_pid in lines:
+			splits = lines.split("==>")
+			splits1 = splits[0].split()
+			#prv_events = splits1[-5].split(":")[0]
+			prv_sta = splits1[-1]
+			splits = lines.split(": sched_switch:")
+			splits2 = splits[0].split()
+			prvtm_strs = splits2[-1]
+			try:
+				prv_time = float(prvtm_strs);
+			except:
+				print 'prev:float excetpion'
+				print '>>>%s' % lines
+			else:
+				#prvstat = splits[-7]
+				switch_out = 1
+		elif next_pid in lines and switch_out == 1:
+			splits = lines.split(": sched_switch:")
+			splits1 = splits[0].split()
+			nxttm_strs = splits1[-1]
+			try:
+				next_time = float(nxttm_strs)
+			except:
+				print 'next:float excetpion'
+				print '>>>%s' % lines
+			else:
+				total_delay = next_time - prv_time
+				if total_delay > 0.009:
+					if "=R" in prv_sta:
+						print '%s was preempted %f sec\n%s ' % (pid, total_delay, lines)
+						print '------------------------------------'
+					if "=S" in prv_sta:
+						s_delay = wake_time - prv_time
+						w_delay = next_time - wake_time
+						if wake_time > prv_time:
+							print '%s sleep to wake:%f sec, wake to run:%f sec\n%s ' % (pid, s_delay, w_delay, lines)
+						else:
+							print '%s sleeped %f sec\n%s ' % (pid, total_delay, lines)
+						print '------------------------------------'
+						wake_time = 0.0000
+					if "=D" in prv_sta:
+						d_delay = wake_time - prv_time
+						w_delay = next_time - wake_time
+						if wake_time > prv_time:
+							print '%s block to wake:%f sec, wake to run:%f sec\n%s ' % (pid, d_delay, w_delay, lines)
+						else:
+							print '%s blocked %f sec\n%s ' % (pid, total_delay, lines)
+						print '------------------------------------'
+						wake_time = 0.0000
+			switch_out = 0
+
 def record_traceinfo(outfile):
 	tmp1 = outfile+'1'
 	tmp2 = outfile+'2'
@@ -139,7 +266,7 @@ def record_traceinfo(outfile):
 	total = 0
 	count = 0
 	tmpfp1 = t1fp
-	line1st = linecache.getline(pidfile, 1)
+	line1st = linecache.getline(event_pid_f, 1)
 	pid = line1st.split()[0]
 	tmpfp1.write('#'+pid+'\n')
 	try:
@@ -193,125 +320,100 @@ def usage(app):
 	print '            stdout: will print the result to stdout console'
 	print '  -j/--json <logfile>       trans the trace logfile to json'
 	print '            logfile: the source file for json'
+	print '  -a/--analy <logfile>      analysis trace logfile'
+	print '            logfile: the source file for json'
 	print '  -e/--enable <l|m|h>       enable sched trace with -p/--pid'
-	print '            l: enabel low-level trace' 
-	print '            m: enabel middle-level trace' 
-	print '            h: enabel high-level trace' 
+	print '            l: enable low-level trace' 
+	print '            m: enable middle-level trace' 
+	print '            h: enable high-level trace' 
 	print '  -d/--disable <l|m|h>       disable sched trace with'
-	print '            l: disabel low-level trace' 
-	print '            m: disabel middle-level trace' 
-	print '            h: disabel high-level trace' 
-	print '            p: disabel trace target_pid' 
+	print '            l: disable low-level trace' 
+	print '            m: disable middle-level trace' 
+	print '            h: disable high-level trace' 
+	print '            p: disable trace target_pid' 
 	print '=============='
 	return
 
-if len(sys.argv) < 2:
-	usage(sys.argv[0])
-	sys.exit("invalide args")
+def cmd():
+	parser = argparse.ArgumentParser()
+	parser.add_argument("pid" , type=int, help='target pid')
+	parser.add_argument("-l", '--list', dest="list", const=1, help='list configs', nargs='?')
+	parser.add_argument("-S", '--stack', dest="stack", default=0, const=1, help='add stack-info for trace, if not sure just ignore', nargs='?')
+	parser.add_argument("-s", '--size', dest="size", default=512, const=512, help='the size of trace log file(MB), default=512', nargs='?')
+	parser.add_argument("-e", '--enable', dest="enable", help='enable schedtrace [level], default level=l, leaset info',choices=('l', 'm', 's'), const='l', nargs='?')
+	parser.add_argument("-d", '--disable', dest="disable", const='schedtrace_out.log', help='disable schedtrace to [log file], default=schedtrace_out.log', nargs='?')
+	parser.add_argument("-p", '--parse', type=str, dest="parse", help='parse the [log file], default=schedtrace_out.log', const='schedtrace_output.log', nargs='?')
+	return parser.parse_args()
 
-try:
-	opts,args = getopt.getopt(sys.argv[1:], 'hle:d:p:s:r:j:',['help','list', 'enable=','disable=','pid=','size=','read=','json='])
-except getopt.GetoptError, e:
-	sys.stderr.write("Error:[%s] %s\n" % (sys.argv[0].strip(".py"), e.msg))
-	print 'Use -h/--help see useage!'
-	sys.exit(1)
-for opt_name,opt_value in opts:
-	if opt_name in ('-h','--help'):
-		usage(sys.argv[0])
-		sys.exit()
-	if opt_name in ('-l','--list'):
-		check_essential_files()
+args = cmd()
+d = args.__dict__
+
+for key,value in d.iteritems():
+	#print 'DEBUG:%s = %s'%(key,value)
+	if key == 'stack' and value != None:
+		stack_trace = value
+		continue
+	if key == 'size' and value != None:
+		ONE_FILE_MAX = value
+		continue
+	if key == 'pid':
+		eventpid = value
+		continue
+	if key == 'enable' and value != None:
+		lev_mask = parse_en_args(value)
+		enable_arg = 1
+		continue
+	if key == 'disable' and value != None:
+		outfile = value
+		disable_arg = 1
+		continue
+	if key == 'list' and value != None:
+		check_essential_files(stack_trace)
 		list_config()
-		sys.exit()
-	if opt_name in ('-p', '--pid'):
-		eventpid = (int)(opt_value)
+		list_arg = 1
 		continue
-	if opt_name in ('-s', '--size'):
-		ONE_FILE_MAX = 1024*1024*((int)(opt_value))
+	if key == 'parse' and value != None:
+		anal_file = value
 		continue
-	if opt_name in ('-j', '--json'):
-		raw_to_json(opt_value, opt_value+'.json')
-		continue
-	if opt_name in ('-r', '--read'):
-		outfile = opt_value
-		if outfile == 'stdout':
-			subprocess.call("cat "+traceoutf, shell=True)
-		else:
-			print 'write strace log to %s' % outfile
-			disable_all_trace()	#should?
-			record_traceinfo(outfile)
-			subprocess.call("echo  >"+traceoutf, shell=True)
-			subprocess.call("echo -1 >"+traceswfile, shell=True)
-		continue
-	if opt_name in ('-e', '--enable'):
-		enopt = opt_value
-		if enopt == 'l':
-			enable_level = 1
-		elif enopt == 'm':
-			enable_level = 3
-		elif enopt == 'h':
-			enable_level = 7
-		else:
-			usage(sys.argv[0])
-			sys.exit(" ::-e/--enable with invalid value")
-		continue
-	if opt_name in ('-d', '--disable'):
-		enopt = opt_value
-		if enopt == 'l':
-			disable_level = 7
-		elif enopt == 'm':
-			disable_level = 6
-		elif enopt == 'h':
-			disable_level = 4
-		elif enopt == 'p':
-			disable_level = 8
-		else:
-			usage(sys.argv[0])
-			sys.exit(" ::-d/--disable with invalid value")
-		continue
-	else:
-		usage(sys.argv[0])
-		sys.exit("  ::undefined opt "+opt_name)
 
-if enable_level:
+	#if opt_name in ('-j', '--json'):
+	#	raw_to_json(opt_value, opt_value+'.json')
+	#	continue
+
+if (enable_arg == 0 or disable_arg == 0) and list_arg == 0:
+	useage()
+	exit(0)
+if enable_arg == 1:
 	if eventpid == 0:
 		usage(sys.argv[0])
 		sys.exit("  ::target pid must be set first, use -p")
 	if disable_level:
-		sys.exit("  ::enabel can't use with disable together, only -d or -e")
-	check_essential_files()
+		sys.exit("  ::enable can't use with disable together, only -d or -e")
+	check_essential_files(stack_trace)
 	i = 0
-	subprocess.call("echo "+str(eventpid)+" >"+pidfile, shell=True)
-	subprocess.call("echo "+str(eventpid)+" >"+traceswfile, shell=True)
+	subprocess.call("echo "+str(eventpid)+" >"+event_pid_f, shell=True)
+	if stack_trace == 1:
+		subprocess.call("echo "+str(eventpid)+" >"+traceswfile, shell=True)
 	while i < 3:
-		if (enable_level & (1 << i)):
+		if (lev_mask & (1 << i)):
 			for tracefile in tracefiles[i]:
 				subprocess.call("echo 1 >"+tracefile, shell=True)
 		i = i + 1
-elif disable_level:
-	if enable_level:
-		sys.exit("  ::enabel can't use with disable together, only -d or -e")
-	check_essential_files()
-	##this will be little complex,
-	#but we usage a easy and ‘thick line’ way now times
-	if disable_level == 8:
-		if eventpid == 0:
-			sys.exit("  ::disable trace pid must used with -p <pid>")
-		else:
-			disable_level = 7
-			i = 0
-			while i < 3:
-				if disable_level & (1 << i):
-					for tracefile in tracefiles[i]:
-						subprocess.call("echo 0 >"+tracefile, shell=True)
-				i = i + 1
-			subprocess.call('echo >'+pidfile, shell=True)
-			sys.exit()
 
-	i = 0
-	while i < 3:
-		if disable_level & (1 << i):
-			for tracefile in tracefiles[i]:
-				subprocess.call("echo 0 >"+tracefile, shell=True)
-		i = i + 1
-	subprocess.call("echo -1 >"+traceswfile, shell=True)
+elif disable_arg == 1:
+	check_essential_files(stack_trace)
+	if outfile == 'stdout':
+		subprocess.call("cat "+traceoutf, shell=True)
+	else:
+		print 'write strace log to %s' % outfile
+	disable_all_trace()	#should?
+	record_traceinfo(outfile)
+	subprocess.call("echo  >"+traceoutf, shell=True)
+	if stack_trace == 1:
+		subprocess.call("echo -1 >"+traceswfile, shell=True)
+
+elif anal_file != '':
+	if eventpid == 0:
+		sys.exit("  ::analysis trace log must used with -p <pid>")
+	else:
+		analysis_log(anal_file, eventpid)
