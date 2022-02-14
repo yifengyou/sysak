@@ -29,7 +29,10 @@ DECLEAR_BPF_OBJ(iosdiag_scsi);
 static int iosdiag_map;
 static int iosdiag_virtblk_map;
 static int iosdiag_maps_targetdevt;
+static int iosdiag_maps_notify;
 static int g_stop;
+static int g_log_fd = -1;
+static char *g_json_buf;
 
 extern unsigned long get_threshold_us(void);
 static int exec_shell_cmd(char *cmd)
@@ -56,52 +59,47 @@ static int over_threshold(struct iosdiag_req *iop)
 	unsigned long delay_ns = iop->ts[IO_COMPLETE_TIME_POINT] -
 				iop->ts[IO_START_POINT];
 
-	if (threshold_ns && delay_ns >= threshold_ns)
+	if (delay_ns >= threshold_ns)
 		return 1;
 	return 0;
 }
 
-static void iosdiag_store_result(int fd)
+static void iosdiag_store_result(void *ctx, int cpu, void *data, __u32 size)
 {
-	struct iosdiag_key key, next_key;
-	struct iosdiag_req iop;
-	unsigned long sleep_us = get_threshold_us() ? get_threshold_us() : 1000;
-	char *buf;
-	int i = 0;
-	unsigned int seq = 0;
+	struct iosdiag_req *iop = (struct iosdiag_req *)data;
+	char *buf = g_json_buf;
+	int fd = g_log_fd;
+
+	if (over_threshold(iop)) {
+		set_check_time_date();
+		summary_convert_to_json(buf, iop);
+		delay_convert_to_json(buf + strlen(buf), iop);
+		write(fd, buf, strlen(buf));
+	}
+}
+
+static void iosdiag_collect(void)
+{
+	struct perf_buffer_opts pb_opts = {};
+	struct perf_buffer *pb;
+
+	pb_opts.sample_cb = iosdiag_store_result;
+	pb = perf_buffer__new(iosdiag_maps_notify, 1, &pb_opts);
 
 	printf("running...");
 	fflush(stdout);
-	buf = malloc(JSON_BUFFER_SIZE);
-	memset(buf, 0x0, JSON_BUFFER_SIZE);
-	while (!g_stop) {
-		if (bpf_map_get_next_key(iosdiag_map, &key, &next_key) == 0) {
-			bpf_map_lookup_elem(iosdiag_map, &next_key, &iop);
-			if (iop.complete) {
-				if (over_threshold(&iop)) {
-					seq++;
-					set_check_time_date();
-					summary_convert_to_json(buf, &iop, seq);
-					delay_convert_to_json(buf + strlen(buf), &iop, seq);
-					write(fd, buf, strlen(buf));
-				}
-				bpf_map_delete_elem(iosdiag_map, &next_key);
-			}
-			key = next_key;
-			if (i++ > 50) {
-				usleep(sleep_us);
-				i = 0;
-			}
-		} else
-			usleep(sleep_us);
-	}
-	free(buf);
+	g_json_buf = malloc(JSON_BUFFER_SIZE);
+	memset(g_json_buf, 0x0, JSON_BUFFER_SIZE);
+	while (!g_stop)
+		perf_buffer__poll(pb, 100);
+	perf_buffer__free(pb);
+	free(g_json_buf);
 	printf("done\n");
 }
 
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
 {
-        //return vfprintf(stderr, format, args);
+    //return vfprintf(stderr, format, args);
 	return 0;
 }
 
@@ -139,6 +137,7 @@ static void iosdiag_stop(int signo)
 	}											\
 	if (load_map) {										\
 		iosdiag_map = bpf_map__fd(name->maps.iosdiag_maps);				\
+		iosdiag_maps_notify = bpf_map__fd(name->maps.iosdiag_maps_notify);	\
 		iosdiag_maps_targetdevt = bpf_map__fd(name->maps.iosdiag_maps_targetdevt);	\
 	}											\
 	if (!__ret)										\
@@ -237,7 +236,6 @@ int iosdiag_init(char *devname)
 
 int iosdiag_run(int timeout, char *output_file)
 {
-	int fd_log;
 	char filepath[256];
 	char cmd[272];
 
@@ -249,8 +247,8 @@ int iosdiag_run(int timeout, char *output_file)
 	strcpy(filepath, output_file);
 	sprintf(cmd, "mkdir %s -p", dirname(filepath));
 	exec_shell_cmd(cmd);
-	fd_log = open(output_file, O_RDWR | O_CREAT, 0755);
-	if (fd_log < 0) {
+	g_log_fd = open(output_file, O_RDWR | O_CREAT, 0755);
+	if (g_log_fd < 0) {
 		printf("error: create output file \"%s\" fail\n", output_file);
 		return -1;
 	}
@@ -258,8 +256,8 @@ int iosdiag_run(int timeout, char *output_file)
 	signal(SIGALRM, iosdiag_stop);
 	if (timeout)
 		alarm(timeout);
-	iosdiag_store_result(fd_log);
-	close(fd_log);
+	iosdiag_collect();
+	close(g_log_fd);
 	return 0;
 }
 

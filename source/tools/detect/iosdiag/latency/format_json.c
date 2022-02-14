@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <dirent.h>
 #include <time.h>
+#include <sys/time.h>
 #include <libgen.h>
 #include "iosdiag.h"
 #include "format_json.h"
@@ -38,7 +39,7 @@ struct ts_info g_delays[] = {
 	{"complete", IO_COMPLETE_TIME_POINT},
 };
 
-static char *g_check_date;
+static char g_check_date[24];
 
 static char *point_idx_to_str(int idx)
 {
@@ -64,14 +65,19 @@ static char *delay_idx_to_str(int idx)
 
 void set_check_time_date(void)
 {
-	time_t t;
-	struct tm *date;
+	struct timeval tv;
+	struct tm *p;
 
-	t = time(NULL);
-
-	date = localtime(&t);
-	g_check_date = asctime(date);
-	g_check_date[24] = '\0';
+	gettimeofday(&tv, NULL);
+	p = localtime(&tv.tv_sec);
+	sprintf(g_check_date, "%d-%d-%d %d:%d:%d.%ld", 
+		    1900+p->tm_year,
+			1+p->tm_mon,
+			p->tm_mday,
+			p->tm_hour,
+			p->tm_min,
+			p->tm_sec,
+			tv.tv_usec / 1000);
 }
 
 static char *get_check_time_date(void)
@@ -121,15 +127,15 @@ static int is_disk_delay(struct iosdiag_req *iop)
 	return 1;
 }
 
-void point_convert_to_json(void *dest, void *src, unsigned int seq)
+void point_convert_to_json(void *dest, void *src)
 {
 	int i;
 	struct iosdiag_req *iop = src;
 
 	sprintf(dest,
-			"{\"seq\":\"%u\","
+			"{\"time\":\"%s\","
 			"\"diskname\":\"%s\","
-			"\"points\":[", seq, iop->diskname);
+			"\"points\":[", get_check_time_date(), iop->diskname);
 	for (i = 0; i < MAX_POINT; i++) {
 		if (!iop->ts[i])
 			continue;
@@ -142,7 +148,7 @@ void point_convert_to_json(void *dest, void *src, unsigned int seq)
 	sprintf(dest + strlen(dest), "%s", "]}\n");
 }
 
-void delay_convert_to_json(void *dest, void *src, unsigned int seq)
+void delay_convert_to_json(void *dest, void *src)
 {
 	int i, n;
 	int skip = 0;
@@ -150,9 +156,9 @@ void delay_convert_to_json(void *dest, void *src, unsigned int seq)
 	struct iosdiag_req *iop = src;
 
 	sprintf(dest,
-			"{\"seq\":\"%u\","
+			"{\"time\":\"%s\","
 			"\"diskname\":\"%s\",",
-			seq,
+			get_check_time_date(),
 			iop->diskname);
 	for (i = 0, n = 0; i < MAX_POINT; i++) {
 		if (i == IO_START_POINT) {
@@ -183,7 +189,7 @@ void delay_convert_to_json(void *dest, void *src, unsigned int seq)
 	sprintf(dest + strlen(dest), "%s", "]}\n");
 }
 
-void summary_convert_to_json(void *dest, void *src, unsigned int seq)
+void summary_convert_to_json(void *dest, void *src)
 {
 	char cpu[24] = {0};
 	char component[16] = {0};
@@ -204,8 +210,7 @@ void summary_convert_to_json(void *dest, void *src, unsigned int seq)
 			iop->cpu[0], iop->cpu[1], iop->cpu[2]);
 	//blk_rq_op_name(iop->cmd_flags, buf, sizeof(buf));
 	sprintf(dest,
-			"{\"seq\":\"%u\","
-			 "\"time\":\"%s\","
+			"{\"time\":\"%s\","
 			 "\"abnormal\":\"%s delay (%lu:%lu us)\","
 			 "\"diskname\":\"%s\","
 			 "\"iotype\":\"%s\","
@@ -214,7 +219,6 @@ void summary_convert_to_json(void *dest, void *src, unsigned int seq)
 			 "\"comm\":\"%s\","
 			 "\"pid\":%d,"
 			 "\"cpu\":\"%s\"}\n",
-			 seq,
 			 get_check_time_date(),
 			 maxdelay_component,
 			 max_delay,
