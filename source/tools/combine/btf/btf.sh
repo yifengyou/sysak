@@ -10,13 +10,23 @@ usage() {
     echo "sysak btf: Extract the btf file to the specified directory"
     echo "options: -h, help information"
     echo "         -d, Specify the path, default directory path: ${btf_dir}"
+    echo "         -l, show vmlinux btf list"
 }
 
 extract_btf() {
-    ${SYSAK_WORK_PATH}/tools/BTF/7za e ${zip_path} -o${btf_dir} vmlinux-btf/vmlinux-$(uname -r)
+    source_path=${SYSAK_WORK_PATH}/tools/vmlinux-btf/vmlinux-`uname -r`
+    if [ ! -f "$source_path" ]; then
+        echo "target vmlinux file not exist: vmlinux-`uname -r`"
+        exit -1
+    fi
+    cp $source_path ${btf_path}
 }
 
-while getopts 'd:h' OPT; do
+show_list() {
+    ls ${SYSAK_WORK_PATH}/tools/vmlinux-btf
+}
+
+while getopts 'd:lh' OPT; do
     case $OPT in
     "h")
         usage
@@ -25,6 +35,11 @@ while getopts 'd:h' OPT; do
     "d")
         btf_dir=$OPTARG
         btf_path=${btf_dir}/vmlinux-$(uname -r)
+
+        ;;
+    "l")
+        show_list
+        exit 0
         ;;
     *)
         usage
