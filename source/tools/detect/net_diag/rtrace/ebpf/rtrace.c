@@ -239,8 +239,8 @@ int rtrace_trace_load_prog(struct rtrace *r, struct bpf_program *prog,
     char log_buf[log_buf_size];
     int fd;
 
-    if (gdebug)
-        insns_dump(insns, insns_cnt);
+    // if (gdebug)
+    //     insns_dump(insns, insns_cnt);
 
     memset(&attr, 0, sizeof(attr));
     attr.prog_type = bpf_program__get_type(prog);
@@ -252,10 +252,8 @@ int rtrace_trace_load_prog(struct rtrace *r, struct bpf_program *prog,
     attr.kern_version = bpf_object__kversion(r->obj->obj);
     attr.prog_ifindex = 0;
 
-    if (gdebug)
-        fd = bpf_load_program_xattr(&attr, log_buf, log_buf_size);
-    else
-        fd = bpf_load_program_xattr(&attr, NULL, 0);
+    // fd = bpf_load_program_xattr(&attr, log_buf, log_buf_size);
+    fd = bpf_load_program_xattr(&attr, NULL, 0);
     if (fd < 0)
     {
         printf("%s\n", log_buf);
@@ -332,25 +330,28 @@ int rtrace_dynamic_gen_offset(struct rtrace *r, struct dynamic_fields *df,
         return -EINVAL;
 
     root_typeid = btf_func_proto_find_param(r->btf, func_proto_id, NULL, df[0].ident);
-    if (root_typeid < 0)
+    if (root_typeid <= 0)
     {
-        pr_dbg("failed to find param: %s in function", df[0].ident);
+        pr_err("failed to find param: %s in function", df[0].ident);
         err = root_typeid;
         goto err_out;
     }
 
     err = btf_func_proto_find_param_pos(r->btf, func_proto_id, NULL, df[0].ident);
     if (err <= 0)
+    {
+        pr_err("failed to find param pos: %s in function", df[0].ident);
         goto err_out;
+    }
 
     cnt = 0;
-
     dp.attr[cnt].offset = err;
     if (df[0].cast_type > 0)
     {
         root_typeid = btf__find_by_name_kind(r->btf, df[0].cast_name, df[0].cast_type);
         if (root_typeid < 0)
         {
+            pr_err("failed to do casting\n");
             err = root_typeid;
             goto err_out;
         }
@@ -371,6 +372,7 @@ int rtrace_dynamic_gen_offset(struct rtrace *r, struct dynamic_fields *df,
         if (mem == NULL)
         {
             err = -errno;
+            pr_err("failed to find member: %s in struct: %s, err = %d\n", df[i].ident, btf__name_by_offset(r->btf, btf__type_by_id(r->btf, pre_typeid)->name_off), err);
             goto err_out;
         }
         dp.attr[cnt].offset = offset;
@@ -379,6 +381,7 @@ int rtrace_dynamic_gen_offset(struct rtrace *r, struct dynamic_fields *df,
             pre_typeid = btf__find_by_name_kind(r->btf, df[i].cast_name, df[i].cast_type);
             if (pre_typeid < 0)
             {
+                pr_err("failed to do casting\n");
                 err = pre_typeid;
                 goto err_out;
             }
@@ -467,8 +470,8 @@ int rtrace_dynamic_gen_insns(struct rtrace *r, struct dynamic_offsets *dos, stru
     insns[insns_cnt++] = BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_2, 0);
 
     pr_dbg("generate new insns, insns cnt: %d\n", insns_cnt);
-    if (gdebug)
-        insns_dump(insns, insns_cnt);
+    // if (gdebug)
+    //     insns_dump(insns, insns_cnt);
     return insns_cnt;
 }
 
