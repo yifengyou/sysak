@@ -45,14 +45,13 @@ static int libbpf_print_fn(enum libbpf_print_level level,
 
 int bump_memlock_rlimit(void)
 {
-	struct rlimit rlim_new = {
-		.rlim_cur	= RLIM_INFINITY,
-		.rlim_max	= RLIM_INFINITY,
-	};
+    struct rlimit rlim_new = {
+        .rlim_cur = RLIM_INFINITY,
+        .rlim_max = RLIM_INFINITY,
+    };
 
-	return setrlimit(RLIMIT_MEMLOCK, &rlim_new);
+    return setrlimit(RLIMIT_MEMLOCK, &rlim_new);
 }
-
 
 /**
  * @brief enable debug or not
@@ -181,30 +180,45 @@ err_out:
 struct bpf_program *rtrace_trace_program(struct rtrace *r, char *func, int sk, int skb)
 {
     struct bpf_program *prog;
-    int func_proto_id;
+    int err, func_proto_id;
+
+    err = 0;
     if (is_special_func(func))
     {
         prog = bpf_object__find_program_by_name(r->obj->obj, func);
+        goto find_prog;
     }
-    else
+
+    // When skb is 0, it means that the skb parameter position
+    // needs to be automatically located.
+    if (skb == 0)
     {
-        if (sk == 0 && skb == 0)
+        func_proto_id = btf_find_func_proto_id(r->btf, func);
+        sk = btf_func_proto_find_param_pos(r->btf, func_proto_id, "sock", NULL);
+        sk = sk < 0 ? 0 : sk;
+        skb = btf_func_proto_find_param_pos(r->btf, func_proto_id, "sk_buff", NULL);
+        if (skb <= 0)
         {
-            func_proto_id = btf_find_func_proto_id(r->btf, func);
-            sk = btf_func_proto_find_param_pos(r->btf, func_proto_id, "sock", NULL);
-            sk = sk < 0 ? 0 : sk;
-            skb = btf_func_proto_find_param_pos(r->btf, func_proto_id, "sk_buff", NULL);
-            if (skb < 0)
-            {
-                pr_err("func-%s prog is null, sk = %d, skb = %d.\n", func, sk, skb);
-                return NULL;
-            }
+            err = skb;
+            goto err_out;
         }
-        prog = object_find_program(r->obj->obj, sk, skb);
     }
-    // if (gdebug)
-    //     insns_dump(bpf_program__insns(prog), bpf_program__insn_cnt(prog));
+    prog = object_find_program(r->obj->obj, sk, skb);
+
+find_prog:
+    if (!prog)
+    {
+        err = -ENOENT;
+        goto err_out;
+    }
+
+    pr_dbg("find prog: %s for func: %s, sk = %d, skb = %d\n", bpf_program__name(prog), func, sk, skb);
     return prog;
+
+err_out:
+    pr_err("failed to find prog for func: %s, sk = %d, skb = %d, err = %d.\n", func, sk, skb, err);
+    errno = -err;
+    return NULL;
 }
 
 /**
@@ -240,7 +254,7 @@ int rtrace_trace_load_prog(struct rtrace *r, struct bpf_program *prog,
 
     if (gdebug)
         fd = bpf_load_program_xattr(&attr, log_buf, log_buf_size);
-    else 
+    else
         fd = bpf_load_program_xattr(&attr, NULL, 0);
     if (fd < 0)
     {
@@ -299,7 +313,7 @@ static int dynamic_ptregs_param_offset(int param_pos)
 
 /**
  * @brief Calculate the corresponding offset according to the accessed structure member
- * 
+ *
  * @param r rtrace context
  * @param df array of members accessed by the structure
  * @param df_cnt array length
@@ -326,7 +340,7 @@ int rtrace_dynamic_gen_offset(struct rtrace *r, struct dynamic_fields *df,
     }
 
     err = btf_func_proto_find_param_pos(r->btf, func_proto_id, NULL, df[0].ident);
-    if (err <= 0) 
+    if (err <= 0)
         goto err_out;
 
     cnt = 0;
@@ -411,8 +425,8 @@ err_out:
 }
 
 /**
- * @brief 
- * 
+ * @brief
+ *
  * @param r rtrace context
  * @param dos offsets for struct members
  * @param insns pointer to save instructions
