@@ -33,7 +33,7 @@ pub struct Filterx {
     pub src: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Default, Clone, Debug, Deserialize, Serialize)]
 pub struct Function {
     pub name: String,
     pub enable: Option<bool>,
@@ -46,7 +46,7 @@ pub struct Function {
     offsets: Option<Vec<u64>>,
 }
 // see: https://github.com/alexcrichton/toml-rs/issues/395
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Default, Clone, Debug, Deserialize, Serialize)]
 pub struct FunctionContainer {
     pub function: Vec<Function>,
 }
@@ -169,9 +169,10 @@ impl Rtrace {
         if let Some(x) = self.progs.remove(name) {
             return Ok(x);
         }
-
+        
+        let cname = CString::new(name.clone())?;
         let prog = unsafe {
-            rtrace_trace_program(self.ptr, CString::new(name.clone())?.as_ptr(), skv, skbv)
+            rtrace_trace_program(self.ptr, cname.as_ptr(), skv, skbv)
         };
 
         if prog == std::ptr::null_mut() {
