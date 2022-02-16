@@ -6,28 +6,6 @@
 #define MAC_HEADER_SIZE 14
 #define FILTER_RULES_MAX_NUM 10
 
-#define USR_DEUBG
-
-#if defined(__VMLINUX_H__) && defined(BPF_DEBUG)
-#define output(...) __bpf_printk(__VA_ARGS__);
-#elif !defined(__VMLINUX_H__) && defined(USR_DEUBG)
-#define output(...) printf(__VA_ARGS__);
-#else
-#define output(...)
-#endif
-
-#define pr_err(fmt, ...)                      \
-    do                                        \
-    {                                         \
-        output("ERROR: " fmt, ##__VA_ARGS__); \
-    } while (0)
-
-#define pr_dbg(fmt, ...)                      \
-    do                                        \
-    {                                         \
-        output("DEBUG: " fmt, ##__VA_ARGS__); \
-    } while (0)
-
 #define TO_STR(a) #a
 #define TO_STRING(a) TO_STR(a)
 
