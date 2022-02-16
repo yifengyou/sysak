@@ -27,6 +27,9 @@ impl RtraceDrop for Tcp {
     }
 }
 
+#[derive(Default, Clone)]
+struct TcpConnRequest {}
+
 impl RtraceDrop for TcpConnRequest {
     fn get_probe_string(&self) -> &str {
         r#"
@@ -45,7 +48,7 @@ exprs = ["sk.sk_ack_backlog", "sk.sk_max_ack_backlog", "((struct inet_connection
         "[Support]"
     }
 
-    fn check_func(&mut self, func: &Func, vals: &Vec<u64>) -> RtraceDropAction {
+    fn check_func(&mut self, _func: &Func, vals: &Vec<u64>) -> RtraceDropAction {
         // ((struct inet_connection_sock *)sk).icsk_accept_queue.qlen.counter > sk.sk_max_ack_backlog : syn queue overflow
         if vals[2] > vals[1] {
             return RtraceDropAction::Consume(format!(
@@ -71,7 +74,7 @@ impl RtraceDrop for Tcpv4SynRecvSock {
 [[function]]
 name = "tcp_v4_syn_recv_sock"
 params = ["basic"]
-expr = ["sk.sk_ack_backlog", "sk.sk_max_ack_backlog"]
+exprs = ["sk.sk_ack_backlog", "sk.sk_max_ack_backlog"]
         "#
     }
 
@@ -96,8 +99,6 @@ expr = ["sk.sk_ack_backlog", "sk.sk_max_ack_backlog"]
 }
 
 #[derive(Default, Clone)]
-struct TcpConnRequest {}
-#[derive(Default, Clone)]
 struct TcpAddBacklog {
     headroom: u64,
 }
@@ -116,7 +117,7 @@ impl RtraceDrop for TcpAddBacklog {
 [[function]]
 name = "tcp_add_backlog"
 params = ["basic"]
-expr = ["sk.sk_backlog.len", "sk.sk_backlog.rmem_alloc", "sk.sk_rcvbuf", "sk.sk_sndbuf" ]
+exprs = ["sk.sk_backlog.len", "sk.sk_backlog.rmem_alloc", "sk.sk_rcvbuf", "sk.sk_sndbuf"]
         "#
     }
 

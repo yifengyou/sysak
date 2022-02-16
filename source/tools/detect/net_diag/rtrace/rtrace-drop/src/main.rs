@@ -22,6 +22,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 use structopt::StructOpt;
 use uname::uname;
+use rtrace_parser::ksyms::ksyms_load;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -70,6 +71,7 @@ impl RtraceDrop for AllDrop {
 }
 
 fn main() {
+    env_logger::init();
     let cli = Cli::from_args();
     let include_hs = build_hs(&cli.include, "all");
     let exclude_hs = build_hs(&cli.exclude, "none");
@@ -91,13 +93,18 @@ fn main() {
 
     match &cli.config {
         Some(config) => rtrace = Rtrace::from_file(config).expect("failed to create Rtrace object"),
-        None => {println!("please specify config file");return;},
+        None => {
+            println!("please specify config file");
+            return;
+        }
     }
+    ksyms_load(&"/proc/kallsyms".to_owned());
+    rtrace.probe_filter().expect("init filter failed");
 
     let mut enabled_points =
         get_enabled_points(&ad, &include_hs, &exclude_hs).expect("failed to solve points");
     let function_mapping =
-        probe_funcitons(&mut rtrace, &enabled_points).expect("Failed to insert probe function");
+        probe_funcitons(&mut rtrace, &enabled_points).expect("Failed to insert probe functions");
 
     let (rx, tx) = crossbeam_channel::unbounded();
     perf_inital_thread2(rtrace.perf_fd(), (rx, tx));
@@ -110,9 +117,10 @@ fn main() {
                 match function_mapping.get(&f.get_name_no_offset()) {
                     None => {}
                     Some(names) => {
+                        let vals = get_exprs_vals(&rtrace, &f).expect("failed to parse expression values.");
                         for name in names {
                             if let Some(point) = enabled_points.get_mut(name) {
-                                match point.0.check_func(&f, &Vec::new()) {
+                                match point.0.check_func(&f, &vals) {
                                     RtraceDropAction::Continue => {}
                                     RtraceDropAction::Consume(x) => {
                                         println!("{}", x);
@@ -161,7 +169,6 @@ fn gen_config(path: &str) -> Result<()> {
     let text = r#"
 [basic]
 debug = false
-btf_path = "/boot/vmlinux-4.19.91-007.ali4000.alios7.x86_64"
 duration = 0
 protocol = "tcp"
 recv = true
@@ -198,8 +205,9 @@ fn probe_funcitons(
     }
 
     let mut functions = Vec::new();
-    for (_, v) in function_hm {
-        debug!("probe drop point: {}", v.name);
+    for (_, mut v) in function_hm {
+        debug!("probe packet drop point: {}", v.name);
+        v.enable = Some(true);
         functions.push(v);
     }
 
@@ -241,13 +249,14 @@ fn get_enabled_points(
     }
     // clone all enabled points.
     for (name, point) in enabled_points {
-        returned_points.insert(
-            name,
-            (
-                point.clone(),
-                FunctionContainer::from_str(&point.get_probe_string())?,
-            ),
-        );
+        let probe_str = point.get_probe_string();
+        let fc;
+        if probe_str.len() == 0 {
+            fc = FunctionContainer::default();
+        } else {
+            fc = FunctionContainer::from_str(&point.get_probe_string())?;
+        }
+        returned_points.insert(name, (point.clone(), fc));
     }
     Ok(returned_points)
 }
