@@ -24,7 +24,7 @@ struct iosdiag_req {
 	char diskname[32];
 	unsigned long long ts[MAX_POINT];
 	unsigned int cpu[3];
-	unsigned int complete;
+	//unsigned int complete;
 	//unsigned int cmd_flags;
 	char op[8];
 	unsigned int data_len;
