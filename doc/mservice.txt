@@ -1,0 +1,20 @@
+sysak 监控服务使用说明
+
+mservice可在多个工作模式下运行:
+1、后台服务模式
+   sysak mservice -S
+   在后台服务模式下，mservice会提供两种服务
+      1) 定期采集系统各项指标存储到指定的文件中；
+      2) 提供http服务，当收到http请求时，将对应的系统指标发回请求端
+         例：客户通过curl http://serverip:9200/metric采集当前系统指标
+2、数据查看模式
+   sysak mservice
+   自动读取保存到本地文件中的数据，并格式化显示出来
+这2种模式运行时还可以带其他参考，详细参考sysak mservice -h帮助信息
+
+服务配置：
+1、存储的文件位置以及支持采集的指标项等都可以通过配置文件进行配置
+2、配置文件存放在/etc/sysak/sysakmon.conf
+3、修改配置后，需要重启mservice服务
+
+
