@@ -21,8 +21,13 @@ struct proc_dir_entry *sysak_proc_mkdir(const char *name)
 	return NULL;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+struct proc_dir_entry *sysak_proc_create(const char *name,
+		const struct proc_ops *proc_fops)
+#else
 struct proc_dir_entry *sysak_proc_create(const char *name,
 		const struct file_operations *proc_fops)
+#endif
 {
 	if (check_sysak_root())
 		return proc_create(name, 0644, sysak_root_dir, proc_fops);
