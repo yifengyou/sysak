@@ -57,3 +57,11 @@ $(OBJ_TOOLS_PATH):
 install:
 	cp $(OBJPATH)/sysak /usr/local/sbin/
 	cp $(OBJPATH)/.sysak_compoents /usr/local/sbin/ -rf
+	mkdir -p /etc/sysak
+	mkdir -p /var/log/sysak
+	cp $(OBJPATH)/.sysak_compoents/tools/monitor/sysakmon.conf /etc/sysak/
+
+uninstall:
+	rm -rf /etc/sysak
+	rm -rf /usr/local/sbin/sysak
+	rm -rf /usr/local/sbin/.sysak_compoents

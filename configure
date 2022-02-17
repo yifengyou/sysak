@@ -148,7 +148,7 @@ if [ $? = 0 ]; then
 	echo "$target_path need lkm"
 fi
 
-grep -nrw "bpf.mk" $file > /dev/null
+grep -nr "bpf.mk" $file > /dev/null
 if [ $? = 0 ]; then
 	enable_libbpf="YES"
 	echo "$target_path need libbpf"
