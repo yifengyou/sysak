@@ -3,17 +3,21 @@ mod l1;
 mod l2;
 mod l3;
 mod l4;
+mod monitor;
 
 use crate::base::{RtraceDrop, RtraceDropAction};
 use crate::l1::L1;
 use crate::l2::L2;
 use crate::l3::L3;
 use crate::l4::L4;
+use crate::monitor::Mointor;
 use anyhow::anyhow;
 use anyhow::Result;
 use log::*;
 use rtrace_parser::func::Func;
+use rtrace_parser::ksyms::ksyms_load;
 use rtrace_parser::perf::{perf_inital_thread2, perf_recv_timeout};
+use rtrace_parser::utils;
 use rtrace_rs::rtrace::{Config, FunctionContainer, Rtrace};
 use std::boxed::Box;
 use std::collections::{HashMap, HashSet};
@@ -22,7 +26,6 @@ use std::path::PathBuf;
 use std::time::Duration;
 use structopt::StructOpt;
 use uname::uname;
-use rtrace_parser::ksyms::ksyms_load;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -40,6 +43,13 @@ pub struct Cli {
     exclude: Option<Vec<String>>,
     #[structopt(long, short, help = "show all packet loss points")]
     list: Option<Vec<String>>,
+    #[structopt(
+        long,
+        short,
+        default_value = "1",
+        help = "monitor program running cycle, defaule 1 second"
+    )]
+    period: u64,
 }
 
 /// main entry
@@ -55,6 +65,7 @@ impl RtraceDrop for AllDrop {
         self.points.push(Box::new(L2::default()));
         self.points.push(Box::new(L3::default()));
         self.points.push(Box::new(L4::default()));
+        self.points.push(Box::new(Mointor::default()));
         for point in &mut self.points {
             point.init()?;
         }
@@ -72,7 +83,7 @@ impl RtraceDrop for AllDrop {
 
 fn main() {
     env_logger::init();
-    let cli = Cli::from_args();
+    let mut cli = Cli::from_args();
     let include_hs = build_hs(&cli.include, "all");
     let exclude_hs = build_hs(&cli.exclude, "none");
     let list_hs = build_hs(&cli.list, "all");
@@ -109,6 +120,8 @@ fn main() {
     let (rx, tx) = crossbeam_channel::unbounded();
     perf_inital_thread2(rtrace.perf_fd(), (rx, tx));
 
+    let mut pre_checktimeout_ts = 0;
+    cli.period = cli.period * 1_000_000_000;
     loop {
         let res = perf_recv_timeout(Duration::from_millis(100));
         match res {
@@ -117,7 +130,8 @@ fn main() {
                 match function_mapping.get(&f.get_name_no_offset()) {
                     None => {}
                     Some(names) => {
-                        let vals = get_exprs_vals(&rtrace, &f).expect("failed to parse expression values.");
+                        let vals = get_exprs_vals(&rtrace, &f)
+                            .expect("failed to parse expression values.");
                         for name in names {
                             if let Some(point) = enabled_points.get_mut(name) {
                                 match point.0.check_func(&f, &vals) {
@@ -133,6 +147,22 @@ fn main() {
                 }
             }
             _ => {}
+        }
+
+        let cur_ts = utils::get_timestamp();
+        if cur_ts - pre_checktimeout_ts > cli.period {
+            for (_, v) in enabled_points.iter_mut() {
+                if v.0.is_periodic() {
+                    match v.0.run_periodically() {
+                        RtraceDropAction::Continue => {}
+                        RtraceDropAction::Consume(x) => {
+                            println!("{}", x);
+                            return;
+                        }
+                    }
+                }
+            }
+            pre_checktimeout_ts = cur_ts;
         }
     }
 }

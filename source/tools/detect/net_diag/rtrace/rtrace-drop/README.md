@@ -174,9 +174,19 @@ name = "fib_validate_source"
 params = ["basic", "kretprobe"]
 ```
 
-### 其它模块
+### monitor模块
 
-主要是系统环境参数配置方面,具体检测参数如下:
+主要是监控系统自带的统计参数及系统环境参数。比如, 利用netlink监测由硬件的ring buffer溢出导致的丢包数。
+
+#### netlink
+
+利用netlink检测丢包, 目前支持:
+
+* overrun: 表示由于网卡硬件缓冲区不足导致的丢包数;
+
+#### proc
+
+查看proc目录下是否存在可能导致丢包的配置, 目前支持:
 
 * tcp_tw_recycle: 回收TIME-WAIT状态的socket。在nat场景下, 一般建议关闭。注:4.12版本后该参数已经被移除
 

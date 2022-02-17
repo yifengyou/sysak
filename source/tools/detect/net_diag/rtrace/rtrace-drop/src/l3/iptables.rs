@@ -50,7 +50,7 @@ exprs = ["state.net.ipv4.iptable_filter", "state.net.ipv4.iptable_mangle", "stat
     }
 
     fn get_status(&self) -> &str {
-        "[Support]"
+        "[Not Support]"
     }
 
     fn check_func(&mut self, func: &Func, vals: &Vec<u64>) -> RtraceDropAction {

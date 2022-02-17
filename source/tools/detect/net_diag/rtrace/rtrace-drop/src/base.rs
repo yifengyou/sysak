@@ -40,6 +40,15 @@ pub trait RtraceDrop: DynClone {
     fn get_subpoints(&self) -> Option<&Vec<Box<dyn RtraceDrop>>> {
         None
     }
+
+    fn is_periodic(&self) -> bool {
+        false
+    }
+
+    fn run_periodically(&mut self) -> RtraceDropAction {
+        RtraceDropAction::Continue
+    }
+
 }
 
 clone_trait_object!(RtraceDrop);
