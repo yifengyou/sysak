@@ -24,6 +24,7 @@ OPTIONS:
         --gen <gen>               generate default configuration file
     -i, --include <include>...    Included drop points
     -l, --list <list>...          show all packet loss points
+    -p, --period <period>         monitor program running cycle, defaule 1 second [default: 1]
 ```
 
 ### 参数说明
@@ -33,12 +34,50 @@ OPTIONS:
 * `-l, --list`: 查看当前支持诊断的丢包点
 * `--config`: 配置文件
 * `--gen`: 生成默认的配置文件
+* `-p --period`: 监控程序的运行周期，默认1秒运行一次
 
 注: `-e`的优先级高于`-i`
 
 ### 使用样例
 
+#### 查看当前支持的丢包检测点
 
+`sysak rtrace-drop -l`输出如下:
+
+```
+all                           
+    l1                            
+    l2                            
+    l3                            
+        iptables                      
+            ipt_do_table                                [Not Support]
+        conntrack                     
+            ipv4_conntrack_in                           [Not Support]
+            ipv4_conntrack_local                        [Not Support]
+            ipv4_helper                                 [Not Support]
+            ipv4_confirm                                [Not Support]
+        fib                           
+            fib_validate_source                         [Support: rp_filter]
+    l4                            
+        tcp                           
+            tcp_conn_request                            [Support]
+            tcp_v4_syn_recv_sock                        [Support]
+            tcp_add_backlog                             [Support]
+            __skb_checksum_complete                     [Support]
+        udp                           
+    mointor                       
+        netlink                                 [Support: overrun]
+        proc                          
+            tcp_tw_recycle                              [Support]
+```
+
+#### 监控系统丢包
+
+运行命令`sysak rtrace-drop --config <PATH>`, 即可诊断当前系统是否存在丢包及丢包原因。
+
+#### 监控l4层丢包
+
+运行命令`sysak rtrace-drop -i l4 --config <PATH>`
 
 ## 覆盖场景及检测原理
 
@@ -48,7 +87,7 @@ rtrace-drop将丢包点按照网络协议栈分成四个层次，分别是:
 * l2层, 即数据链路层, 实现中断等丢包点的监控
 * l1层, 即物理层, 实现硬件丢包点的监控
 
-除了分成四个层次外，每个层次还可嵌套子模块。如l4层，可新增udp或tcp丢包点监控模块。
+需要注意的是每个层次还可嵌套子模块。如l4层，可新增udp或tcp丢包点监控模块。除了分成四个层次外，还包含一个特殊的模块，即monitor。monitor主要用来检查系统环境的配置是否正确及系统丢包统计参数。
 
 ### l4层
 
