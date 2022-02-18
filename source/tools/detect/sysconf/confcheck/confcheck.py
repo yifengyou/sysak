@@ -21,6 +21,8 @@ pagecache_bk_dirty_bytes = "/proc/sys/vm/dirty_background_bytes"
 pagecache_bk_dirty_ratio = "/proc/sys/vm/dirty_background_ratio"
 meminfo = "/proc/meminfo"
 
+syslog_conf_dir = "/etc/syslog-ng"
+
 def exectue_cmd(command):
     command=command.replace("\n", "")
     command_fd = os.popen(command, "r")
@@ -90,6 +92,11 @@ def check_etc_config():
                     if dict_paraments[parament] == match_parament.group(1):
                         print("kernel.unprivileged_bpf_disabled应该配置成1")
         alinux3_etc_fd.close()
+
+    syslog_conf_cmd = 'grep "/var/log/messages" -rn /etc/syslog-ng |wc -l'
+    syslog_conf_num = exectue_cmd(syslog_conf_cmd)
+    if syslog_conf_num.strip('\n') != "1":
+        print("syslog重复配置/var/log/messages，可能导致重复打印日志!")
     return
 
 def check_file_config():
