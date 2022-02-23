@@ -13,6 +13,8 @@ ifeq ($(BUILD_LIBBPF), YES)
 endif
 
 clean:
+ifeq ($(BUILD_KERNEL_MODULE), YES)
 	make -C internal/kernel_module clean
+endif
 	make -C internal/ebpf/libbpf/src clean
 
