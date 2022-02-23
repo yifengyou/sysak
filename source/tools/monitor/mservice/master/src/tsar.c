@@ -24,6 +24,8 @@ struct statistic statis;
 struct configure conf;
 struct module   *mods[MAX_MOD_NUM];
 
+pthread_mutex_t module_record_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 void
 usage()
 {
@@ -258,7 +260,9 @@ void *cron_thread(void *arg)
 {
     while (1) {
         statis.cur_time = time(NULL);
+	pthread_mutex_lock(&module_record_mutex);
         running_cron();
+	pthread_mutex_unlock(&module_record_mutex);
         sleep(conf.cron_period);
     }
 }

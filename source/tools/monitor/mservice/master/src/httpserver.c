@@ -19,30 +19,52 @@ static int get_request(const char *buf)
 	return REQUEST_MAX;
 }
 
-
 void output_http(int sk)
 {
-	int         i, n = 0;
+	int         i, j, k, n = 0;
 	char        detail[LEN_1M] = {0};
 	struct      module *mod;
 	static char line[LEN_10M] = {0};
-	char http_header[64];
+	char http_header[LEN_64];
+	char opt_line[LEN_64];
+	char *precord, *psub;
+	double    *st_array;
 
 	line[0] = 0;
 
 	for (i = 0; i < statis.total_mod_num; i++) {
 		mod = mods[i];
-		if (mod->enable && strlen(mod->record)) {
-			n = snprintf(detail, LEN_1M, "%s %s\n", mod->opt_line, mod->record);
-			if (n >= LEN_1M - 1) {
-				do_debug(LOG_FATAL, "mod %s lenth is overflow %d\n", mod->name, n);
-			}
-			/* one for \n one for \0 */
-			if (strlen(line) + strlen(detail) >= LEN_10M - 2) {
-				do_debug(LOG_FATAL, "tsar.data line lenth is overflow line %d detail %d\n", strlen(line), strlen(detail));
-			}
-			strcat(line, detail);
-		}
+                if (mod->enable && strlen(mod->record)) {
+                        precord = mod->record;
+                        j = 0;
+                        for (j = 0; j < mod->n_item; j++) {
+                                if (mod->n_item > 1) {
+                                        psub = strstr(precord, "=");
+                                        if (!psub)
+                                                break;
+                                        *psub = 0;
+                                        snprintf(opt_line, LEN_64, "%s{%s,", mod->opt_line+2, precord);
+                                        precord = strstr(psub + 1, ";");
+					if (precord)
+						precord = precord + 1;
+                                } else {
+                                        snprintf(opt_line, LEN_64, "%s{", mod->opt_line+2);
+                                }
+
+                                st_array = &mod->st_array[j * mod->n_col];
+                                for (k = 0; k < mod->n_col; k++) {
+                                        n = snprintf(detail, LEN_1M, "%s%s} %6.2f\n", opt_line, trim(mod->info[k].hdr, LEN_128), st_array[k]);
+                                        if (n >= LEN_1M - 1) {
+                                                do_debug(LOG_FATAL, "mod %s lenth is overflow %d\n", mod->name, n);
+                                        }
+                                        /* one for \n one for \0 */
+                                        if (strlen(line) + strlen(detail) >= LEN_10M - 2) {
+                                                do_debug(LOG_FATAL, "tsar.data line lenth is overflow line %d detail %d\n", strlen(line), strlen(detail));
+                                        }
+                                        strcat(line, detail);
+                                }
+                        }
+                }
 	}
 
 	strcat(line, "\n");
@@ -56,8 +78,16 @@ void output_http(int sk)
 
 static void handle_metric(int sk)
 {
-        collect_record();
-        output_http(sk);
+	pthread_mutex_lock(&module_record_mutex);
+	init_module_fields();
+	/*read twice for metrics which need compute diff*/
+	collect_record();
+	collect_record_stat();
+	usleep(50000);
+	collect_record();
+	collect_record_stat();
+	output_http(sk);
+	pthread_mutex_unlock(&module_record_mutex);
 }
 
 int http_server(void)
