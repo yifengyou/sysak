@@ -56,6 +56,6 @@ struct statistic {
 extern struct configure conf;
 extern struct module    *mods[MAX_MOD_NUM];
 extern struct statistic statis;
-
+extern pthread_mutex_t module_record_mutex;
 
 #endif

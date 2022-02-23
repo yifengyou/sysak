@@ -30,6 +30,6 @@ void running_current();
 void running_check(int check_type);
 #endif
 void running_print_live();
-
+char * trim(char* src, int max_len);
 
 #endif
