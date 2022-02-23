@@ -717,5 +717,7 @@ SK0_SKB_ARG_FN(5)
 
 SK_SKB_ARG_FN(1, 2)
 SK_SKB_ARG_FN(2, 3)
+SK_SKB_ARG_FN(3, 4)
+SK_SKB_ARG_FN(4, 5)
 
 char LICENSE[] SEC("license") = "GPL";

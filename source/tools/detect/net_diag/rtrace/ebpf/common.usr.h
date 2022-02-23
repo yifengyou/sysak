@@ -7,6 +7,19 @@
 
 extern bool gdebug;
 
+#define pr_err(fmt, ...)                      \
+    do                                        \
+    {                                         \
+        printf("ERROR: " fmt, ##__VA_ARGS__); \
+    } while (0)
+
+#define pr_dbg(fmt, ...)                          \
+    do                                            \
+    {                                             \
+        if (gdebug)                               \
+            printf("DEBUG: " fmt, ##__VA_ARGS__); \
+    } while (0)
+
 #ifndef zfree
 #define zfree(ptr) ( \
     {                \

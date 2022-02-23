@@ -45,14 +45,13 @@ static int libbpf_print_fn(enum libbpf_print_level level,
 
 int bump_memlock_rlimit(void)
 {
-	struct rlimit rlim_new = {
-		.rlim_cur	= RLIM_INFINITY,
-		.rlim_max	= RLIM_INFINITY,
-	};
+    struct rlimit rlim_new = {
+        .rlim_cur = RLIM_INFINITY,
+        .rlim_max = RLIM_INFINITY,
+    };
 
-	return setrlimit(RLIMIT_MEMLOCK, &rlim_new);
+    return setrlimit(RLIMIT_MEMLOCK, &rlim_new);
 }
-
 
 /**
  * @brief enable debug or not
@@ -181,30 +180,45 @@ err_out:
 struct bpf_program *rtrace_trace_program(struct rtrace *r, char *func, int sk, int skb)
 {
     struct bpf_program *prog;
-    int func_proto_id;
+    int err, func_proto_id;
+
+    err = 0;
     if (is_special_func(func))
     {
         prog = bpf_object__find_program_by_name(r->obj->obj, func);
+        goto find_prog;
     }
-    else
+
+    // When skb is 0, it means that the skb parameter position
+    // needs to be automatically located.
+    if (skb == 0)
     {
-        if (sk == 0 && skb == 0)
+        func_proto_id = btf_find_func_proto_id(r->btf, func);
+        sk = btf_func_proto_find_param_pos(r->btf, func_proto_id, "sock", NULL);
+        sk = sk < 0 ? 0 : sk;
+        skb = btf_func_proto_find_param_pos(r->btf, func_proto_id, "sk_buff", NULL);
+        if (skb <= 0)
         {
-            func_proto_id = btf_find_func_proto_id(r->btf, func);
-            sk = btf_func_proto_find_param_pos(r->btf, func_proto_id, "sock", NULL);
-            sk = sk < 0 ? 0 : sk;
-            skb = btf_func_proto_find_param_pos(r->btf, func_proto_id, "sk_buff", NULL);
-            if (skb < 0)
-            {
-                pr_err("func-%s prog is null, sk = %d, skb = %d.\n", func, sk, skb);
-                return NULL;
-            }
+            err = skb;
+            goto err_out;
         }
-        prog = object_find_program(r->obj->obj, sk, skb);
     }
-    // if (gdebug)
-    //     insns_dump(bpf_program__insns(prog), bpf_program__insn_cnt(prog));
+    prog = object_find_program(r->obj->obj, sk, skb);
+
+find_prog:
+    if (!prog)
+    {
+        err = -ENOENT;
+        goto err_out;
+    }
+
+    pr_dbg("find prog: %s for func: %s, sk = %d, skb = %d\n", bpf_program__name(prog), func, sk, skb);
     return prog;
+
+err_out:
+    pr_err("failed to find prog for func: %s, sk = %d, skb = %d, err = %d.\n", func, sk, skb, err);
+    errno = -err;
+    return NULL;
 }
 
 /**
@@ -225,8 +239,8 @@ int rtrace_trace_load_prog(struct rtrace *r, struct bpf_program *prog,
     char log_buf[log_buf_size];
     int fd;
 
-    if (gdebug)
-        insns_dump(insns, insns_cnt);
+    // if (gdebug)
+    //     insns_dump(insns, insns_cnt);
 
     memset(&attr, 0, sizeof(attr));
     attr.prog_type = bpf_program__get_type(prog);
@@ -238,10 +252,8 @@ int rtrace_trace_load_prog(struct rtrace *r, struct bpf_program *prog,
     attr.kern_version = bpf_object__kversion(r->obj->obj);
     attr.prog_ifindex = 0;
 
-    if (gdebug)
-        fd = bpf_load_program_xattr(&attr, log_buf, log_buf_size);
-    else 
-        fd = bpf_load_program_xattr(&attr, NULL, 0);
+    // fd = bpf_load_program_xattr(&attr, log_buf, log_buf_size);
+    fd = bpf_load_program_xattr(&attr, NULL, 0);
     if (fd < 0)
     {
         printf("%s\n", log_buf);
@@ -299,7 +311,7 @@ static int dynamic_ptregs_param_offset(int param_pos)
 
 /**
  * @brief Calculate the corresponding offset according to the accessed structure member
- * 
+ *
  * @param r rtrace context
  * @param df array of members accessed by the structure
  * @param df_cnt array length
@@ -318,25 +330,28 @@ int rtrace_dynamic_gen_offset(struct rtrace *r, struct dynamic_fields *df,
         return -EINVAL;
 
     root_typeid = btf_func_proto_find_param(r->btf, func_proto_id, NULL, df[0].ident);
-    if (root_typeid < 0)
+    if (root_typeid <= 0)
     {
-        pr_dbg("failed to find param: %s in function", df[0].ident);
+        pr_err("failed to find param: %s in function", df[0].ident);
         err = root_typeid;
         goto err_out;
     }
 
     err = btf_func_proto_find_param_pos(r->btf, func_proto_id, NULL, df[0].ident);
-    if (err <= 0) 
+    if (err <= 0)
+    {
+        pr_err("failed to find param pos: %s in function", df[0].ident);
         goto err_out;
+    }
 
     cnt = 0;
-
     dp.attr[cnt].offset = err;
     if (df[0].cast_type > 0)
     {
         root_typeid = btf__find_by_name_kind(r->btf, df[0].cast_name, df[0].cast_type);
         if (root_typeid < 0)
         {
+            pr_err("failed to do casting\n");
             err = root_typeid;
             goto err_out;
         }
@@ -357,6 +372,7 @@ int rtrace_dynamic_gen_offset(struct rtrace *r, struct dynamic_fields *df,
         if (mem == NULL)
         {
             err = -errno;
+            pr_err("failed to find member: %s in struct: %s, err = %d\n", df[i].ident, btf__name_by_offset(r->btf, btf__type_by_id(r->btf, pre_typeid)->name_off), err);
             goto err_out;
         }
         dp.attr[cnt].offset = offset;
@@ -365,6 +381,7 @@ int rtrace_dynamic_gen_offset(struct rtrace *r, struct dynamic_fields *df,
             pre_typeid = btf__find_by_name_kind(r->btf, df[i].cast_name, df[i].cast_type);
             if (pre_typeid < 0)
             {
+                pr_err("failed to do casting\n");
                 err = pre_typeid;
                 goto err_out;
             }
@@ -411,8 +428,8 @@ err_out:
 }
 
 /**
- * @brief 
- * 
+ * @brief
+ *
  * @param r rtrace context
  * @param dos offsets for struct members
  * @param insns pointer to save instructions
@@ -453,8 +470,8 @@ int rtrace_dynamic_gen_insns(struct rtrace *r, struct dynamic_offsets *dos, stru
     insns[insns_cnt++] = BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_2, 0);
 
     pr_dbg("generate new insns, insns cnt: %d\n", insns_cnt);
-    if (gdebug)
-        insns_dump(insns, insns_cnt);
+    // if (gdebug)
+    //     insns_dump(insns, insns_cnt);
     return insns_cnt;
 }
 
