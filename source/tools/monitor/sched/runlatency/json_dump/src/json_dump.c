@@ -5,12 +5,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <string.h>
 #include "parser.h"
 
-#define IRQOFF_FILE  "/proc/sysak/runlatency/irqoff/latency"
-#define NOSCH_FILE   "/proc/sysak/runlatency/nosch/stack_trace"
-#define RUNQ_FILE	 "/proc/sysak/runlatency/runqlat/runqlat"
+#define IRQOFF_FILE  "/proc/runlatency/irqoff/latency"
+#define NOSCH_FILE   "/proc/runlatency/nosch/stack_trace"
+#define RUNQ_FILE	 "/proc/runlatency/runqlat/runqlat"
 
 #define STREAM_SIZE	(128 * 1024)
 
@@ -20,8 +19,6 @@ int read_file(char* path, char* s)
 	int size;
 	
 	if (fd < 0) {
-		fprintf(stderr, "%s :open %s\n",
-			strerror(errno), path);
 		return fd;
 	}
 	
@@ -36,8 +33,6 @@ int clear_file(char *path)
 	int size;
 	
 	if (fd < 0) {
-		fprintf(stderr, "%s :open %s\n",
-			strerror(errno), path);
 		return fd;
 	}
 	
@@ -46,35 +41,29 @@ int clear_file(char *path)
 	return size;
 }
 
-int pasre_dump(char *file)
+int main(void)
 {
 	char *s;
 	int ret;
-	FILE *outf = NULL;
 	
 	s = malloc(STREAM_SIZE);
 	if (s == NULL) {
 		return -ENOMEM;
 	}
-	if (file) {
-		outf = fopen(file, "a+");
-		if (!outf)
-			fprintf(stderr, "%s :fopen %s\n",
-				strerror(errno), file);
-	}
+	
 	ret = read_file(IRQOFF_FILE, s);
 	if (ret < 0) {
 		goto failed;
 	}
 	s[ret] = '\0';
-	parser_irqoff(s, ret, outf);
+	parser_irqoff(s, ret);
 	
 	ret = read_file(NOSCH_FILE, s);
 	if (ret < 0) {
 		goto failed;
 	}
 	s[ret] = '\0';
-	parser_nosch(s, ret, outf);
+	parser_nosch(s, ret);
 	clear_file(NOSCH_FILE);
 	
 	ret = read_file(RUNQ_FILE, s);
@@ -82,17 +71,13 @@ int pasre_dump(char *file)
 		goto failed;
 	}
 	s[ret] = '\0';
-	parser_runq(s, ret, outf);
+	parser_runq(s, ret);
 	clear_file(RUNQ_FILE);
 	
 	free(s);
-	if (outf)
-		fclose(outf);
 	return 0;
 	
 failed:
 	free(s);
-	if (outf)
-		fclose(outf);
 	return ret;
 }
