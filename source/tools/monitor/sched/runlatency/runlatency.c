@@ -24,6 +24,7 @@ static void usage(char *prog)
 	"  Usage: %s [OPTIONS]\n"
 	"  Options:\n"
 	"  -f              the output file\n"
+	"  -p              set the pid we monitor, used with -e or separately\n"
 	"  -r              read the result to file or stdout, default stdout\n"
 	"  -d              disable the monitor, 7-all, 1-irq, 2-nosched, 4-runlat, default=7\n"
 	"  -e              enable the monitor, 7-all, 1-irq, 2-nosched, 4-runlat, default=7\n"
@@ -35,20 +36,17 @@ static void usage(char *prog)
 
 char *cmdstr[3];
 
-int switch_func(int opt, int enable, int arg)
+int switch_func(int opt, int enable, int pid)
 {
 	FILE *fp;
 	int param[3], ret, index = 0;
 	int optalign;
 	char cmd[MAX_CMD_LEN] = {0};
-	
 
 	optalign = opt & OPT_MASK;
 
 	if (optalign & OPT_LAT)
-		param[2] = arg;
-	else
-		param[2] = enable;
+		param[2] = (enable != 0) ? pid:-1;
 
 	param[0] = param[1] = enable;
 	while (index < MAX_CMD) {	
@@ -61,16 +59,15 @@ int switch_func(int opt, int enable, int arg)
 				perror(cmd);
 				return ret;
 			}
-			optalign = optalign;
-			index++;
 		}
+		index++;
 	}
 }
 
 bool ready[MAX_CMD] = {false};
 int retno[MAX_CMD] = {0};
 
-static int not_ready(bool ready[], int retno[])
+static int all_ready(bool ready[], int retno[])
 {
 	int i, ret = MAX_CMD;
 
@@ -89,11 +86,11 @@ static int not_ready(bool ready[], int retno[])
 int main(int argc, char *argv[])
 {
 	char *refile = NULL;
-	int pid = -1, ret = 0, i, will_switch, enable;
-	int c, option_index, en_opt, dis_opt;
+	int pid = -1, ret = 0, i, will_switch = 0, enable = -1;
+	int c, option_index, opt_mask;
 
 	opterr = 0;
-	dis_opt = en_opt = OPT_MASK;
+	opt_mask = 0;
 
 	cmdstr[0] = firq;
 	cmdstr[1] = fsch;
@@ -118,26 +115,33 @@ int main(int argc, char *argv[])
 				refile = optarg;
 				break;
 			case 'r':
-				if (!not_ready(ready, retno))
+				if (!all_ready(ready, retno))
 					return -1;
 				pasre_dump(refile);//do something
 				break;
 			case 'p':
 				pid = atoi(optarg);
+				will_switch = 1;
+				opt_mask |= OPT_LAT;
 				break;
 			case 'e':
-				if (!not_ready(ready, retno))
+				if (!all_ready(ready, retno))
 					return -1;
 				if (optarg)
-					en_opt = atoi(optarg);
+					opt_mask = atoi(optarg);
+				else
+					opt_mask = OPT_MASK & (~OPT_LAT);
+					
 				will_switch = 1;
 				enable = 1;
 				break;
 			case 'd':
-				if (!not_ready(ready, retno))
+				if (!all_ready(ready, retno))
 					return -1;
 				if (optarg)
-					dis_opt = atoi(optarg);
+					opt_mask = atoi(optarg);
+				else
+					opt_mask = OPT_MASK;
 				will_switch = 1;
 				enable = 0;
 				break;
@@ -149,7 +153,7 @@ int main(int argc, char *argv[])
 		}
 	}
 	if (will_switch)
-		ret = switch_func(dis_opt, enable, pid);
+		ret = switch_func(opt_mask, enable, pid);
 
 	return ret;
 }
