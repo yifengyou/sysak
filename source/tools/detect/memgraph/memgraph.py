@@ -188,12 +188,24 @@ def dump2json(res,filename):
     with open(filename, 'w') as jsonFile:
         jsonFile.write(jsonStr)
 
+def memgraph_free(meminfo):
+    cmd = "free -k"
+    used = 0
+    ret = os.popen(cmd).read().strip().split("\n")
+    for line in ret:
+        if line.find("Mem:") == -1:
+            continue
+        used = int(line.strip().split()[2])
+    return used
+
 def memgraph_graph(meminfo):
     res = {}
     res["total"] = meminfo["MemTotal"]
     res["free"] = meminfo["MemFree"]
     res["userUsed"] = meminfo["userUsed"]
     res["kernelUsed"] = meminfo["kernelUsed"]
+    res["available"] = meminfo["MemAvailable"]
+    res["used"] = memgraph_free(meminfo)
     user = {}
     user["anon"] = meminfo["Active(anon)"] + meminfo["Inactive(anon)"]
     user["cache"] = meminfo["Active(file)"] + meminfo["Inactive(file)"]
@@ -201,6 +213,7 @@ def memgraph_graph(meminfo):
     user["mlock"] = meminfo["Mlocked"]
     user["huge2M"] = meminfo["2048"]
     user["huge1G"] = meminfo["1048576"]
+    user["shmem"] = meminfo["Shmem"]
     res["user"] = user
     kernel = {}
     kernel["SReclaimable"] = meminfo["SReclaimable"]
