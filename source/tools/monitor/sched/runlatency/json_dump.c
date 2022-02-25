@@ -46,7 +46,7 @@ int clear_file(char *path)
 	return size;
 }
 
-int pasre_dump(char *file)
+int parse_dump(char *file)
 {
 	char *s;
 	int ret;
@@ -56,11 +56,17 @@ int pasre_dump(char *file)
 	if (s == NULL) {
 		return -ENOMEM;
 	}
+
 	if (file) {
 		outf = fopen(file, "a+");
-		if (!outf)
+		if (!outf) {
+			ret = errno;
 			fprintf(stderr, "%s :fopen %s\n",
 				strerror(errno), file);
+			goto failed;
+		}
+	} else {
+		goto failed;
 	}
 	ret = read_file(IRQOFF_FILE, s);
 	if (ret < 0) {

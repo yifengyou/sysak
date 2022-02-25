@@ -23,11 +23,15 @@ static void usage(char *prog)
 	const char *str =
 	"  Usage: %s [OPTIONS]\n"
 	"  Options:\n"
-	"  -f              the output file\n"
-	"  -p              set the pid we monitor, used with -e or separately\n"
-	"  -r              read the result to file or stdout, default stdout\n"
-	"  -d              disable the monitor, 7-all, 1-irq, 2-nosched, 4-runlat, default=7\n"
-	"  -e              enable the monitor, 7-all, 1-irq, 2-nosched, 4-runlat, default=7\n"
+	"  -p              <pid> set the pid we monitor, used with -e or separately\n"
+	"  -r              [outfile] read result to outfile, if not point,to stdout\n"
+	"  -d              [mask] disable the monitor, 7-all, 1-irq, 2-nosched, 4-runlat, default=7\n"
+	"  -e              [mask]enable the monitor, 7-all, 1-irq, 2-nosched, 4-runlat, default=7\n"
+	"for example:\n"
+	"  sysak runlatency -e -p 78953  #enable all runaltency monitor for task 78953\n"
+	"  sleep 20                       #Sampling for 20 seconds 20\n"
+	"  sysak runlatency -r ./my.json  #record the sampling result to my.json\n"
+	"  sysak runlatency -d            #close all runaltency monitor\n"
 	;
 
 	fprintf(stderr, str, prog);
@@ -69,18 +73,18 @@ int retno[MAX_CMD] = {0};
 
 static int all_ready(bool ready[], int retno[])
 {
-	int i, ret = MAX_CMD;
+	int i, ready_cnt = 0;
 
 	for (i = 0; i < MAX_CMD; i++) {
 		if (ready[i]) {
-			ret--;
+			ready_cnt++;
 		} else {
 			fprintf(stderr, "%s: access() %s\n",
 				strerror(retno[i]), cmdstr[i]);	
 		}
 	}
 
-	return ret;
+	return (ready_cnt == MAX_CMD);
 }
 
 int main(int argc, char *argv[])
@@ -105,19 +109,18 @@ int main(int argc, char *argv[])
 		}
 	}
 	for (;;) {
-		c = getopt_long(argc, argv, "f:p:e::d::hr",
+		c = getopt_long(argc, argv, "p:e::d::rh",
 				NULL /*long_options*/, &option_index);
 
 		if (c == -1)
 			break;
 		switch (c) {
-			case 'f':
-				refile = optarg;
-				break;
 			case 'r':
 				if (!all_ready(ready, retno))
 					return -1;
-				pasre_dump(refile);//do something
+				if (argc > optind)	/* for -r xxx.log */
+					refile = argv[optind];
+				parse_dump(refile);//do something
 				break;
 			case 'p':
 				pid = atoi(optarg);
