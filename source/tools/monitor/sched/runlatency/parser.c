@@ -157,7 +157,7 @@ static char* stack_get(char* beg, cJSON *parent)
 	return s + 1;   // enter + 1
 }
 
-static char* body_irqoff(char* beg, enum IRQOFF stat)
+static char* body_irqoff(char* beg, enum IRQOFF stat, FILE *file)
 {
 	char *s;
 	cJSON *root;
@@ -178,13 +178,16 @@ static char* body_irqoff(char* beg, enum IRQOFF stat)
 	s = stack_get(s, root);
 	
 	out = cJSON_Print(root);
-	printf("%s\n", out);
+	if (!file)
+		printf("%s\n", out);
+	else
+		fprintf(file, "%s\n", out);
 	free(out);
 	cJSON_Delete(root);
 	return s;
 }
 
-int parser_irqoff(char *stream, int size)
+int parser_irqoff(char *stream, int size, FILE *file)
 {
 	char *sBeg, *sCursor;
 	enum IRQOFF stat = HARD_IRQ;
@@ -195,18 +198,18 @@ int parser_irqoff(char *stream, int size)
 	
 	sBeg = sCursor;
 	while (sBeg[1] != 's') {
-		sBeg = body_irqoff(sBeg, stat);
+		sBeg = body_irqoff(sBeg, stat, file);
 	}
 	
 	stat = SOFT_IRQ;
 	sBeg = accept(sBeg, '\n');
 	while (sBeg[0] != '\0') {
-		sBeg = body_irqoff(sBeg, stat);
+		sBeg = body_irqoff(sBeg, stat, file);
 	}
 	return 0;
 }
 
-static char* body_nosch(char* beg)
+static char* body_nosch(char* beg, FILE *file)
 {
 	char *s;
 	cJSON *root;
@@ -219,24 +222,27 @@ static char* body_nosch(char* beg)
 	s = stack_get(s, root);
 	
 	out = cJSON_Print(root);
-	printf("%s\n", out);
+	if (!file)
+		printf("%s\n", out);
+	else
+		fprintf(file, "%s\n", out);
 	free(out);
 	cJSON_Delete(root);
 	return s;
 }
 
-int parser_nosch(char *stream, int size)
+int parser_nosch(char *stream, int size, FILE *file)
 {
 	char *sBeg;
 	
 	sBeg = stream;
 	while (sBeg[0] != '\0') {
-		sBeg = body_nosch(sBeg);
+		sBeg = body_nosch(sBeg, file);
 	}
 	return 0;
 }
 
-static char* body_runq(char* beg)
+static char* body_runq(char* beg, FILE *file)
 {
 	char *s = beg;
 	cJSON *root, *arr;
@@ -255,19 +261,22 @@ static char* body_runq(char* beg)
 	}
 	
 	out = cJSON_Print(root);
-	printf("%s\n", out);
+	if (!file)
+		printf("%s\n", out);
+	else
+		fprintf(file, "%s\n", out);
 	free(out);
 	cJSON_Delete(root);
 	return s + 1;
 }
 
-int parser_runq(char *stream, int size)
+int parser_runq(char *stream, int size, FILE *file)
 {
 	char *sBeg;
 	
 	sBeg = stream;
 	while (sBeg[0] != '\0') {
-		sBeg = body_runq(sBeg);
+		sBeg = body_runq(sBeg, file);
 	}
 	return 0;
 }

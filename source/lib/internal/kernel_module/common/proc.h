@@ -106,7 +106,6 @@ int __weak kstrtobool_from_user(const char __user *s, size_t count, bool *res)
 #define DEFINE_PROC_ATTRIBUTE_RO(name)	\
 	 DEFINE_PROC_ATTRIBUTE(name, NULL)
 #endif
-#endif
 
 
 extern struct proc_dir_entry *sysak_proc_mkdir(const char *name);
