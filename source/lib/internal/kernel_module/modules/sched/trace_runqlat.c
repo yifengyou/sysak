@@ -387,8 +387,11 @@ static ssize_t trace_pid_store(void *priv, const char __user *buf, size_t count)
 
 	local_irq_disable();
 	arch_spin_lock(&info->lock);
-	if (info->pid == pid)
+	if (info->pid == pid) {
+		if (pid == INVALID_PID)
+			sysak_module_put(&runqlat_ref);
 		goto unlock;
+	}
 
 	if (pid != INVALID_PID) {
 
