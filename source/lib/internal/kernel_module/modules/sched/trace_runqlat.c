@@ -29,7 +29,8 @@
 #define MAX_TRACE_ENTRY_TASKS		\
 	(MAX_TRACE_ENTRIES * PER_TRACE_ENTRY_TASKS)
 
-#define THRESHOLD_DEFAULT		(20 * 1000 * 1000UL)
+/* 20ms */
+#define THRESHOLD_DEFAULT		(20*1000*1000UL)
 
 #define INVALID_PID			-1
 #define INVALID_CPU			-1
@@ -57,6 +58,9 @@ struct task_entry {
 };
 
 struct trace_entry {
+	int cpu;
+	pid_t pid;
+	char comm[TASK_COMM_LEN];
 	u64 latency;
 	u64 rq_start;
 	unsigned int nr_tasks;
@@ -66,6 +70,7 @@ struct trace_entry {
 struct runqlat_info {
 	int cpu;		/* The target CPU */
 	pid_t pid;		/* Trace this pid only */
+	char comm[TASK_COMM_LEN];	/* target task's comm */
 	u64 rq_start;
 	u64 run_start;
 	u64 threshold;
@@ -203,6 +208,9 @@ static bool record_task_commit(struct runqlat_info *info, u64 latency)
 	if (latency >= info->threshold) {
 		trace->latency = latency;
 		trace->rq_start = info->rq_start;
+		trace->cpu = info->cpu;
+		trace->pid = info->pid;
+		strncpy(trace->comm, info->comm, TASK_COMM_LEN);
 		info->nr_trace++;
 		if (unlikely(info->nr_trace >= MAX_TRACE_ENTRIES)) {
 			pr_info("BUG: MAX_TRACE_ENTRIES too low!");
@@ -374,9 +382,31 @@ static int trace_pid_show(struct seq_file *m, void *ptr)
 	return 0;
 }
 
+static struct task_struct *loc_find_get_task_by_vpid(int nr)
+{
+	struct pid * pid_obj;
+	struct task_struct *task;
+	
+	rcu_read_lock();
+	pid_obj = find_vpid(nr);
+	if (!pid_obj)
+		goto fail;
+
+	task = pid_task(pid_obj, PIDTYPE_PID);
+	if (!task)
+		goto fail;
+
+	get_task_struct(task);
+	rcu_read_unlock();
+	return task;
+fail:
+	rcu_read_unlock();
+	return NULL;
+}
 static ssize_t trace_pid_store(void *priv, const char __user *buf, size_t count)
 {
 	int pid;
+	struct task_struct *task = NULL;
 	struct runqlat_info *info = priv;
 
 	if (kstrtoint_from_user(buf, count, 0, &pid))
@@ -401,12 +431,19 @@ static ssize_t trace_pid_store(void *priv, const char __user *buf, size_t count)
 		       MAX_TRACE_ENTRIES * sizeof(struct trace_entry) +
 		       MAX_TRACE_ENTRY_TASKS * sizeof(struct task_entry));
 		sysak_module_get(&runqlat_ref);
-	} else 
+	} else { 
 		sysak_module_put(&runqlat_ref);
-
+	}
 	runqlat_info_reset(info);
 	smp_wmb();
 	info->pid = pid;
+	task = loc_find_get_task_by_vpid(pid);
+	if (task) {
+		strncpy(info->comm, task->comm, TASK_COMM_LEN);
+		put_task_struct(task);
+	} else {
+		strncpy(info->comm, "NULL", 5);
+	}
 unlock:
 	arch_spin_unlock(&info->lock);
 	local_irq_enable();
@@ -420,7 +457,7 @@ static int threshold_show(struct seq_file *m, void *ptr)
 {
 	struct runqlat_info *info = m->private;
 
-	seq_printf(m, "%llu\n", info->threshold);
+	seq_printf(m, "%llu ns\n", info->threshold);
 
 	return 0;
 }
@@ -453,14 +490,17 @@ static int runqlat_show(struct seq_file *m, void *ptr)
 	for (i = 0; i < info->nr_trace; i++) {
 		struct trace_entry *entry = info->trace_entries + i;
 
-		seq_printf(m, "%*clatency(us):%llu\trunqlen:%d\trqstart(us):%llu\n", 2, ' ',
-			   entry->latency / 1000, entry->nr_tasks, 
-			   entry->rq_start / 1000);
+		seq_printf(m, "%*ccpu:%d\tcommand:%s\tpid:%d\tlatency:%llums\tSTAMP:%llu\trunqlen:%d\n",
+			5, ' ', entry->cpu,
+			entry->comm, entry->pid,
+			entry->latency/(1000*1000),
+			entry->rq_start,
+			entry->nr_tasks);
 
 		for (j = 0; j < entry->nr_tasks; j++) {
 			struct task_entry *task = entry->entries + j;
 
-			seq_printf(m, "%*cCOMM:%s\tPID:%d\tRUNTIME(us):%llu\n",
+			seq_printf(m, "%*ctask:%s %d\tRUNTIME(us):%llu\n",
 				   6, ' ', task->comm, task->pid,
 				   task->runtime / 1000);
 		}

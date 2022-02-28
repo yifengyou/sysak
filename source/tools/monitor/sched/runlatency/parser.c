@@ -253,7 +253,7 @@ static char* body_runq(char* beg, FILE *file)
 	
 	s = head_args(s, root);
 	arr  = cJSON_CreateArray();
-	cJSON_AddItemToObject(root, "que", arr);
+	cJSON_AddItemToObject(root, "private", arr);
 	while (*s != '\n') {
 		cJSON *cell = cJSON_CreateObject();
 		s = head_args(s, cell);
