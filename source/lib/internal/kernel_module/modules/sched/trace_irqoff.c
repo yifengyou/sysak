@@ -423,9 +423,9 @@ static int trace_latency_show(struct seq_file *m, void *v)
 
 static ssize_t trace_latency_store(void *priv, const char __user *buf, size_t count)
 {
-	unsigned long latency;
+	u64 latency;
 
-	if (kstrtoul_from_user(buf, count, 0, &latency))
+	if (kstrtou64_from_user(buf, count, 0, &latency))
 		return -EINVAL;
 
 	if (latency == 0) {
@@ -439,7 +439,7 @@ static ssize_t trace_latency_store(void *priv, const char __user *buf, size_t co
 	} else if (latency < (sampling_period << 1) / (1000 * 1000UL))
 		return -EINVAL;
 
-	trace_irqoff_latency = latency * 1000 * 1000UL;
+	trace_irqoff_latency = latency;
 
 	return count;
 }

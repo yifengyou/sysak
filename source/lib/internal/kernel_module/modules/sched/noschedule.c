@@ -347,7 +347,7 @@ static void tracepoint_lookup(struct tracepoint *tp, void *priv)
 
 static int threshold_show(struct seq_file *m, void *ptr)
 {
-	seq_printf(m, "%llu\n", duration_threshold);
+	seq_printf(m, "%llu ms\n", duration_threshold/(1000*1000));
 
 	return 0;
 }

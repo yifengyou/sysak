@@ -41,7 +41,7 @@ static char* accepts(char* s, char c1, char c2)
 	return s + 1;
 }
 
-static bool isdigits(char *s) 
+bool isdigits(char *s) 
 {
 	while (*s != '\0') {
 		if (isdigit(*s) == 0) {

@@ -457,7 +457,7 @@ static int threshold_show(struct seq_file *m, void *ptr)
 {
 	struct runqlat_info *info = m->private;
 
-	seq_printf(m, "%llu ns\n", info->threshold);
+	seq_printf(m, "%llu ms\n", info->threshold/(1000*1000));
 
 	return 0;
 }
