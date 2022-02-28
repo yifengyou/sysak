@@ -543,12 +543,11 @@ static int stack_trace_show(struct seq_file *m, void *ptr)
 			struct stack_entry *entry;
 
 			entry = cpu_stack_trace->stack_entries + i;
-			seq_printf(m, "%*ccpu:%d\tCOMM: %s\tPID:%d\tDURATION:%lluus\tSTAMP:%llu\n",
+			seq_printf(m, "%*ccpu:%d\tcommand:%s\tpid:%d\tlatency:%lluus\tSTAMP:%llu\n",
 				   5, ' ', cpu, cpu_stack_trace->comms[i],
 				   cpu_stack_trace->pids[i],
 				   cpu_stack_trace->duration[i] / (1000UL),
-				   cpu_stack_trace->stamp[i]
-				   );
+				   cpu_stack_trace->stamp[i]);
 			seq_print_stack_trace(m, entry);
 			seq_putc(m, '\n');
 

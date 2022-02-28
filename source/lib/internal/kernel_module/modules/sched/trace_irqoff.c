@@ -387,12 +387,12 @@ static void trace_latency_show_one(struct seq_file *m, void *v, bool hardirq)
 		for (i = 0; i < nr_irqoff_trace; i++) {
 			struct irqoff_trace *trace = stack_trace->trace + i;
 
-			seq_printf(m, "%*ccpu:%d\tCOMMAND:%s\tPID:%d\tLATENCY:%lu%s\tSTAMP:%llu\n",
+			seq_printf(m, "%*ccpu:%d\tcommand:%s\tpid:%d\tlatency:%lu%s\tSTAMP:%llu\n",
 				   5, ' ', cpu, stack_trace->comms[i],
 				   stack_trace->pids[i],
 				   stack_trace->latency[i].nsecs / (1000 * 1000UL),
 				   stack_trace->latency[i].more ? "+ms" : "ms",
-				   stack_trace->stamp[i] / 1000UL);
+				   stack_trace->stamp[i]);
 			seq_print_stack_trace(m, trace);
 			seq_putc(m, '\n');
 
