@@ -496,15 +496,6 @@ static int runqlat_show(struct seq_file *m, void *ptr)
 			entry->latency/(1000*1000),
 			entry->rq_start,
 			entry->nr_tasks);
-
-		for (j = 0; j < entry->nr_tasks; j++) {
-			struct task_entry *task = entry->entries + j;
-
-			seq_printf(m, "%*ctask:%s %d\tRUNTIME(us):%llu\n",
-				   6, ' ', task->comm, task->pid,
-				   task->runtime / 1000);
-		}
-		seq_putc(m, '\n');
 	}
 	arch_spin_unlock(&info->lock);
 	local_irq_enable();

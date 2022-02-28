@@ -250,16 +250,8 @@ static char* body_runq(char* beg, FILE *file)
 	
 	root = cJSON_CreateObject();
 	cJSON_AddStringToObject(root, "mode", "runq");
-	
 	s = head_args(s, root);
-	arr  = cJSON_CreateArray();
-	cJSON_AddItemToObject(root, "private", arr);
-	while (*s != '\n') {
-		cJSON *cell = cJSON_CreateObject();
-		s = head_args(s, cell);
-		cJSON_AddItemToArray(arr, cell);
-	}
-	
+
 	out = cJSON_Print(root);
 	if (!file)
 		printf("%s\n", out);
