@@ -123,7 +123,7 @@ static int handle_metric(int sk, int req, const char*sub_req)
 	collect_record();
 	collect_record_stat();
 
-	ret = output_http(sk, req, sub_req);
+	output_http(sk);
 	pthread_mutex_unlock(&module_record_mutex);
 
 	return ret;
