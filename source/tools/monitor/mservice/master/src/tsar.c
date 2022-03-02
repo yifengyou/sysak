@@ -259,9 +259,10 @@ running_cron()
 void *cron_thread(void *arg)
 {
     while (1) {
-        statis.cur_time = time(NULL);
 	pthread_mutex_lock(&module_record_mutex);
+	statis.cur_time = time(NULL);
         running_cron();
+	collect_record_stat();
 	pthread_mutex_unlock(&module_record_mutex);
         sleep(conf.cron_period);
     }

@@ -4,22 +4,31 @@
 #define ERROR_MSG "HTTP/1.1 404 Not Found\r\n"
 
 enum {
-	REQUEST_METRIC,
+	REQUEST_METRIC_ROOT,
+	REQUEST_METRIC_CGROUP,
+	REQUEST_METRIC_CGROUP_ALL,
 	REQUEST_MAX
 };
 
-static int get_request(const char *buf)
+static int get_request(const char *buf, char *sub_req, int len)
 {
-	char req_str[32];
+	char req_str[LEN_256];
 
-	sscanf(buf, "GET /%s HTTP", req_str);
-	if (strcmp(req_str, "metric") == 0)
-		return REQUEST_METRIC;
-
+	sscanf(buf, "GET /%255s HTTP", req_str);
+	if (strcmp(req_str, "metric") == 0 || strcmp(req_str, "metric/") == 0) {
+		return REQUEST_METRIC_ROOT;
+	}
+	else if (strcmp(req_str, "metric/cgroups") == 0 || strcmp(req_str, "metric/cgroups/") == 0) {
+		return REQUEST_METRIC_CGROUP_ALL;
+	}
+	else if (strncmp(req_str, "metric/cgroups/", 15) == 0) {
+		strncpy(sub_req, req_str + 15, len - 1);
+		return REQUEST_METRIC_CGROUP;
+	}
 	return REQUEST_MAX;
 }
 
-void output_http(int sk)
+int output_http(int sk, int req, const char*sub_req)
 {
 	int         i, j, k, n = 0;
 	char        detail[LEN_1M] = {0};
@@ -34,25 +43,38 @@ void output_http(int sk)
 
 	for (i = 0; i < statis.total_mod_num; i++) {
 		mod = mods[i];
-                if (mod->enable && strlen(mod->record)) {
-                        precord = mod->record;
-                        j = 0;
-                        for (j = 0; j < mod->n_item; j++) {
-                                if (mod->n_item > 1) {
-                                        psub = strstr(precord, "=");
-                                        if (!psub)
-                                                break;
-                                        *psub = 0;
-                                        snprintf(opt_line, LEN_64, "%s{%s,", mod->opt_line+2, precord);
-                                        precord = strstr(psub + 1, ";");
+		if (req != REQUEST_METRIC_ROOT) {
+			if ((req == REQUEST_METRIC_CGROUP_ALL || req == REQUEST_METRIC_CGROUP)
+				&& strcmp(mod->name, "mod_cgroup"))
+				continue;
+		}
+
+		if (mod->enable && strlen(mod->record)) {
+			precord = mod->record;
+			j = 0;
+			for (j = 0; j < mod->n_item; j++) {
+				psub = strstr(precord, "=");
+				if (psub) {
+					int ignore = 0;
+					*psub = 0;
+					/*check if we want*/
+					if (req == REQUEST_METRIC_CGROUP && strcmp(precord, sub_req))
+						ignore = 1;
+					snprintf(opt_line, LEN_64, "%s{%s,", mod->opt_line+2, precord);
+					precord = strstr(psub + 1, ";");
 					if (precord)
 						precord = precord + 1;
+					if (ignore)
+						continue;
                                 } else {
                                         snprintf(opt_line, LEN_64, "%s{", mod->opt_line+2);
                                 }
 
                                 st_array = &mod->st_array[j * mod->n_col];
                                 for (k = 0; k < mod->n_col; k++) {
+					if (HIDE_BIT == mod->info[k].summary_bit)
+						continue;
+
                                         n = snprintf(detail, LEN_1M, "%s%s} %6.2f\n", opt_line, trim(mod->info[k].hdr, LEN_128), st_array[k]);
                                         if (n >= LEN_1M - 1) {
                                                 do_debug(LOG_FATAL, "mod %s lenth is overflow %d\n", mod->name, n);
@@ -67,27 +89,69 @@ void output_http(int sk)
                 }
 	}
 
+	if (strlen(line) == 0)
+		return -1;
+
 	strcat(line, "\n");
 
 	sprintf(http_header, "HTTP/1.1 200 OK\r\nContent-Length: %d \r\n\r\n",
 			(int)strlen(line));
 	write(sk, http_header, strlen(http_header));
 	write(sk, line, strlen(line));
+	return 0;
 }
 
 
-static void handle_metric(int sk)
+static int prev_collect_time;
+static int handle_metric(int sk, int req, const char*sub_req)
 {
+	int ret;
+
 	pthread_mutex_lock(&module_record_mutex);
-	init_module_fields();
-	/*read twice for metrics which need compute diff*/
+	prev_collect_time = statis.cur_time;
+	statis.cur_time = time(NULL);
+	if (statis.cur_time - prev_collect_time > 60 || statis.cur_time <= prev_collect_time) {
+		/*read twice for metrics which need compute diff*/
+		collect_record();
+		collect_record_stat();
+		conf.print_interval = 1;
+		sleep(1);
+	} else {
+		conf.print_interval = statis.cur_time - prev_collect_time;
+	}
+
 	collect_record();
 	collect_record_stat();
-	usleep(50000);
-	collect_record();
-	collect_record_stat();
-	output_http(sk);
+
+	ret = output_http(sk, req, sub_req);
 	pthread_mutex_unlock(&module_record_mutex);
+
+	return ret;
+}
+
+static void handle_request(int sk)
+{
+	char buff[1024] = {0};
+	char sub_req[LEN_256] = {0};
+	int req;
+
+	if (read(sk, buff, sizeof(buff)) <= 0)
+		goto error;
+
+	req = get_request(buff, sub_req, LEN_256);
+	switch (req) {
+		case REQUEST_METRIC_ROOT:
+		case REQUEST_METRIC_CGROUP:
+		case REQUEST_METRIC_CGROUP_ALL:
+			break;
+		default:
+			goto error;
+	}
+
+	if (handle_metric(sk, req, sub_req)) {
+error:
+		write(sk, ERROR_MSG, strlen(ERROR_MSG));
+	}
 }
 
 int http_server(void)
@@ -127,15 +191,7 @@ int http_server(void)
 			close(sk);
 			return -1;
 		}
-
-		char buff[1024] = {0};
-		int size = read(csk, buff, sizeof(buff));
-
-		if (size > 0 && get_request(buff) == REQUEST_METRIC)
-			handle_metric(csk);
-		else
-			write(csk, ERROR_MSG, strlen(ERROR_MSG));
-		
+		handle_request(csk);
 	        close(csk);
     }
 
