@@ -118,12 +118,38 @@ def check_file_config():
                 print("soft nofile不能超过fs.nr_open" )
     etc_security_limit_fd.close()
 
+def overcommit_check():
+    overcommit_memory_cmd = 'sysctl -n vm.overcommit_memory'
+    overcommit_memory = exectue_cmd(overcommit_memory_cmd).strip('\n')
+    overcommit_kbytes_cmd = 'sysctl -n vm.overcommit_kbytes'
+    overcommit_kbytes = exectue_cmd(overcommit_kbytes_cmd).strip('\n')
+    overcommit_ratio_cmd = 'sysctl -n vm.overcommit_ratio'
+    overcommit_ratio = exectue_cmd(overcommit_ratio_cmd).strip('\n')
+
+    meminfo_fd= open(meminfo,"r")
+    for line in meminfo_fd.readlines():
+        if "CommitLimit" in line:
+            CommitLimit = line
+        if "Committed_AS" in line:
+            Committed_AS = line
+
+    if overcommit_memory == "0":
+        print("vm.overcommit_memory = %s" %(overcommit_memory)) 
+        print("vm.overcommit_kbytes和vm.overcommit_ratio设置的值不会生效，只要当前系统还有可用内存，即可继续分配虚拟地址区间。")
+    elif overcommit_memory == "1":
+        print("vm.overcommit_memory = %s" %(overcommit_memory)) 
+        print("vm.overcommit_kbytes和vm.overcommit_ratio设置的值不会生效，不会受CommitLimit限制，始终可分配虚拟地址。")
+    else:
+        print("vm.overcommit_kbytes = %s," %(overcommit_kbytes))
+        print("vm.overcommit_ratio = %s," %(overcommit_ratio))
+        print(CommitLimit + Committed_AS)
 
 def main():
     get_kernelversion()
     check_file_config()
     check_etc_config()
     check_pagecache_config()
+    overcommit_check()
 
 if __name__ == '__main__':
     main()
