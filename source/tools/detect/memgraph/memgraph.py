@@ -485,6 +485,7 @@ def memgrapth_output_json(meminfo, filepath):
         return meminfo
     res = {}
     res["memGraph"] = meminfo["graph"]
+    res["event"] = meminfo["event"]
     res["memleak"] = meminfo["memleak"]
     taskMem = meminfo["taskMem"]
     taskInfo = meminfo["taskInfo"]
@@ -532,6 +533,59 @@ def memgrapth_output_json(meminfo, filepath):
     res["filecacheTop"] = cache_list
 
     dump2json(res, filepath)
+
+def memgraph_check_memcg(meminfo):
+    filename = "/proc/cgroups"
+    fd = open(filename,'r')
+    ret = fd.read().strip().split("\n")
+    fd.close()
+    num = 0
+    for line in ret:
+        if line.find("memory") == -1:
+            continue
+        values = line.strip().split()
+        if len(values) != 4:
+          break
+        num = int(values[2])
+        break
+    return num > 1000
+
+def memgraph_check_memfrag(meminfo):
+    key = "Normal"
+    if meminfo["MemTotal"] < 4*1024*1024:
+        key = "DMA32"
+    filename = "/proc/buddyinfo"
+    fd = open(filename, 'r')
+    ret = fd.read().strip().split('\n')
+    fd.close()
+    frag = []
+    for line in ret:
+        if line.find(key) == -1:
+            continue
+        values = line.strip().split()
+        frag = values[-8:]
+        break
+    if len(frag) == 0:
+        return False
+    total = 0
+    for num in frag:
+        total += int(num)
+    return total < 100
+
+def memgraph_check_event(meminfo):
+    event = {}
+    util = (meminfo["MemTotal"] - meminfo["MemAvailable"])*100/meminfo["MemTotal"]
+    event["util"] = util
+    ret = memgraph_check_memcg(meminfo)
+    event["memcg"] = ret
+    ret = memgraph_check_memfrag(meminfo)
+    event["memfrag"] = ret
+    event["leak"] = False
+    if len(meminfo["memleak"]) != 0:
+        res = meminfo["memleak"]
+        if res["type"] != "No":
+            event["leak"] = True
+    meminfo["event"] = event
 
 def memgraph_handler_cmd(meminfo, argv):
     global jsonFormat
@@ -582,6 +636,7 @@ def memgraph_handler_cmd(meminfo, argv):
             memgraph_memory_cgroup(meminfo, depth)
         else:
             print("error args options")
+    memgraph_check_event(meminfo)
     memgrapth_output_json(meminfo, filepath)
 
 if __name__ == "__main__":
