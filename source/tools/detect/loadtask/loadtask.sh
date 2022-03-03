@@ -7,6 +7,7 @@
 # Modify Date: 2021-02-06 10:53
 # Function:
 #***************************************************************#
+TOOLS_ROOT="$SYSAK_WORK_PATH/tools"
 
 usage() {
 	echo "sysak loadtask: show all tasks of load contribution"
@@ -17,6 +18,7 @@ usage() {
 	echo "         -d,          keep monitoring even if greater than maxload occurs.useful only if the -m option is set"
 	echo "         -s,          show summary result"
 	echo "         -k,          terminate running ${selftaskname} which started previously"
+	echo "         -g,          default collect cpu perf flamegraph by cpu_flamegraph tool"
 	echo "         -r datafile, read datafile created by '-f datafile' or by default(datafile directory /var/log/sysak/loadtask/) and show result"
 }
 
@@ -159,6 +161,13 @@ show_result() {
 	echo ""
 }
 
+collect_global_framegraph() {
+	if [ -f  $TOOLS_ROOT/cpu_flamegraph ]; then
+		$TOOLS_ROOT/cpu_flamegraph -d 5 | xargs -I {} sudo cp {} $global_cpuflamegraph
+		sudo cp $global_cpuflamegraph $tmp_cpuflamegraph
+	fi
+}
+
 current_analyse() {
 	local high_sirq=0
 	local exist_sirq_tool=0
@@ -167,8 +176,12 @@ current_analyse() {
 		exist_sirq_tool=1
 	fi
 
+	if [ "$is_cpuflamegraph" == "true" ];then
+		collect_global_framegraph
+	fi
 	echo "####################################################################################" > $tmpfile
-	date >> $tmpfile
+	echo "Time: `date "+%Y-%m-%d %H:%M:%S"`" >> $tmpfile
+	echo "$global_cpuflamegraph" >> $tmpfile
 	cat /proc/loadavg >> $tmpfile
 	load=`cat /proc/loadavg | awk '{print $1}'`
 
@@ -202,8 +215,10 @@ current_analyse() {
 		high_cost+="sys "
 		extra_cmd="[sysmonitor]"
 		extra_info="high memory or kernel competition "
-		if [ -f  $TOOLS_ROOT/cpu_flamegraph ]; then
-			$TOOLS_ROOT/cpu_flamegraph -d 5
+		if [ "$is_cpuflamegraph" != "true" ];then
+			if [ -f  $TOOLS_ROOT/cpu_flamegraph ]; then
+				$TOOLS_ROOT/cpu_flamegraph -d 5
+			fi
 		fi
 	fi
 	if [ $(echo "$irq_util > ((100-$cpu_idle)*0.05)" | bc) -eq 1 ]; then
@@ -337,8 +352,11 @@ parse_datafile() {
 }
 
 interval=5
+is_cpuflamegraph=false
 loadtask_dir=/var/log/sysak/loadtask/
 datafile=${loadtask_dir}loadtask-`date "+%Y-%m-%d-%H-%M-%S"`.log
+global_cpuflamegraph=${loadtask_dir}global_cpuflamegraph-`date "+%Y-%m-%d-%H-%M-%S"`.svg
+tmp_cpuflamegraph=${loadtask_dir}.tmp.svg
 tmpfile=${loadtask_dir}.tmplog
 rtaskfile=${loadtask_dir}runtask
 dtaskfile=${loadtask_dir}dtask
@@ -353,7 +371,7 @@ selftaskname="`cat /proc/$$/status | grep -w "Name" | awk -F" " '{print $2}'`"
 parsed_datafile=""
 tmp_parsed_datafile=${loadtask_dir}.parsedlog
 
-while getopts 'm:f:i:t:r:dskh' OPT; do
+while getopts 'm:f:i:t:r:dskgh' OPT; do
 	case $OPT in
 		"h")
 			usage
@@ -386,6 +404,9 @@ while getopts 'm:f:i:t:r:dskh' OPT; do
 			mk_log_dir
 			parse_datafile
 			exit 0
+			;;
+		"g")
+			is_cpuflamegraph="true"
 			;;
 		*)
 			usage
