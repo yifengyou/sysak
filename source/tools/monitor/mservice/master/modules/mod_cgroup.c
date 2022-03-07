@@ -40,8 +40,30 @@ struct cg_cpu_info {
 	unsigned long long throttled_time;
 };
 
-struct cg_mem_info {
+struct cg_memlat_info {
+	unsigned long long lat_1;
+	unsigned long long lat_5;
+	unsigned long long lat_10;
+	unsigned long long lat_100;
+	unsigned long long lat_500;
+	unsigned long long lat_1s;
+	unsigned long long lat_over1s;
+	unsigned long long total_lat_cnt;
+	unsigned long long total_lat_time;
+};
 
+struct cg_mem_info {
+	unsigned long long cache;
+	unsigned long long used;
+	unsigned long long limit;
+	unsigned long long free;
+	unsigned long long util;
+	unsigned long long pgfault;
+	unsigned long long pgmjfault;
+	unsigned long long failcnt;
+	struct cg_memlat_info drgl;
+	struct cg_memlat_info drml;
+	struct cg_memlat_info dcl;
 };
 
 struct cg_blkio_info {
@@ -66,8 +88,8 @@ struct cgroup_info {
 	int valid;
 	struct cg_load_info load;
 	struct cg_cpu_info cpu;
-/*	struct cg_mem_info mem;
-	struct cg_blkio_info blkio;*/
+	struct cg_mem_info mem;
+/*	struct cg_blkio_info blkio;*/
 } cgroups[MAX_CGROUPS];
 
 unsigned int n_cgs = 0;  /* Number of cgroups */
@@ -92,6 +114,42 @@ static struct mod_info cg_info[] = {
 	{" guest", HIDE_BIT,  0,  STATS_NULL},
         {"nr_throttled", DETAIL_BIT,  0,  STATS_NULL},
         {"throttled_time", DETAIL_BIT,  0,  STATS_NULL},
+/* mem info */
+	{"  cach", DETAIL_BIT,  0,  STATS_NULL},
+	{"  used", DETAIL_BIT,  0,  STATS_NULL},
+	{"mtotal", DETAIL_BIT,  0,  STATS_NULL},
+	{"  free", DETAIL_BIT,  0,  STATS_NULL},
+	{" mutil", SUMMARY_BIT,  0,  STATS_NULL},
+	{"pgfault", DETAIL_BIT,  0,  STATS_NULL},
+	{"pgmajfault", DETAIL_BIT,  0,  STATS_NULL},
+	{"mfailcnt", DETAIL_BIT,  0,  STATS_NULL},
+	{" drgl1", HIDE_BIT,  0,  STATS_NULL},
+	{" drgl5", HIDE_BIT,  0,  STATS_NULL},
+	{"drgl10", HIDE_BIT,  0,  STATS_NULL},
+	{"drgl100", HIDE_BIT,  0,  STATS_NULL},
+	{"drgl500", HIDE_BIT,  0,  STATS_NULL},
+	{"drgl1s", HIDE_BIT,  0,  STATS_NULL},
+	{"drgl1s+", HIDE_BIT,  0,  STATS_NULL},
+	{"drglcnt", HIDE_BIT,  0,  STATS_NULL},
+	{"drgltime", HIDE_BIT,  0,  STATS_NULL},
+	{" drml1", HIDE_BIT,  0,  STATS_NULL},
+	{" drml5", HIDE_BIT,  0,  STATS_NULL},
+	{"drml10", HIDE_BIT,  0,  STATS_NULL},
+	{"drml100", HIDE_BIT,  0,  STATS_NULL},
+	{"drml500", HIDE_BIT,  0,  STATS_NULL},
+	{"drml1s", HIDE_BIT,  0,  STATS_NULL},
+	{"drml1s+", HIDE_BIT,  0,  STATS_NULL},
+	{"drmlcnt", HIDE_BIT,  0,  STATS_NULL},
+	{"drmltime", HIDE_BIT,  0,  STATS_NULL},
+	{"  dcl1", HIDE_BIT,  0,  STATS_NULL},
+	{"  dcl5", HIDE_BIT,  0,  STATS_NULL},
+	{" dcl10", HIDE_BIT,  0,  STATS_NULL},
+	{"dcl100", HIDE_BIT,  0,  STATS_NULL},
+	{"dcl500", HIDE_BIT,  0,  STATS_NULL},
+	{" dcl1s", HIDE_BIT,  0,  STATS_NULL},
+	{"dcl1s+", HIDE_BIT,  0,  STATS_NULL},
+	{"dclcnt", HIDE_BIT,  0,  STATS_NULL},
+	{"dcltime", HIDE_BIT,  0,  STATS_NULL},
 /* io info */
 /*
     {" rrqms", DETAIL_BIT,  MERGE_SUM,  STATS_NULL},
@@ -289,6 +347,169 @@ static int get_cpu_stats(int cg_idx)
 	return items;
 }
 
+static int get_mem_latency(FILE *file, struct cg_memlat_info *info)
+{
+	int items = 0, ret = 0;
+
+	info->total_lat_cnt = 0;
+	while (fgets(buffer, sizeof(buffer), file)) {
+		items += ret;
+		ret = sscanf(buffer, "0-1ms: %llu", &info->lat_1);
+		if (ret != 0) {
+			info->total_lat_cnt += info->lat_1;
+			continue;
+		}
+		ret = sscanf(buffer, "1-5ms: %llu", &info->lat_5);
+		if (ret != 0) {
+			info->total_lat_cnt += info->lat_5;
+			continue;
+		}
+		ret = sscanf(buffer, "5-10ms: %llu", &info->lat_10);
+		if (ret != 0) {
+			info->total_lat_cnt += info->lat_10;
+			continue;
+		}
+		ret = sscanf(buffer, "10-100ms: %llu", &info->lat_100);
+		if (ret != 0) {
+			info->total_lat_cnt += info->lat_100;
+			continue;
+		}
+		ret = sscanf(buffer, "100-500ms: %llu", &info->lat_500);
+		if (ret != 0) {
+			info->total_lat_cnt += info->lat_500;
+			continue;
+		}
+		ret = sscanf(buffer, "500-1000ms: %llu", &info->lat_1s);
+		if (ret != 0) {
+			info->total_lat_cnt += info->lat_1;
+			continue;
+		}
+		ret = sscanf(buffer, ">=1000ms: %llu", &info->lat_over1s);
+		if (ret != 0) {
+			info->total_lat_cnt += info->lat_1;
+			continue;
+		}
+
+		ret = sscanf(buffer, "total(ms): %llu", &info->total_lat_time);
+		if (ret != 0)
+			continue;
+	}
+
+	return items;
+}
+
+static void set_mem_latency_visible(void)
+{
+	int i, offset = 24;/* Todo, the idx of memlat_info begin*/
+	int cnt = sizeof(struct cg_memlat_info) / sizeof(unsigned long long) * 3;
+
+	for(i = 0; i < cnt; i++)
+		cg_info[i + offset].summary_bit = DETAIL_BIT;
+}
+
+static int get_memory_stats(int cg_idx)
+{
+	char filepath[LEN_1024];
+	char *path_end = filepath;
+	FILE *file;
+	int items = 0, ret = 0;
+	unsigned long long active_file, inactive_file, usage_in_bytes;
+
+	if (!get_cgroup_path(cgroups[cg_idx].name, "memory", filepath))
+		return 0;
+
+	path_end = filepath + strlen(filepath);
+	strcpy(path_end, "/memory.stat");
+	file = fopen(filepath, "r");
+	if (!file)
+		return 0;
+
+	while (fgets(buffer, sizeof(buffer), file)) {
+		items += ret;
+		if (items == 6)
+			break;
+		ret = sscanf(buffer, "cache %llu", &cgroups[cg_idx].mem.cache);
+		if (ret != 0) {
+			continue;
+		}
+		ret = sscanf(buffer, "pgfault %llu", &cgroups[cg_idx].mem.pgfault);
+		if (ret != 0) {
+			continue;
+		}
+		ret = sscanf(buffer, "pgmjfault %llu", &cgroups[cg_idx].mem.pgmjfault);
+		if (ret != 0) {
+			continue;
+		}
+		ret = sscanf(buffer, "inactive_file %llu", &inactive_file);
+		if (ret != 0) {
+			continue;
+		}
+		ret = sscanf(buffer, "active_file %llu", &active_file);
+		if (ret != 0) {
+			continue;
+		}
+		ret = sscanf(buffer, "hierarchical_memory_limit %llu", &cgroups[cg_idx].mem.limit);
+		if (ret != 0) {
+			continue;
+		}
+	}
+
+	fclose(file);
+
+	strcpy(path_end, "/memory.usage_in_bytes");
+	file = fopen(filepath, "r");
+	if (!file)
+		return 0;
+
+	fgets(buffer, sizeof(buffer), file);
+	ret = sscanf(buffer, "%llu", &usage_in_bytes);
+	fclose(file);
+	if (ret <=0)
+		return 0;
+	cgroups[cg_idx].mem.used = usage_in_bytes - inactive_file - active_file;
+	cgroups[cg_idx].mem.free = cgroups[cg_idx].mem.limit - usage_in_bytes;
+
+	strcpy(path_end, "/memory.failcnt");
+	file = fopen(filepath, "r");
+	if (!file)
+		return 0;
+	fgets(buffer, sizeof(buffer), file);
+	ret = sscanf(buffer, "%llu", &cgroups[cg_idx].mem.failcnt);
+	fclose(file);
+	if (ret <=0)
+		return 0;
+
+	strcpy(path_end, "/memory.direct_reclaim_global_latency");
+	file = fopen(filepath, "r");
+	if (!file)
+		return 0;
+	ret = get_mem_latency(file, &cgroups[cg_idx].mem.drgl);
+	fclose(file);
+	if (ret <=0)
+		return 0;
+
+	strcpy(path_end, "/memory.direct_reclaim_memcg_latency");
+	file = fopen(filepath, "r");
+	if (!file)
+		return 0;
+	ret = get_mem_latency(file, &cgroups[cg_idx].mem.drgl);
+	fclose(file);
+	if (ret <=0)
+		return 0;
+
+	strcpy(path_end, "/memory.direct_compact_latency");
+	file = fopen(filepath, "r");
+	if (!file)
+		return 0;
+	ret = get_mem_latency(file, &cgroups[cg_idx].mem.dcl);
+	fclose(file);
+	if (ret <= 0)
+		return 0;
+
+	set_mem_latency_visible();
+	return items;
+}
+
 void get_cgroup_stats(void)
 {
 	int i, items;
@@ -297,6 +518,7 @@ void get_cgroup_stats(void)
 		items = 0;
 		items += get_load_and_enhanced_cpu_stats(i);
 		items += get_cpu_stats(i);
+		items += get_memory_stats(i);
 		cgroups[i].valid = !!items;
 	}
 }
@@ -327,6 +549,31 @@ static int print_cgroup_cpu(char *buf, int len, struct cg_cpu_info *info)
 			info->throttled_time);
 }
 
+static int print_memlat_info(char *buf, int len, struct cg_memlat_info *info)
+{
+	return snprintf(buf, len, "%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,",
+			info->lat_1, info->lat_5, info->lat_10, info->lat_100,
+			info->lat_500, info->lat_1s, info->lat_over1s,
+			info->total_lat_cnt, info->total_lat_time);
+}
+
+static int print_cgroup_memory(char *buf, int len, struct cg_mem_info *info)
+{
+	int ret;
+
+	ret = snprintf(buf, len, "%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,",
+			info->cache, info->used, info->limit, info->free,
+			info->util, info->pgfault, info->pgmjfault,
+			info->failcnt);
+
+	ret += print_memlat_info(buf + ret, len - ret, &info->drgl);
+	ret += print_memlat_info(buf + ret, len - ret, &info->drgl);
+	ret += print_memlat_info(buf + ret, len - ret, &info->drgl);
+
+	return ret;
+}
+
+
 void
 print_cgroup_stats(struct module *mod)
 {
@@ -341,6 +588,7 @@ print_cgroup_stats(struct module *mod)
 		pos += snprintf(buf + pos, LEN_1M - pos, "%s=",	cgroups[i].name);
 		pos += print_cgroup_load(buf + pos, LEN_1M - pos, &cgroups[i].load);
 		pos += print_cgroup_cpu(buf + pos, LEN_1M - pos, &cgroups[i].cpu);
+		pos += print_cgroup_memory(buf + pos, LEN_1M - pos, &cgroups[i].mem);
 		pos += snprintf(buf + pos, LEN_1M - pos, ITEM_SPLIT);
 	}
 	set_mod_record(mod, buf);
@@ -403,11 +651,29 @@ set_cpu_record(double st_array[],
 }
 
 static void
+set_memory_record(double st_array[], U_64 pre_array[], U_64 cur_array[])
+{
+	int i;
+	int lat_cnt = sizeof(struct cg_memlat_info) / sizeof(unsigned long long) * 3;
+
+	for (i = 0; i < 4; i++) {
+		st_array[i] = cur_array[i];
+	}
+
+	st_array[4] = cur_array[1] * 100.0 / cur_array[2];
+
+	for (i = 5; i < (lat_cnt + 8); i++) {
+		st_array[i] = cur_array[i] - pre_array[i];
+	}
+}
+
+static void
 set_cgroup_record(struct module *mod, double st_array[],
     U_64 pre_array[], U_64 cur_array[], int inter)
 {
 	set_load_record(st_array, cur_array);
 	set_cpu_record(&st_array[5], &pre_array[5], &cur_array[5]);
+	set_memory_record(&st_array[16], &pre_array[16], &cur_array[16]);
 }
 
 void
