@@ -33,6 +33,9 @@ endif
 ifneq ($(findstring mmaptrace,$(TARGET_LIST)),)
 sysak-objs += modules/mmaptrace/mmaptrace.o
 endif
+ifneq ($(findstring loadtask,$(TARGET_LIST)),)
+sysak-objs += modules/loadtask/loadtask.o
+endif
 
 obj-m += sysak.o
 

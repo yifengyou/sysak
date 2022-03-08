@@ -16,10 +16,11 @@ usage() {
 	echo "         -f datafile, file for output"
 	echo "         -i interval, the interval checking the load"
 	echo "         -d,          keep monitoring even if greater than maxload occurs.useful only if the -m option is set"
-	echo "         -s,          show summary result"
+	echo "         -s,          show summary result. will insmod loadtask.ko"
 	echo "         -k,          terminate running ${selftaskname} which started previously"
 	echo "         -g,          default collect cpu perf flamegraph by cpu_flamegraph tool"
 	echo "         -r datafile, read datafile created by '-f datafile' or by default(datafile directory /var/log/sysak/loadtask/) and show result"
+	echo "         -e,          rmmod loadtask.ko"
 }
 
 uninterrupt_cnt=0
@@ -54,7 +55,7 @@ uninterrupt_dump() {
 								get_container $pid
 								flag=1
 							fi
-
+							echo "-----" >> $tmpfile
 							echo "`cat /proc/$tid/status | grep Name` $container" >> $tmpfile
 							cat /proc/$tid/stack >> $tmpfile
 							uninterrupt_cnt=$(($uninterrupt_cnt+1))
@@ -180,9 +181,15 @@ current_analyse() {
 		collect_global_framegraph
 	fi
 	echo "####################################################################################" > $tmpfile
+
 	echo "Time: `date "+%Y-%m-%d %H:%M:%S"`" >> $tmpfile
 	echo "$global_cpuflamegraph" >> $tmpfile
 	cat /proc/loadavg >> $tmpfile
+	if [ "$summary" == "true" ];then	
+		if [ -f "/proc/sysak/loadtask/loadavg" ]; then
+			cat /proc/sysak/loadtask/loadavg >> $tmpfile
+		fi
+	fi
 	load=`cat /proc/loadavg | awk '{print $1}'`
 
 	cal_sirq $exist_sirq_tool 0
@@ -243,6 +250,7 @@ current_analyse() {
 		#extra_cmd+="[lockcheck]"
 	fi
 
+	echo "-----" >> $tmpfile
 	if [ $(echo "$load*0.2 > $uninterrupt_cnt" | bc) -eq 1 ]; then
 		echo "load reason: high $high_cost cpu cost" >> $tmpfile
 	else
@@ -371,7 +379,7 @@ selftaskname="`cat /proc/$$/status | grep -w "Name" | awk -F" " '{print $2}'`"
 parsed_datafile=""
 tmp_parsed_datafile=${loadtask_dir}.parsedlog
 
-while getopts 'm:f:i:t:r:dskgh' OPT; do
+while getopts 'm:f:i:t:r:deskgh' OPT; do
 	case $OPT in
 		"h")
 			usage
@@ -407,6 +415,10 @@ while getopts 'm:f:i:t:r:dskgh' OPT; do
 			;;
 		"g")
 			is_cpuflamegraph="true"
+			;;
+		"e")
+			echo "rmmod loadtask.ko"
+			exit 0
 			;;
 		*)
 			usage

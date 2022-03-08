@@ -57,6 +57,14 @@ int __attribute__((weak)) mmaptrace_exit(void)
 {
         return 0;
 }
+int __attribute__((weak)) loadtask_init(void)
+{
+        return 0;
+}
+int __attribute__((weak)) loadtask_exit(void)
+{
+        return 0;
+}
 
 struct sysak_module sysak_modules[] = {
 	{ "trace_sig", trace_sig_init, trace_sig_exit},
@@ -65,6 +73,7 @@ struct sysak_module sysak_modules[] = {
 	{ "task_ctl", task_ctl_init, task_ctl_exit},
 	{ "schedtrace", schedtrace_init, schedtrace_exit},
 	{ "mmap_trace", mmaptrace_init, mmaptrace_exit},
+	{ "loadtask", loadtask_init, loadtask_exit},
 };
 
 const int sysk_module_num = sizeof(sysak_modules) / sizeof(struct sysak_module);
