@@ -67,16 +67,18 @@ struct cg_mem_info {
 };
 
 struct cg_blkio_info {
-    unsigned long long rd_ios;  /* Read I/O operations */
-    unsigned long long rd_merges;   /* Reads merged */
-    unsigned long long rd_sectors; /* Sectors read */
-    unsigned long long rd_ticks;    /* Time in queue + service for read */
-    unsigned long long wr_ios;  /* Write I/O operations */
-    unsigned long long wr_merges;   /* Writes merged */
-    unsigned long long wr_sectors; /* Sectors written */
-    unsigned long long wr_ticks;    /* Time in queue + service for write */
-    unsigned long long ticks;   /* Time of requests in queue */
-    unsigned long long aveq;    /* Average queue length */
+	unsigned long long rd_ios;  /* read i/o operations */
+	unsigned long long rd_bytes;   /* read i/o bytes */
+	unsigned long long rd_wait; /* read i/o wait time */
+	unsigned long long rd_time;    /* read i/o service time */
+	unsigned long long rd_qios;  /* read i/o queued operations */
+	unsigned long long rd_qbytes;   /* read i/o queued bytes */
+	unsigned long long wr_ios;  /* read i/o operations */
+	unsigned long long wr_bytes;   /* read i/o bytes */
+	unsigned long long wr_wait; /* read i/o wait time */
+	unsigned long long wr_time;    /* read i/o service time */
+	unsigned long long wr_qios;  /* read i/o queued operations */
+	unsigned long long wr_qbytes;   /* read i/o queued bytes */
 };
 
 struct cg_hwres_info {
@@ -89,20 +91,20 @@ struct cgroup_info {
 	struct cg_load_info load;
 	struct cg_cpu_info cpu;
 	struct cg_mem_info mem;
-/*	struct cg_blkio_info blkio;*/
+	struct cg_blkio_info blkio;
 } cgroups[MAX_CGROUPS];
 
 unsigned int n_cgs = 0;  /* Number of cgroups */
 char buffer[256];       /* Temporary buffer for parsing */
 
 static struct mod_info cg_info[] = {
-	/* load info */
+	/* load info 0-4 */
 	{" load1", HIDE_BIT,  0,  STATS_NULL},
 	{" load5", HIDE_BIT,  0,  STATS_NULL},
 	{"load15", HIDE_BIT,  0,  STATS_NULL},
 	{"  nrun", HIDE_BIT,  0,  STATS_NULL},
 	{"nunint", HIDE_BIT,  0,  STATS_NULL},
-	/* cpu info */
+	/* cpu info 5-15 */
 	{"  user", DETAIL_BIT,  0,  STATS_NULL},
 	{"  nice", HIDE_BIT,  0,  STATS_NULL},
 	{"   sys", DETAIL_BIT,  0,  STATS_NULL},
@@ -114,7 +116,7 @@ static struct mod_info cg_info[] = {
 	{" guest", HIDE_BIT,  0,  STATS_NULL},
         {"nr_throttled", DETAIL_BIT,  0,  STATS_NULL},
         {"throttled_time", DETAIL_BIT,  0,  STATS_NULL},
-/* mem info */
+	/* mem info 16-50*/
 	{"  cach", DETAIL_BIT,  0,  STATS_NULL},
 	{"  used", DETAIL_BIT,  0,  STATS_NULL},
 	{"mtotal", DETAIL_BIT,  0,  STATS_NULL},
@@ -150,26 +152,21 @@ static struct mod_info cg_info[] = {
 	{"dcl1s+", HIDE_BIT,  0,  STATS_NULL},
 	{"dclcnt", HIDE_BIT,  0,  STATS_NULL},
 	{"dcltime", HIDE_BIT,  0,  STATS_NULL},
-/* io info */
-/*
-    {" rrqms", DETAIL_BIT,  MERGE_SUM,  STATS_NULL},
-    {" wrqms", DETAIL_BIT,  MERGE_SUM,  STATS_NULL},
-    {" %rrqm", DETAIL_BIT,  MERGE_AVG,  STATS_NULL},
-    {" %wrqm", DETAIL_BIT,  MERGE_AVG,  STATS_NULL},
-    {"    rs", DETAIL_BIT,  MERGE_SUM,  STATS_NULL},
-    {"    ws", DETAIL_BIT,  MERGE_SUM,  STATS_NULL},
-    {" rsecs", DETAIL_BIT,  MERGE_SUM,  STATS_NULL},
-    {" wsecs", DETAIL_BIT,  MERGE_SUM,  STATS_NULL},
-    {"rqsize", DETAIL_BIT,  MERGE_AVG,  STATS_NULL},
-    {"rarqsz", DETAIL_BIT,  MERGE_AVG,  STATS_NULL},
-    {"warqsz", DETAIL_BIT,  MERGE_AVG,  STATS_NULL},
-    {"qusize", DETAIL_BIT,  MERGE_AVG,  STATS_NULL},
-    {" await", DETAIL_BIT,  MERGE_AVG,  STATS_NULL},
-    {"rawait", DETAIL_BIT,  MERGE_AVG,  STATS_NULL},
-    {"wawait", DETAIL_BIT,  MERGE_AVG,  STATS_NULL},
-    {" svctm", DETAIL_BIT,  MERGE_AVG,  STATS_NULL},
-    {"  util", SUMMARY_BIT,  MERGE_AVG,  STATS_NULL}
-*/
+	/* io info 51-64*/
+	{" riops", DETAIL_BIT,  MERGE_SUM,  STATS_NULL},
+	{" wiops", DETAIL_BIT,  MERGE_SUM,  STATS_NULL},
+	{"  rbps", DETAIL_BIT,  MERGE_SUM,  STATS_NULL},
+	{"  wbps", DETAIL_BIT,  MERGE_SUM,  STATS_NULL},
+	{" rwait", HIDE_BIT,  MERGE_AVG,  STATS_NULL},
+	{" wwait", HIDE_BIT,  MERGE_AVG,  STATS_NULL},
+	{"  rsrv", HIDE_BIT,  MERGE_AVG,  STATS_NULL},
+	{"  wsrv", HIDE_BIT,  MERGE_AVG,  STATS_NULL},
+	{"  rioq", HIDE_BIT,  MERGE_AVG,  STATS_NULL},
+	{"  wioq", HIDE_BIT,  MERGE_AVG,  STATS_NULL},
+	{"rioqsz", HIDE_BIT,  MERGE_AVG,  STATS_NULL},
+	{"wioqsz", HIDE_BIT,  MERGE_AVG,  STATS_NULL},
+	{"rarqsz", DETAIL_BIT,  MERGE_AVG,  STATS_NULL},
+	{"warqsz", DETAIL_BIT,  MERGE_AVG,  STATS_NULL},
 };
 
 #define NR_CGROUP_INFO sizeof(cg_info)/sizeof(struct mod_info)
@@ -510,6 +507,99 @@ static int get_memory_stats(int cg_idx)
 	return items;
 }
 
+static int read_io_stat(const char *filepath, unsigned long long *rval, unsigned long long *wval)
+{
+	FILE *file;
+	char *pbuf;
+	int items = 0, ret = 0;
+
+	file = fopen(filepath, "r");
+	if (!file)
+		return 0;
+
+	while (fgets(buffer, sizeof(buffer), file)) {
+		items += ret;
+		if (items == 2)
+			break;
+		pbuf = strstr(buffer, "Read");
+		if (pbuf) {
+			ret = sscanf(pbuf, "Read %llu", rval);
+			if (ret != 1) {
+				return 0;
+			}
+			continue;
+		}
+
+		pbuf = strstr(buffer, "Write");
+		if (pbuf) {
+			ret = sscanf(pbuf, "Write %llu", wval);
+			if (ret != 1) {
+				return 0;
+			}
+			continue;
+		}
+	}
+
+	fclose(file);
+	if (items != 2)
+		return 0;
+
+	return items;
+}
+
+static int get_blkinfo_stats(int cg_idx)
+{
+	char filepath[LEN_1024];
+	char *path_end = filepath;
+	int items = 0, ret = 0;
+
+	if (!get_cgroup_path(cgroups[cg_idx].name, "blkio", filepath))
+		return 0;
+
+	path_end = filepath + strlen(filepath);
+	strcpy(path_end, "/blkio.throttle.io_serviced");
+	ret = read_io_stat(filepath, &cgroups[cg_idx].blkio.rd_ios, &cgroups[cg_idx].blkio.wr_ios);
+	if (ret <=0)
+		return 0;
+	items += ret;
+
+	strcpy(path_end, "/blkio.throttle.io_service_bytes");
+	ret = read_io_stat(filepath, &cgroups[cg_idx].blkio.rd_bytes, &cgroups[cg_idx].blkio.wr_bytes);
+	if (ret <=0)
+		return 0;
+	items += ret;
+
+	strcpy(path_end, "/blkio.throttle.io_wait_time");
+	ret = read_io_stat(filepath, &cgroups[cg_idx].blkio.rd_wait, &cgroups[cg_idx].blkio.wr_wait);
+	if (ret <=0)
+		return items;
+	cg_info[55].summary_bit = DETAIL_BIT;
+	cg_info[56].summary_bit = DETAIL_BIT;
+
+	strcpy(path_end, "/blkio.throttle.io_service_time");
+	ret = read_io_stat(filepath, &cgroups[cg_idx].blkio.rd_time, &cgroups[cg_idx].blkio.wr_time);
+	if (ret <=0)
+		return items;
+	cg_info[57].summary_bit = DETAIL_BIT;
+	cg_info[58].summary_bit = DETAIL_BIT;
+
+	strcpy(path_end, "/blkio.throttle.total_io_queued");
+	ret = read_io_stat(filepath, &cgroups[cg_idx].blkio.rd_qios, &cgroups[cg_idx].blkio.wr_qios);
+	if (ret <=0)
+		return items;
+	cg_info[59].summary_bit = DETAIL_BIT;
+	cg_info[60].summary_bit = DETAIL_BIT;
+
+	strcpy(path_end, "/blkio.throttle.total_bytes_queued");
+	ret = read_io_stat(filepath, &cgroups[cg_idx].blkio.rd_qbytes, &cgroups[cg_idx].blkio.wr_qbytes);
+	if (ret <=0)
+		return items;
+
+	cg_info[61].summary_bit = DETAIL_BIT;
+	cg_info[62].summary_bit = DETAIL_BIT;
+	return items;
+}
+
 void get_cgroup_stats(void)
 {
 	int i, items;
@@ -519,6 +609,7 @@ void get_cgroup_stats(void)
 		items += get_load_and_enhanced_cpu_stats(i);
 		items += get_cpu_stats(i);
 		items += get_memory_stats(i);
+		items += get_blkinfo_stats(i);
 		cgroups[i].valid = !!items;
 	}
 }
@@ -573,6 +664,16 @@ static int print_cgroup_memory(char *buf, int len, struct cg_mem_info *info)
 	return ret;
 }
 
+static int print_cgroup_blkio(char *buf, int len, struct cg_blkio_info *info)
+{
+	return snprintf(buf, len, "%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,",
+			info->rd_ios, info->wr_ios,
+			info->rd_bytes, info->wr_bytes,
+			info->rd_wait, info->wr_wait,
+			info->rd_time, info->wr_time,
+			info->rd_qios, info->wr_qios,
+			info->rd_qbytes, info->wr_qbytes);
+}
 
 void
 print_cgroup_stats(struct module *mod)
@@ -589,6 +690,7 @@ print_cgroup_stats(struct module *mod)
 		pos += print_cgroup_load(buf + pos, LEN_1M - pos, &cgroups[i].load);
 		pos += print_cgroup_cpu(buf + pos, LEN_1M - pos, &cgroups[i].cpu);
 		pos += print_cgroup_memory(buf + pos, LEN_1M - pos, &cgroups[i].mem);
+		pos += print_cgroup_blkio(buf + pos, LEN_1M - pos, &cgroups[i].blkio);
 		pos += snprintf(buf + pos, LEN_1M - pos, ITEM_SPLIT);
 	}
 	set_mod_record(mod, buf);
@@ -668,12 +770,75 @@ set_memory_record(double st_array[], U_64 pre_array[], U_64 cur_array[])
 }
 
 static void
+set_blkio_record(double st_array[], U_64 pre_array[], U_64 cur_array[], int inter)
+{
+	int i, data_valid = 1;
+
+	for(i = 0; i < 11; i++){
+		if(cur_array[i] < pre_array[i]) {
+			data_valid = 0;
+			break;
+		}
+	}
+
+	if (!data_valid) {
+		for(i = 0; i < 14; i++)
+			st_array[i] = -1;
+		return;
+	}
+
+	unsigned long long rd_ios = cur_array[0] - pre_array[0];
+	unsigned long long wr_ios = cur_array[1] - pre_array[1];
+	unsigned long long rd_bytes = cur_array[2] - pre_array[2];
+	unsigned long long wr_bytes = cur_array[3] - pre_array[3];
+	unsigned long long rd_wait = cur_array[4] - pre_array[4];
+	unsigned long long wr_wait = cur_array[5] - pre_array[5];
+	unsigned long long rd_time = cur_array[6] - pre_array[6];
+	unsigned long long wr_time = cur_array[7] - pre_array[7];
+	unsigned long long rd_qios = cur_array[8] - pre_array[8];
+	unsigned long long wr_qios = cur_array[9] - pre_array[9];
+	unsigned long long rd_qbytes = cur_array[10] - pre_array[10];
+	unsigned long long wr_qbytes = cur_array[11] - pre_array[11];
+
+	st_array[0] = rd_ios / (inter * 1.0);
+	st_array[1] = wr_ios / (inter * 1.0);
+	st_array[2] = rd_bytes / (inter * 1.0);
+	st_array[3] = wr_bytes / (inter * 1.0);
+	st_array[8] = rd_qios / (inter * 1.0);
+	st_array[9] = wr_qios / (inter * 1.0);
+	st_array[10] = rd_qbytes / (inter * 1.0);
+	st_array[11] = wr_qbytes / (inter * 1.0);
+
+	if (rd_ios) {
+		st_array[4] = rd_wait / (rd_ios * 1.0);
+		st_array[6] = rd_time / (rd_ios * 1.0);
+		st_array[12] = rd_bytes / (rd_ios * 1.0);
+	} else {
+		st_array[4] = 0;
+		st_array[6] = 0;
+		st_array[12] = 0;
+	}
+
+	if (wr_ios) {
+		st_array[5] = wr_wait / (wr_ios * 1.0);
+		st_array[7] = wr_time / (wr_ios * 1.0);
+		st_array[13] = wr_bytes / (wr_ios * 1.0);
+	} else {
+		st_array[5] = 0;
+		st_array[7] = 0;
+		st_array[13] = 0;
+	}
+}
+
+
+static void
 set_cgroup_record(struct module *mod, double st_array[],
     U_64 pre_array[], U_64 cur_array[], int inter)
 {
 	set_load_record(st_array, cur_array);
 	set_cpu_record(&st_array[5], &pre_array[5], &cur_array[5]);
 	set_memory_record(&st_array[16], &pre_array[16], &cur_array[16]);
+	set_blkio_record(&st_array[51], &pre_array[51], &cur_array[51], inter);
 }
 
 void
