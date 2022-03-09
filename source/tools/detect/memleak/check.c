@@ -90,6 +90,7 @@ int read_meminfo(struct meminfo *mem)
             sscanf(line + 8, "%lu", &st_mem.lock);
         }
     }
+    fclose(fp);
     st_mem.huge1G = read_hugepage1G()*1024*1024;
     if (hugeSize == 2048)
         st_mem.huge2M = hugeTotal * hugeSize;
