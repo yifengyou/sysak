@@ -9,7 +9,7 @@ iofsstat实现从进程和文件级别统计IO信息，传统的IO统计工具�
 # 使用
 ## 参数说明
 ```
-usage: iofsstat.py [-h] [-c] [-d DEVICE] [-p PID] [-f]
+usage: iofsstat.py [-h] [-d DEVICE] [-p PID] [-f]
 interval
 
 Report fs/block IO statistic for disk.
@@ -19,7 +19,6 @@ positional arguments:
 
 optional arguments:
     -h, --help           show this help message and exit
-    -c, --container      Report IO statistic for container.
     -d DEVICE, --device DEVICE
                          Specify the disk name.
     -p PID, --pid PID    Specify the process id.
