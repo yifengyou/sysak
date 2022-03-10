@@ -2,56 +2,6 @@
 # rtrace-delay 网络抖动诊断
 
 rtrace-delay是一款基于eBPF的网络抖动诊断工具，目前icmp（ping）、tcp等协议的网络抖动。
-
-
-## 原理简介
-
-一般地，网络抖动问题定位过程包括：
-
-1. 确定是抖动发生在发送端还是接收端；
-2. 确定是否在内核；
-3. 确定导致抖动的代码片段；
-
-为了确定抖动发生在发送端还是接收端，rtrace将一个完整的报文路径分成两个部分：**发送端报文路径和接收端报文路径**。
-
-为了确定抖动是否发生在内核，rtrace在**内核出入口处的地方进行打点监控**。
-
-为了确定导致抖动的代码片段，rtrace实现了动态打点功能，即可以随时**新增打点函数**，进而逐步缩减抖动范围。
-
-接下来从这三点出发，介绍ping报文和tcp报文的抖动诊断方案。
-
-### icmp（ping）抖动诊断
-
-下图是ping的ICMP_ECHO和ICMP_ECHOREPLY报文路径。黑色箭头是ICMP_ECHO报文路径，红色箭头是ICMP_ECHOREPLY报文路径。
-
-其中，发送端报文路径包括：ICMP_ECHO报文发送路径及ICMP_ECHOREPLY报文接收路径：
-
-* ICMP_ECHO报文发送路径是：raw_sendmsg->dev_hard_start_xmit->驱动；
-* ICMP_ECHOREPLY报文接收路径：驱动->__netif_receive_skb_core->ping_rcv->ping_recvmsg。
-
-其中，接收端报文路径包括：ICMP_ECHO报文接收路径及ICMP_ECHOREPLY报文发送路径：
-
-* ICMP_ECHO报文接收路径：驱动->__netif_receive_skb_core->icmp_rcv；
-* ICMP_ECHOREPLY报文发送路径：dev_hard_start_xmit->驱动。
-
-![ping抖动诊断默认打点路径](../image/ping-delay.png)
-
-### tcp抖动诊断原理
-
-下图是tcp的数据报文和ack报文路径，黑色箭头是数据报文路径，红色箭头是ack报文路径。
-
-发送端报文路径包括：报文发送路径及ack报文接收路径。
-
-* 报文发送路径是：tcp_sendmsg->dev_hard_start_xmit->驱动；
-* ack报文接收路径是：驱动->__netif_receive_skb_core->tcp_ack；
-
-接收端报文路径包括：报文接收路径及ack报文发送路径。
-
-* 报文接收路径包括：驱动->__netif_receive_skb_core->tcp_queue_rcv->tcp_cleanup_rbuf；
-* ack报文发送路径是：__tcp_transmit_skb->驱动->__netif_receive_skb_core->驱动；
-
-![tcp抖动诊断默认打点路径](../image/tcp-delay.png)
-
 ## 使用说明
 
 使用流程：
