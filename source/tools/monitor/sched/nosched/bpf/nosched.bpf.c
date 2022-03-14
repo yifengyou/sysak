@@ -129,8 +129,8 @@ int BPF_KPROBE(account_process_tick, struct task_struct *p, int user_tick)
 				ext_val.cpu = cpuid;
 				ext_val.stamp = latp->last_seen_need_resched_ns;
 				bpf_map_update_elem(&stackmap_ext, &ext_key, &ext_val, BPF_ANY);
-				bpf_printk("%s :lat is %ld us, %d ticks\n", ext_val.comm, 
-					resched_latency/1000, latp->ticks_without_resched);
+				/* bpf_printk("%s :lat is %ld us, %d ticks\n", ext_val.comm, 
+					resched_latency/1000, latp->ticks_without_resched); */
 			}
 		}
 	} else {

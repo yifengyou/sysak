@@ -18,6 +18,10 @@
 #include "nosched.comm.h"
 
 #define MAX_SYMS 300000
+FILE *filep = NULL;
+char filename[256] = {0};
+char defaultfile[] = "/var/log/sysak/nosched.log";
+
 static struct ksym syms[MAX_SYMS];
 static int sym_cnt;
 char *help_str = "sysak nosched";
@@ -27,7 +31,8 @@ static void usage(char *prog)
 	const char *str =
 	"  Usage: %s [OPTIONS]\n"
 	"  Options:\n"
-	"  -t              specify the threshold time(ms), default=10ms\n"
+	"  -t                   specify the threshold time(ms), default=10ms\n"
+	"  -f result.log        result file, default is /var/log/sysak/nosched.log\n"
 	;
 
 	fprintf(stderr, str, prog);
@@ -99,7 +104,8 @@ struct ksym *ksym_search(long key)
 
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
 {
-	return vfprintf(stderr, format, args);
+	return 0;
+	//return vfprintf(stderr, format, args);
 }
 
 static void bump_memlock_rlimit(void)
@@ -123,7 +129,7 @@ static void print_ksym(__u64 addr)
 		return;
 
 	sym = ksym_search(addr);
-	printf("<%llx> %s\n", addr, sym->name);
+	fprintf(filep, "<%llx> %s\n", addr, sym->name);
 }
 
 static void print_stack(int fd, struct ext_key *key)
@@ -132,11 +138,11 @@ static void print_stack(int fd, struct ext_key *key)
 	__u64 ip[PERF_MAX_STACK_DEPTH] = {};
 
 	if (bpf_map_lookup_elem(fd, &key->ret, &ip) == 0) {
-		for (i = 7; i < PERF_MAX_STACK_DEPTH; i++)
+		for (i = 7; i < PERF_MAX_STACK_DEPTH - 1; i++)
 			print_ksym(ip[i]);
 	} else {
 		if ((int)(key->ret) < 0)
-		printf("<0x0000000000000000>:error=%d\n", (int)(key->ret));
+		fprintf(filep, "<0x0000000000000000>:error=%d\n", (int)(key->ret));
 	}
 }
 
@@ -163,15 +169,14 @@ static void print_stacks(int fd, int ext_fd)
 	struct ext_key ext_key = {}, next_key;
 	struct ext_val value;
 
-	fprintf(stdout, "%-21s %-6s %-16s %-8s %-10s\n", "TIME", "CPU", "COMM", "TID", "LAT(us)");
+	fprintf(filep, "%-21s %-6s %-16s %-8s %-10s\n", "TIME", "CPU", "COMM", "TID", "LAT(us)");
 	while (bpf_map_get_next_key(ext_fd, &ext_key, &next_key) == 0) {
 		bpf_map_lookup_elem(ext_fd, &next_key, &value);
 		memset(dt, 0, sizeof(dt));
 		stamp_to_date(value.stamp, dt, sizeof(dt));
-		fprintf(stdout, "%-21s %-6d %-16s %-8d %-10llu\n",
+		fprintf(filep, "%-21s %-6d %-16s %-8d %-10llu\n",
 			dt, value.cpu, value.comm, value.pid, value.lat_us);
 		print_stack(fd, &next_key);
-		printf("----------------------\n");
 		bpf_map_delete_elem(ext_fd, &next_key);
 		ext_key = next_key;
 	}
@@ -195,7 +200,7 @@ int main(int argc, char **argv)
 
 	val = LAT_THRESH_NS;
 	for (;;) {
-		c = getopt_long(argc, argv, "t:h", NULL, &option_index);
+		c = getopt_long(argc, argv, "t:f:h", NULL, &option_index);
 		if (c == -1)
 			break;
 
@@ -210,11 +215,33 @@ int main(int argc, char **argv)
 				printf("Threshold set to %lu ms\n", val);
 				val = val*1000*1000;
 				break;
+			case 'f':
+				if (strlen(optarg) < 2)
+					strncpy(filename, defaultfile, sizeof(filename));
+				else 
+					strncpy(filename, optarg, sizeof(filename));
+				filep = fopen(filename, "a+");
+				if (!filep) {
+					int ret = errno;
+					fprintf(stderr, "%s :fopen %s\n",
+					strerror(errno), filename);
+					return ret;
+				}
+				break;
 			case 'h':
 				usage(help_str);
 				break;
 			default:
 				usage(help_str);
+		}
+	}
+	if (!filep) {
+		filep = fopen(defaultfile, "a+");
+		if (!filep) {
+			int ret = errno;
+			fprintf(stderr, "%s :fopen %s\n",
+				strerror(errno), defaultfile);
+			return ret;
 		}
 	}
 	/* Set up libbpf errors and debug info callback */
@@ -263,9 +290,6 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Failed to update flag map\n");
 		goto cleanup;
 	}
-
-	printf("Successfully started! Please run `sudo cat /sys/kernel/debug/tracing/trace_pipe` "
-	       "to see output of the BPF programs.\n");
 
 	fprintf(stderr, "Running....\n tips:Ctl+c show the result!\n");
 	while (!stop) {
