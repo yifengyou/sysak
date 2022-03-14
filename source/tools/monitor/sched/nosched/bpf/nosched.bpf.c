@@ -91,15 +91,13 @@ int BPF_KPROBE(account_process_tick, struct task_struct *p, int user_tick)
 	struct latinfo lati, *latp;
 	struct args args, *argsp;
 
-	
 	__builtin_memset(&args_key, 0, sizeof(int));
 	argsp = bpf_map_lookup_elem(&args_map, &args_key);
 	if (!argsp)
 		return 0;
 
 	if(!test_tsk_need_resched(p, _(argsp->flag)))
-		//||system_state == SYSTEM_BOOTING)
-			return 0;
+		return 0;
 
 	now = bpf_ktime_get_ns();
 
@@ -128,6 +126,8 @@ int BPF_KPROBE(account_process_tick, struct task_struct *p, int user_tick)
 				bpf_get_current_comm(&ext_val.comm, sizeof(ext_val.comm));
 				ext_val.pid = bpf_get_current_pid_tgid();
 				ext_val.nosched_ticks = latp->ticks_without_resched;
+				ext_val.cpu = cpuid;
+				ext_val.stamp = latp->last_seen_need_resched_ns;
 				bpf_map_update_elem(&stackmap_ext, &ext_key, &ext_val, BPF_ANY);
 				bpf_printk("%s :lat is %ld us, %d ticks\n", ext_val.comm, 
 					resched_latency/1000, latp->ticks_without_resched);

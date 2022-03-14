@@ -34,9 +34,9 @@ struct ext_key {
 };
 
 struct ext_val {
-	int pid;
+	int pid, cpu;
 	int nosched_ticks;
-	__u64 lat_us;
+	__u64 lat_us, stamp;
 	char comm[TASK_COMM_LEN];
 };
 

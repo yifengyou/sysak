@@ -7,14 +7,15 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <signal.h>
+#include <time.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/resource.h>
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>	/* bpf_obj_pin */
 #include <getopt.h>
-#include "nosched.comm.h"
 #include "bpf/nosched.skel.h"
+#include "nosched.comm.h"
 
 #define MAX_SYMS 300000
 static struct ksym syms[MAX_SYMS];
@@ -139,18 +140,36 @@ static void print_stack(int fd, struct ext_key *key)
 	}
 }
 
+#define SEC_TO_NS	(1000*1000*1000)
+static void stamp_to_date(__u64 stamp, char dt[], int len)
+{
+	time_t t, diff, last;
+	struct tm *tm;
+	struct timespec ts;
+
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	time(&t);
+	diff = ts.tv_sec*SEC_TO_NS + ts.tv_nsec - stamp;
+	diff = diff/SEC_TO_NS;
+
+	last = t - diff;
+	tm = localtime(&last);
+	strftime(dt, len, "%F_%H:%M:%S", tm);
+}
+
 static void print_stacks(int fd, int ext_fd)
 {
+	char dt[64] = {0};
 	struct ext_key ext_key = {}, next_key;
 	struct ext_val value;
 
-	printf("***********************************\n");
+	fprintf(stdout, "%-21s %-6s %-16s %-8s %-10s\n", "TIME", "CPU", "COMM", "TID", "LAT(us)");
 	while (bpf_map_get_next_key(ext_fd, &ext_key, &next_key) == 0) {
 		bpf_map_lookup_elem(ext_fd, &next_key, &value);
-		printf("%s<%d> [%lld.%lld]: lat=%lldus, lat_tick=%d\n",
-			 value.comm, value.pid, next_key.stamp/(1000000000),
-			 next_key.stamp%(1000000000), value.lat_us,
-			 value.nosched_ticks);
+		memset(dt, 0, sizeof(dt));
+		stamp_to_date(value.stamp, dt, sizeof(dt));
+		fprintf(stdout, "%-21s %-6d %-16s %-8d %-10llu\n",
+			dt, value.cpu, value.comm, value.pid, value.lat_us);
 		print_stack(fd, &next_key);
 		printf("----------------------\n");
 		bpf_map_delete_elem(ext_fd, &next_key);
@@ -188,7 +207,7 @@ int main(int argc, char **argv)
 					perror("strtol");
 					return errno;
 				}
-				printf("Threshold set to %ld ms\n", val);
+				printf("Threshold set to %lu ms\n", val);
 				val = val*1000*1000;
 				break;
 			case 'h':
