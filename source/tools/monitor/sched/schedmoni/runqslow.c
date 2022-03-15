@@ -45,11 +45,10 @@ void *runslw_handler(void *arg)
 	struct perf_buffer_opts pb_opts = {};
 
 	previous = env.previous;
-	fprintf(fp_rsw, "Tracing run queue latency higher than %llu us\n", env.min_us);
 	if (env.previous)
-		fprintf(fp_rsw, "%-21s %-6s %-16s %-8s %-10s %-16s %-6s\n", "TIME", "CPU", "COMM", "TID", "LAT(us)", "PREV COMM", "PREV TID");
+		fprintf(fp_rsw, "%-21s %-6s %-16s %-8s %-10s %-16s %-6s\n", "TIME(runslw)", "CPU", "COMM", "TID", "LAT(us)", "PREV COMM", "PREV TID");
 	else
-		fprintf(fp_rsw, "%-21s %-6s %-16s %-8s %-10s\n", "TIME", "CPU", "COMM", "TID", "LAT(us)");
+		fprintf(fp_rsw, "%-21s %-6s %-16s %-8s %-10s\n", "TIME(runslw)", "CPU", "COMM", "TID", "LAT(us)");
 
 	pb_opts.sample_cb = handle_event;
 	pb = perf_buffer__new(data->fd, 64, &pb_opts);

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 #include <argp.h>
+#include <unistd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,6 +8,8 @@
 #include <time.h>
 #include <pthread.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 #include "schedmoni.h"
@@ -14,32 +17,36 @@
 
 FILE *fp_nsc = NULL, *fp_rsw = NULL;
 volatile sig_atomic_t exiting = 0;
-char rswf[] = "/var/log/sysak/runslow.log";
-char nscf[] = "/var/log/sysak/nosched.log";
+char log_dir[] = "/var/log/sysak/schedmoni";
+char rswf[] = "/var/log/sysak/schedmoni/runslow.log";
+char nscf[] = "/var/log/sysak/schedmoni/nosched.log";
 char filename[256] = {0};
 
 struct env env = {
+	.span = 0,
 	.min_us = 10000,
 	.fp = NULL,
 };
 
 const char *argp_program_version = "schedmoni 0.1";
 const char argp_program_doc[] =
-"Trace high run queue latency.\n"
+"Trace schedule latency.\n"
 "\n"
-"USAGE: schedmoni [--help] [-p PID] [-t TID] [-P] [min_us] [-f ./runqslow.log]\n"
+"USAGE: schedmoni [--help] [-s SPAN] [-t TID] [-P] [min_us] [-f ./runslow.log]\n"
 "\n"
 "EXAMPLES:\n"
 "    schedmoni          # trace latency higher than 10000 us (default)\n"
 "    schedmoni -f a.log # trace latency and record result to a.log (default to /var/log/sysak/runslow.log)\n"
 "    schedmoni 1000     # trace latency higher than 1000 us\n"
-"    schedmoni -p 123   # trace pid 123\n"
+"    schedmoni -p 123   # trace pid 12dd3\n"
 "    schedmoni -t 123   # trace tid 123 (use for threads only)\n"
+"    schedmoni -s 10    # monitor for 10 seconds\n"
 "    schedmoni -P       # also show previous task name and TID\n";
 
 static const struct argp_option opts[] = {
 	{ "pid", 'p', "PID", 0, "Process PID to trace"},
 	{ "tid", 't', "TID", 0, "Thread TID to trace"},
+	{ "span", 's', "SPAN", 0, "How long to run"},
 	{ "verbose", 'v', NULL, 0, "Verbose debug output" },
 	{ "previous", 'P', NULL, 0, "also show previous task name and TID" },
 	{ "logfile", 'f', "LOGFILE", 0, "logfile for result"},
@@ -60,11 +67,22 @@ static void bump_memlock_rlimit(void)
 	}
 }
 
+static int prepare_dictory(char *path)
+{
+	int ret;
+
+	ret = mkdir(path, 0777);
+	if (ret < 0 && errno != EEXIST)
+		return errno;
+	else
+		return 0;
+}
+
 static error_t parse_arg(int key, char *arg, struct argp_state *state)
 {
-	static int pos_args;
 	int pid;
-	long long min_us;
+	static int pos_args;
+	long long min_us, span;
 
 	switch (key) {
 	case 'h':
@@ -93,6 +111,15 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 			argp_usage(state);
 		}
 		env.tid = pid;
+		break;
+	case 's':
+		errno = 0;
+		span = strtoul(arg, NULL, 10);
+		if (errno || span <= 0) {
+			fprintf(stderr, "Invalid SPAN: %s\n", arg);
+			argp_usage(state);
+		}
+		env.span = span;
 		break;
 	case 'f':
 		if (strlen(arg) < 2) {
@@ -179,6 +206,11 @@ static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va
 	return vfprintf(stderr, format, args);
 }
 
+static void sig_alarm(int signo)
+{
+	exiting = 1;
+}
+
 static void sig_int(int signo)
 {
 	exiting = 1;
@@ -194,7 +226,7 @@ int main(int argc, char **argv)
 	void *res;
 	int i, err, err1, err2;
 	int arg_fd, ent_fd, stk_fd, stkext_fd;
-	pthread_t pt_runslw/*, pt_rqs*/;
+	pthread_t pt_runslw, pt_runnsc;
 	struct schedmoni_bpf *obj;
 	struct args args = {};
 	struct tharg runslw = {};
@@ -204,6 +236,10 @@ int main(int argc, char **argv)
 		.parser = parse_arg,
 		.doc = argp_program_doc,
 	};
+
+	err = prepare_dictory(log_dir);
+	if (err)
+		return err;
 
 	err = argp_parse(&argp, argc, argv, 0, NULL, NULL);
 	if (err)
@@ -247,7 +283,8 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 
-	if (signal(SIGINT, sig_int) == SIG_ERR) {
+	if (signal(SIGINT, sig_int) == SIG_ERR ||
+		signal(SIGALRM, sig_alarm) == SIG_ERR) {
 		fprintf(stderr, "can't set signal handler: %s\n", strerror(errno));
 		err = 1;
 		goto cleanup;
@@ -262,18 +299,20 @@ int main(int argc, char **argv)
 	runnsc.fd = stk_fd;
 	runnsc.ext_fd = stkext_fd;
 
-	err = pthread_create(&pt_runslw, NULL, runnsc_handler, &runnsc);
+	err = pthread_create(&pt_runnsc, NULL, runnsc_handler, &runnsc);
 	if (err) {
-		fprintf(stderr, "can't pthread_create runslw: %s\n", strerror(errno));
+		fprintf(stderr, "can't pthread_create runnsc: %s\n", strerror(errno));
 		goto cleanup;
 	}
 
+	if (env.span)
+		alarm(env.span);
+
 	err1 = pthread_join(pt_runslw, &res);
-	err2 = pthread_join(pt_runslw, &res);
+	err2 = pthread_join(pt_runnsc, &res);
 	if (err1 || err2) {
 		goto cleanup;
 	}
-	//printf("retvalue=%d\n", *res);
 
 cleanup:
 	schedmoni_bpf__destroy(obj);

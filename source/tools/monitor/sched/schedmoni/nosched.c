@@ -93,7 +93,7 @@ static void print_ksym(__u64 addr)
 		return;
 
 	sym = ksym_search(addr);
-	fprintf(fp_nsc, "<%llx> %s\n", addr, sym->name);
+	fprintf(fp_nsc, "<0x%llx> %s\n", addr, sym->name);
 }
 
 static void print_stack(int fd, struct ext_key *key)
@@ -133,7 +133,7 @@ static void print_stacks(int fd, int ext_fd)
 	struct ext_key ext_key = {}, next_key;
 	struct ext_val value;
 
-	fprintf(fp_nsc, "%-21s %-6s %-16s %-8s %-10s\n", "TIME", "CPU", "COMM", "TID", "LAT(us)");
+	fprintf(fp_nsc, "%-21s %-6s %-16s %-8s %-10s\n", "TIME(nosch)", "CPU", "COMM", "TID", "LAT(us)");
 	while (bpf_map_get_next_key(ext_fd, &ext_key, &next_key) == 0) {
 		bpf_map_lookup_elem(ext_fd, &next_key, &value);
 		memset(dt, 0, sizeof(dt));

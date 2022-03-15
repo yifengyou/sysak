@@ -231,7 +231,7 @@ int BPF_KPROBE(account_process_tick, struct task_struct *p, int user_tick)
 			latp->ticks_without_resched = 0;
 		} else {
 			latp->ticks_without_resched++;
-			resched_latency = now - latp->last_seen_need_resched_ns;
+			resched_latency = (now - latp->last_seen_need_resched_ns)/1000;
 			if (resched_latency > _(argsp->min_us)) {
 				struct key_t key;
 				struct ext_key ext_key;
@@ -243,7 +243,7 @@ int BPF_KPROBE(account_process_tick, struct task_struct *p, int user_tick)
 				key.ret = bpf_get_stackid(ctx, &stackmap, KERN_STACKID_FLAGS);
 				ext_key.stamp = now;
 				ext_key.ret = key.ret;
-				ext_val.lat_us = resched_latency/1000;
+				ext_val.lat_us = resched_latency;
 				bpf_get_current_comm(&ext_val.comm, sizeof(ext_val.comm));
 				ext_val.pid = bpf_get_current_pid_tgid();
 				ext_val.nosched_ticks = latp->ticks_without_resched;

@@ -24,6 +24,7 @@ struct tharg {
 struct env {
 	pid_t pid;
 	pid_t tid;
+	unsigned long span;
 	__u64 min_us;
 	bool previous;
 	bool verbose;
