@@ -38,7 +38,7 @@ const char argp_program_doc[] =
 "    schedmoni          # trace latency higher than 10000 us (default)\n"
 "    schedmoni -f a.log # trace latency and record result to a.log (default to /var/log/sysak/runslow.log)\n"
 "    schedmoni 1000     # trace latency higher than 1000 us\n"
-"    schedmoni -p 123   # trace pid 12dd3\n"
+"    schedmoni -p 123   # trace pid 123\n"
 "    schedmoni -t 123   # trace tid 123 (use for threads only)\n"
 "    schedmoni -s 10    # monitor for 10 seconds\n"
 "    schedmoni -P       # also show previous task name and TID\n";
@@ -124,7 +124,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	case 'f':
 		if (strlen(arg) < 2) {
 			strncpy(filename, rswf, sizeof(filename));
-			fp_rsw = fopen(filename, "a+");
+			fp_rsw = fopen(filename, "w+");
 			if (!fp_rsw) {
 				int ret = errno;
 				fprintf(stderr, "%s :fopen %s\n",
@@ -133,7 +133,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 			}
 			memset(filename, 0, sizeof(filename));
 			strncpy(filename, nscf, sizeof(filename));
-			fp_nsc = fopen(filename, "a+");
+			fp_nsc = fopen(filename, "w+");
 			if (!fp_nsc) {
 				int ret = errno;
 				fprintf(stderr, "%s :fopen %s\n",
@@ -142,7 +142,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 			}
 		} else {
 			snprintf(filename, sizeof(filename), "%s.rswf", arg);
-			fp_rsw = fopen(filename, "a+");
+			fp_rsw = fopen(filename, "w+");
 			if (!fp_rsw) {
 				int ret = errno;
 				fprintf(stderr, "%s :fopen %s\n",
@@ -151,7 +151,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 			}
 			memset(filename, 0, sizeof(filename));
 			snprintf(filename, sizeof(filename), "%s.nscf", arg);
-			fp_nsc = fopen(filename, "a+");
+			fp_nsc = fopen(filename, "w+");
 			if (!fp_nsc) {
 				int ret = errno;
 				fprintf(stderr, "%s :fopen %s\n",
@@ -179,7 +179,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	}
 	if (!fp_rsw && !fp_nsc) {
 		strncpy(filename, rswf, sizeof(filename));
-		fp_rsw = fopen(filename, "a+");
+		fp_rsw = fopen(filename, "w+");
 		if (!fp_rsw) {
 			int ret = errno;
 			fprintf(stderr, "%s :fopen %s\n",
@@ -188,7 +188,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		}
 		memset(filename, 0, sizeof(filename));
 		strncpy(filename, nscf, sizeof(filename));
-		fp_nsc = fopen(filename, "a+");
+		fp_nsc = fopen(filename, "w+");
 		if (!fp_nsc) {
 			int ret = errno;
 			fprintf(stderr, "%s :fopen %s\n",
