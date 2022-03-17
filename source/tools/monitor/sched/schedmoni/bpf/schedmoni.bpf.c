@@ -124,27 +124,26 @@ int trace_enqueue(u32 tgid, u32 pid)
 	return 0;
 }
 
-SEC("tp/sched/sched_wakeup")
-int handle__sched_wakeup(struct trace_event_raw_sched_wakeup_template *ctx)
+SEC("raw_tracepoint/sched_wakeup")
+int raw_tracepoint__sched_wakeup(struct bpf_raw_tracepoint_args *ctx)
 {
-	pid_t pid = 0;
-	bpf_probe_read(&pid, sizeof(pid), &(ctx->pid));
+	struct task_struct *p = (void *)ctx->args[0];
 
-	return trace_enqueue(0, pid);
+	return trace_enqueue(_(p->tgid), _(p->pid));
 }
 
-SEC("tp/sched/sched_wakeup_new")
-int handle__sched_wakeup_new(struct trace_event_raw_sched_wakeup_template *ctx)
+SEC("raw_tracepoint/sched_wakeup_new")
+int raw_tracepoint__sched_wakeup_new(struct bpf_raw_tracepoint_args *ctx)
 {
-	pid_t pid = 0;
-	bpf_probe_read(&pid, sizeof(pid), &(ctx->pid));
+	struct task_struct *p = (void *)ctx->args[0];
 
-	return trace_enqueue(0, pid);
+	return trace_enqueue(_(p->tgid), _(p->pid));
 }
 
 SEC("tp/sched/sched_switch")
 int handle_switch(struct trace_event_raw_sched_switch *ctx)
 {
+	struct task_struct *prev;
 	u64 cpuid;
 	u32 pid, prev_pid;
 	long int prev_state;
@@ -173,8 +172,9 @@ int handle_switch(struct trace_event_raw_sched_switch *ctx)
 
 	/* 2nd: runqslower */
 	/* ivcsw: treat like an enqueue event and store timestamp */
+	prev = (void *)bpf_get_current_task();
 	if (prev_state == TASK_RUNNING)
-		trace_enqueue(0, prev_pid);
+		trace_enqueue(_(prev->tgid), prev_pid);
 
 	/* fetch timestamp and calculate delta */
 	tsp = bpf_map_lookup_elem(&start, &pid);
