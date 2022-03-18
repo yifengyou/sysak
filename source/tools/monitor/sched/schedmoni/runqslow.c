@@ -26,10 +26,11 @@ void handle_event(void *ctx, int cpu, void *data, __u32 data_sz)
 	tm = localtime(&t);
 	strftime(ts, sizeof(ts), "%F_%H:%M:%S", tm);
 	if (env.previous)
-		fprintf(fp_rsw, "%-21s %-6d %-16s %-8d %-10llu %-16s %-6d\n", ts, e->cpuid, e->task, e->pid,
-			e->delta_us, e->prev_task, e->prev_pid);
+		fprintf(fp_rsw, "%-21s %-5d %-15s %-8d %-10llu %-7d %-16s %-6d\n", ts, e->cpuid, e->task,
+			e->pid, e->delta_us, e->rqlen, e->prev_task, e->prev_pid);
 	else
-		fprintf(fp_rsw, "%-21s %-6d %-16s %-8d %-10llu\n", ts, e->cpuid, e->task, e->pid, e->delta_us);
+		fprintf(fp_rsw, "%-21s %-5d %-15s %-8d %-10llu %-7d\n", ts, e->cpuid, e->task, e->pid,
+			e->delta_us, e->rqlen);
 }
 
 void handle_lost_events(void *ctx, int cpu, __u64 lost_cnt)
@@ -46,12 +47,12 @@ void *runslw_handler(void *arg)
 
 	previous = env.previous;
 	if (env.previous)
-		fprintf(fp_rsw, "%-21s %-6s %-16s %-8s %-10s %-16s %-6s\n", "TIME(runslw)", "CPU", "COMM", "TID", "LAT(us)", "PREV COMM", "PREV TID");
+		fprintf(fp_rsw, "%-21s %-5s %-15s %-8s %-10s %-7s %-16s %-6s\n", "TIME(runslw)", "CPU", "COMM", "TID", "LAT(us)", "RQLEN", "PREV COMM", "PREV TID");
 	else
-		fprintf(fp_rsw, "%-21s %-6s %-16s %-8s %-10s\n", "TIME(runslw)", "CPU", "COMM", "TID", "LAT(us)");
+		fprintf(fp_rsw, "%-21s %-5s %-15s %-8s %-10s %-7s\n", "TIME(runslw)", "CPU", "COMM", "TID", "LAT(us)", "RQLEN");
 
 	pb_opts.sample_cb = handle_event;
-	pb = perf_buffer__new(data->fd, 64, &pb_opts);
+	pb = perf_buffer__new(data->fd, 128, &pb_opts);
 	if (!pb) {
 		err = -errno;
 		fprintf(stderr, "failed to open perf buffer: %d\n", err);

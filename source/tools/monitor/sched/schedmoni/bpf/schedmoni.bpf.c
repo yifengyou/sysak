@@ -20,7 +20,7 @@ struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(max_entries, 10240);
 	__type(key, u32);
-	__type(value, u64);
+	__type(value, struct enq_info);
 } start SEC(".maps");
 
 struct {
@@ -103,8 +103,9 @@ static inline int test_tsk_need_resched(struct task_struct *tsk, int flag)
 
 /* record enqueue timestamp */
 static __always_inline
-int trace_enqueue(u32 tgid, u32 pid)
+int trace_enqueue(u32 tgid, u32 pid, unsigned int runqlen)
 {
+	struct enq_info enq_info;
 	u64 ts;
 	pid_t targ_tgid, targ_pid;
 	struct args *argp;
@@ -120,35 +121,42 @@ int trace_enqueue(u32 tgid, u32 pid)
 		return 0;
 
 	ts = bpf_ktime_get_ns();
-	bpf_map_update_elem(&start, &pid, &ts, 0);
+	enq_info.ts = ts;
+	enq_info.rqlen = runqlen;
+	bpf_map_update_elem(&start, &pid, &enq_info, 0);
 	return 0;
 }
 
 SEC("raw_tracepoint/sched_wakeup")
 int raw_tracepoint__sched_wakeup(struct bpf_raw_tracepoint_args *ctx)
 {
+	unsigned int runqlen = 0;
 	struct task_struct *p = (void *)ctx->args[0];
 
-	return trace_enqueue(_(p->tgid), _(p->pid));
+	runqlen = BPF_CORE_READ(p, se.cfs_rq, nr_running);
+	return trace_enqueue(_(p->tgid), _(p->pid), runqlen);
 }
 
 SEC("raw_tracepoint/sched_wakeup_new")
 int raw_tracepoint__sched_wakeup_new(struct bpf_raw_tracepoint_args *ctx)
 {
+	unsigned int runqlen = 0;
 	struct task_struct *p = (void *)ctx->args[0];
 
-	return trace_enqueue(_(p->tgid), _(p->pid));
+	runqlen = BPF_CORE_READ(p, se.cfs_rq, nr_running);
+	return trace_enqueue(_(p->tgid), _(p->pid), runqlen);
 }
 
 SEC("tp/sched/sched_switch")
 int handle_switch(struct trace_event_raw_sched_switch *ctx)
 {
 	struct task_struct *prev;
+	struct enq_info *enq;
 	u64 cpuid;
 	u32 pid, prev_pid;
 	long int prev_state;
 	struct event event = {};
-	u64 *tsp, delta_us, min_us;
+	u64 delta_us, min_us;
 	struct args *argp;
 	struct latinfo *latp;
 	struct latinfo lati;
@@ -173,15 +181,18 @@ int handle_switch(struct trace_event_raw_sched_switch *ctx)
 	/* 2nd: runqslower */
 	/* ivcsw: treat like an enqueue event and store timestamp */
 	prev = (void *)bpf_get_current_task();
-	if (prev_state == TASK_RUNNING)
-		trace_enqueue(_(prev->tgid), prev_pid);
+	if (prev_state == TASK_RUNNING) {
+		unsigned int runqlen = 0;
 
+		runqlen = BPF_CORE_READ(prev, se.cfs_rq, nr_running);
+		return trace_enqueue(_(prev->tgid), _(prev->pid), runqlen);
+	}
 	/* fetch timestamp and calculate delta */
-	tsp = bpf_map_lookup_elem(&start, &pid);
-	if (!tsp)
+	enq = bpf_map_lookup_elem(&start, &pid);
+	if (!enq)
 		return 0;   /* missed enqueue */
 
-	delta_us = (bpf_ktime_get_ns() - *tsp) / 1000;
+	delta_us = (bpf_ktime_get_ns() - _(enq->ts)) / 1000;
 	min_us = GETARG_FROM_ARRYMAP(argmap, argp, u64, min_us);
 	if (min_us && delta_us <= min_us)
 		return 0;
@@ -191,9 +202,9 @@ int handle_switch(struct trace_event_raw_sched_switch *ctx)
 	event.pid = pid;
 	event.prev_pid = prev_pid;
 	event.delta_us = delta_us;
+	event.rqlen = _(enq->rqlen);
 	bpf_probe_read(event.task, sizeof(event.task), &(ctx->next_comm));
 	bpf_probe_read(event.prev_task, sizeof(event.prev_task), &(ctx->prev_comm));
-
 	/* output */
 	bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU,
 			      &event, sizeof(event));

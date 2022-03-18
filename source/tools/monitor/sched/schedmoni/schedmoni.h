@@ -21,6 +21,14 @@ struct tharg {
 	int ext_fd;
 };
 
+struct enq_info {
+	union {
+		unsigned int rqlen;
+		__u64 pad;
+	};
+	__u64 ts;
+};
+
 struct env {
 	pid_t pid;
 	pid_t tid;
@@ -32,6 +40,7 @@ struct env {
 };
 
 struct event {
+	unsigned int rqlen;
 	char task[TASK_COMM_LEN];
 	char prev_task[TASK_COMM_LEN];
 	
