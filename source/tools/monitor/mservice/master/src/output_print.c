@@ -145,6 +145,8 @@ printf_result(double result)
         printf("%5.1f%s", result / 1024 / 1024 / 1024, "G");
     } else if ((1000 - result / 1024 / 1024 / 1024 / 1024) > 0.1) {
         printf("%5.1f%s", result / 1024 / 1024 / 1024 / 1024, "T");
+    } else {
+        printf("------");
     }
     printf("%s", PRINT_DATA_SPLIT);
 }
