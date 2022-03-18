@@ -210,6 +210,15 @@ static void init_cgroups(void)
 
 	memset(cgroups, 0, sizeof(cgroups));
 	n_cgs = 0;
+
+	/*check docker exit*/
+	if (access("/bin/docker", F_OK) != F_OK &&
+		access("/usr/bin/docker", F_OK) != F_OK &&
+		access("/bin/docker", F_OK) != F_OK &&
+		access("/usr/bin/docker", F_OK) != F_OK) {
+		return;
+	}
+
 	result = popen("docker ps -q", "r");
 	for (i = 0; i < MAX_CGROUPS && !feof(result); i++) {
 		if (feof(result) || !fgets(buffer, sizeof(buffer), result))
