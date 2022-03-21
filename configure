@@ -5,6 +5,7 @@ kern_ver=`uname -r`
 objdir=$(pwd)/out
 enable_lkm=NO
 enable_libbpf=NO
+disable_libbpf=NO
 static_link=no
 enable_all=no
 default_target=yes
@@ -18,6 +19,7 @@ usage() {
 	echo "  --buiddir=OBJDIR           the build dir"
 	echo "  --enable-lkm               enable linux kernel module"
 	echo "  --enable-libbpf            enable libbpf"
+	echo "  --disable-libbpf           disable all bpf tools"
 	echo "  --enable-static            static link for c/cpp tools"
 	echo "  --enable-target-xxx        xxx is the actual tool, like memleak, you may use --show-target to list all"
 	echo "  --enable-target-all        enable all compoents"
@@ -95,6 +97,9 @@ for opt; do
 		--enable-libbpf)
 			enable_libbpf="YES"
 			;;
+		--disable-libbpf)
+			disable_libbpf="YES"
+			;;
 		--enable-static)
 			static_link="yes"
 			;;
@@ -129,9 +134,16 @@ echo "EXTRA_LDFLAGS = --static" >> $config_host_mak
 fi
 
 if [ $default_target = "yes" ]; then
-target_list="cpuirq loadtask sysmonitor cpu_flamegraph $target_list"
+target_list="tcp_syn_drop cpuirq sysmonitor cpu_flamegraph $target_list"
 for i in $target_list;do
 	target_files="$(grep -nrw "target := $i" $(pwd)/source/tools/ | awk -F ":" '{print $1}') $target_files"
+done
+fi
+
+if [ $disable_libbpf = "YES" ]; then
+disable_target=$(grep "bpf\.mk" $(pwd)/source/tools/ -nEr --color | xargs -I {} expr {} : '.*/source/tools/\(.*\)/\(.*\)' | awk -F "/" '{print$2}' | uniq)
+for single_target in $disable_target;do
+disable_list="$single_target|$disable_list"
 done
 fi
 
