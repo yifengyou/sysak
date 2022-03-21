@@ -56,7 +56,9 @@ uninterrupt_dump() {
 								flag=1
 							fi
 							echo "-----" >> $tmpfile
-							echo "`cat /proc/$tid/status | grep Name` $container" >> $tmpfile
+							#echo "`cat /proc/$tid/status | grep Name` $container" >> $tmpfile
+							task_name="Task_`cat /proc/$tid/status | grep Name`"
+							echo "$task_name $container" >> $tmpfile
 							cat /proc/$tid/stack >> $tmpfile
 							uninterrupt_cnt=$(($uninterrupt_cnt+1))
 						fi;
@@ -88,7 +90,9 @@ running_dump() {
 								flag=1
 							fi
 
-							echo "`cat /proc/$tid/status | grep Name` $container" >> $tmpfile
+							#echo "`cat /proc/$tid/status | grep Name` $container" >> $tmpfile
+							task_name="Task_`cat /proc/$tid/status | grep Name`"
+							echo "$task_name $container" >> $tmpfile
 							running_cnt=$(($running_cnt+1))
 						fi;
 					fi;
@@ -157,7 +161,7 @@ show_result() {
 	cat $1 | grep "load reason"
 	cat $1 | grep "caused by"
 	echo "top load tasks:"
-	cat $1 | grep Name | awk '{print $2 "  " $3}' | uniq -c | sort -nr
+	cat $1 | grep Task_Name | awk '{print $2 "  " $3}' | uniq -c | sort -nr
 	cat $1 | grep -A $sirq_num "softirq speed:"
 	echo ""
 }
@@ -184,7 +188,9 @@ current_analyse() {
 
 	echo "Time: `date "+%Y-%m-%d %H:%M:%S"`" >> $tmpfile
 	echo "$global_cpuflamegraph" >> $tmpfile
-	cat /proc/loadavg >> $tmpfile
+	load_proc=`cat /proc/loadavg`
+	load_proc="load_proc: $load_proc"
+	echo "$load_proc" >> $tmpfile
 	if [ "$summary" == "true" ];then	
 		if [ -f "/proc/sysak/loadtask/loadavg" ]; then
 			cat /proc/sysak/loadtask/loadavg >> $tmpfile
@@ -196,12 +202,6 @@ current_analyse() {
 	cpu_util=(`mpstat $cpuarg 1 1 | awk 'END {print $3" "$5" "$6" "$7" "$8" "$12}'`)
 
 	cal_sirq $exist_sirq_tool 1
-
-	echo "cpu: ${cpu_util[@]}" >> $tmpfile
-	if [ $(echo "$load < 1" | bc) -eq 1 ] ;then
-		echo "load reason: not high" >> $tmpfile
-		return
-	fi
 
 	if [ -f $TOOLS_ROOT/taskstate ]; then
 		$TOOLS_ROOT/taskstate -r $rtaskfile -d $dtaskfile
@@ -215,6 +215,13 @@ current_analyse() {
 	irq_util=${cpu_util[3]}
 	soft_util=${cpu_util[4]}
 	cpu_idle=${cpu_util[5]}
+
+	echo "cpu: ${cpu_util[@]}" >> $tmpfile
+	if [ $(echo "$load < 1" | bc) -eq 1 ] ;then
+		echo "load reason: not high" >> $tmpfile
+		detail_result=0
+
+	fi
 	if [ $(echo "$usr_util > ((100-$cpu_idle)*0.4)" | bc) -eq 1 ]; then
 		high_cost="user "
 	fi
@@ -251,25 +258,31 @@ current_analyse() {
 	fi
 
 	echo "-----" >> $tmpfile
-	if [ $(echo "$load*0.2 > $uninterrupt_cnt" | bc) -eq 1 ]; then
-		echo "load reason: high $high_cost cpu cost" >> $tmpfile
-	else
-		if [ $(echo "$load*0.6 < $uninterrupt_cnt" | bc) -eq 1 ]; then
-			echo "load reason: high $high_wait wait" >> $tmpfile
+	echo "uninterrupt_cnt: $uninterrupt_cnt" >> $tmpfile
+	echo "running_cnt: $running_cnt" >> $tmpfile
+	if [ $detail_result -eq 1 ]; then
+		if [ $(echo "$load*0.2 > $uninterrupt_cnt" | bc) -eq 1 ]; then
+			echo "load reason: high $high_cost cpu cost" >> $tmpfile
 		else
-			echo "load reason: mixed press by high $high_cost and $high_wait wait" >> $tmpfile
+			if [ $(echo "$load*0.6 < $uninterrupt_cnt" | bc) -eq 1 ]; then
+				echo "load reason: high $high_wait wait" >> $tmpfile
+			else
+				echo "load reason: mixed press by high $high_cost and $high_wait wait" >> $tmpfile
+			fi
+		fi
+
+		if [ $high_sirq -eq 1 ]; then
+			cal_sirq_speed $exist_sirq_tool
+		fi
+
+		if [ -n "$extra_info" ]; then
+			echo this may caused by $extra_info, you can contact kernel support of use more sysak$extra_cmd tools >> $tmpfile
 		fi
 	fi
 
-	if [ $high_sirq -eq 1 ]; then
-		cal_sirq_speed $exist_sirq_tool
-	fi
-
-	if [ -n "$extra_info" ]; then
-		echo this may caused by $extra_info, you can contact kernel support of use more sysak$extra_cmd tools >> $tmpfile
-	fi
-
 	echo >> $tmpfile
+	echo "####################################################################################" >> $tmpfile
+	cat ${tmp_cpuflamegraph} >> $tmpfile
 }
 
 history_analyse() {
@@ -371,6 +384,7 @@ dtaskfile=${loadtask_dir}dtask
 tmpsirqfile=${loadtask_dir}tmpsoftirq
 sirqspeedfile=${loadtask_dir}softirqspeed
 pidfile=${loadtask_dir}.pidfile
+detail_result=1
 max_load=0
 sirq_num=$((`cat /proc/softirqs | wc -l`-1))
 sirq_before=()
