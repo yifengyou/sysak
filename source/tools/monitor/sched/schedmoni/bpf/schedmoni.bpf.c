@@ -6,6 +6,7 @@
 #include "../schedmoni.h"
 #include "../nosched.comm.h"
 
+#define MAX_THRESH	(10*1000)
 #define TASK_RUNNING	0
 #define _(P) ({typeof(P) val = 0; bpf_probe_read(&val, sizeof(val), &P); val;})
 
@@ -214,11 +215,19 @@ int handle_switch(struct trace_event_raw_sched_switch *ctx)
 	return 0;
 }
 
+static inline u64 adjust_thresh(u64 min_us)
+{
+	if (min_us > MAX_THRESH)
+		min_us = MAX_THRESH;
+
+	return min_us;
+}
+
 SEC("kprobe/account_process_tick")
 int BPF_KPROBE(account_process_tick, struct task_struct *p, int user_tick)
 {
 	int args_key;
-	u64 cpuid;
+	u64 cpuid, min_us;
 	u64 resched_latency, now;
 	struct latinfo lati, *latp;
 	struct args args, *argsp;
@@ -243,7 +252,8 @@ int BPF_KPROBE(account_process_tick, struct task_struct *p, int user_tick)
 		} else {
 			latp->ticks_without_resched++;
 			resched_latency = (now - latp->last_seen_need_resched_ns)/1000;
-			if (resched_latency > _(argsp->min_us)) {
+			min_us = adjust_thresh(_(argsp->min_us));
+			if (resched_latency > min_us) {
 				struct key_t key;
 				struct ext_key ext_key;
 				struct ext_val ext_val;

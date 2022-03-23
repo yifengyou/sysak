@@ -24,7 +24,7 @@ char filename[256] = {0};
 
 struct env env = {
 	.span = 0,
-	.min_us = 10000,
+	.min_us = 20000,
 	.fp = NULL,
 };
 
