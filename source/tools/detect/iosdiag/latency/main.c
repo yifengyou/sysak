@@ -40,8 +40,9 @@ int main(int argc, char *argv[])
 {
 	int ch;
 	int timeout_s = 10, threshold_ms = 1000;
-	char *result_file = "/var/log/sysak/iosdiag/latency/result.log";
+	char *result_dir = "/var/log/sysak/iosdiag/latency";
 	char *devname;
+	char resultfile_path[256];
 
 	while ((ch = getopt(argc, argv, "T:t:f:h")) != -1) {
 		switch (ch) {
@@ -52,7 +53,7 @@ int main(int argc, char *argv[])
 				threshold_ms = (int)strtoul(optarg, NULL, 0);
 				break;
 			case 'f':
-				result_file = optarg;
+				result_dir = optarg;
 				break;
 			case 'h':
 			default:
@@ -65,7 +66,8 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "iosdiag_init fail\n");
 		return -1;
 	}
-	iosdiag_run(timeout_s, result_file);
+	sprintf(resultfile_path, "%s/result.log.seq", result_dir);
+	iosdiag_run(timeout_s, resultfile_path);
 	iosdiag_exit(devname);
 	return 0;
 }

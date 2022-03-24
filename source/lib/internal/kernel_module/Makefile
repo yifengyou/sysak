@@ -36,6 +36,11 @@ endif
 ifneq ($(findstring loadtask,$(TARGET_LIST)),)
 sysak-objs += modules/loadtask/loadtask.o
 endif
+ifneq ($(findstring iosdiag,$(TARGET_LIST)),)
+ifneq ($(wildcard $(MODULE_SRC)/modules/iosdiag/include/$(KERNEL_VERSION)),)
+sysak-objs += modules/iosdiag/iosdiag.o modules/iosdiag/rq_hang.o modules/iosdiag/virtio_blk.o modules/iosdiag/nvme.o modules/iosdiag/scsi.o
+endif
+endif
 
 obj-m += sysak.o
 
@@ -43,6 +48,11 @@ obj-m += sysak.o
 EXTRA_CFLAGS := -I$(MODULE_SRC)
 EXTRA_CFLAGS += -I$(MODULE_SRC)/include
 EXTRA_CFLAGS += -I$(SRC)/lib/uapi/include
+ifneq ($(findstring iosdiag,$(TARGET_LIST)),)
+ifneq ($(wildcard $(MODULE_SRC)/modules/iosdiag/include/$(KERNEL_VERSION)),)
+EXTRA_CFLAGS += -I$(MODULE_SRC)/modules/iosdiag -I$(MODULE_SRC)/modules/iosdiag/include/$(KERNEL_VERSION)
+endif
+endif
 
 sysak_mod:
 	make -C $(KERNEL_BUILD_PATH) M=$(MODULE_SRC)
