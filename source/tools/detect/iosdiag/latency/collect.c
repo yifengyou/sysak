@@ -153,7 +153,7 @@ static unsigned int get_devt_by_devname(char *devname)
 	char cmd[128];
 	char dev[16];
 	FILE *fp;
-	int major, minor;
+	int major = 0, minor = 0;
 
 	sprintf(sys_file, "/sys/block/%s/dev", devname);
 	if (access(sys_file, F_OK))
