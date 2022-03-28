@@ -204,7 +204,7 @@ current_analyse() {
 	cal_sirq $exist_sirq_tool 1
 
 	if [ -f $TOOLS_ROOT/taskstate ]; then
-		$TOOLS_ROOT/taskstate -r $rtaskfile -d $dtaskfile
+		$TOOLS_ROOT/taskstate -r $rtaskfile -d $dtaskfile -c $taskcountfile
 	fi
 
 	running_dump
@@ -258,8 +258,12 @@ current_analyse() {
 	fi
 
 	echo "-----" >> $tmpfile
-	echo "uninterrupt_cnt: $uninterrupt_cnt" >> $tmpfile
-	echo "running_cnt: $running_cnt" >> $tmpfile
+	if [ -f $TOOLS_ROOT/taskstate ]; then
+		cat $taskcountfile >> $tmpfile
+	else
+		echo "uninterrupt_cnt: $uninterrupt_cnt" >> $tmpfile
+		echo "running_cnt: $running_cnt" >> $tmpfile
+	fi
 	if [ $detail_result -eq 1 ]; then
 		if [ $(echo "$load*0.2 > $uninterrupt_cnt" | bc) -eq 1 ]; then
 			echo "load reason: high $high_cost cpu cost" >> $tmpfile
@@ -380,6 +384,7 @@ global_cpuflamegraph=${loadtask_dir}global_cpuflamegraph-`date "+%Y-%m-%d-%H-%M-
 tmp_cpuflamegraph=${loadtask_dir}.tmp.svg
 tmpfile=${loadtask_dir}.tmplog
 rtaskfile=${loadtask_dir}runtask
+taskcountfile=${loadtask_dir}taskcount
 dtaskfile=${loadtask_dir}dtask
 tmpsirqfile=${loadtask_dir}tmpsoftirq
 sirqspeedfile=${loadtask_dir}softirqspeed
