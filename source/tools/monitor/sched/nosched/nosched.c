@@ -11,6 +11,8 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>	/* bpf_obj_pin */
 #include <getopt.h>
@@ -20,7 +22,8 @@
 #define MAX_SYMS 300000
 FILE *filep = NULL;
 char filename[256] = {0};
-char defaultfile[] = "/var/log/sysak/nosched.log";
+char log_dir[] = "/var/log/sysak/nosched";
+char defaultfile[] = "/var/log/sysak/nosched/nosched.log";
 
 static struct ksym syms[MAX_SYMS];
 static int sym_cnt;
@@ -33,6 +36,7 @@ static void usage(char *prog)
 	"  Options:\n"
 	"  -t                   specify the threshold time(ms), default=10ms\n"
 	"  -f result.log        result file, default is /var/log/sysak/nosched.log\n"
+	"  -s                   specify how long to run \n"
 	;
 
 	fprintf(stderr, str, prog);
@@ -129,7 +133,7 @@ static void print_ksym(__u64 addr)
 		return;
 
 	sym = ksym_search(addr);
-	fprintf(filep, "<%llx> %s\n", addr, sym->name);
+	fprintf(filep, "<0x%llx> %s\n", addr, sym->name);
 }
 
 static void print_stack(int fd, struct ext_key *key)
@@ -169,7 +173,7 @@ static void print_stacks(int fd, int ext_fd)
 	struct ext_key ext_key = {}, next_key;
 	struct ext_val value;
 
-	fprintf(filep, "%-21s %-6s %-16s %-8s %-10s\n", "TIME", "CPU", "COMM", "TID", "LAT(us)");
+	fprintf(filep, "%-21s %-6s %-16s %-8s %-10s\n", "TIME(nosch)", "CPU", "COMM", "TID", "LAT(us)");
 	while (bpf_map_get_next_key(ext_fd, &ext_key, &next_key) == 0) {
 		bpf_map_lookup_elem(ext_fd, &next_key, &value);
 		memset(dt, 0, sizeof(dt));
@@ -183,9 +187,25 @@ static void print_stacks(int fd, int ext_fd)
 	printf("\n");
 }
 
+static int prepare_dictory(char *path)
+{
+	int ret;
+
+	ret = mkdir(path, 0777);
+	if (ret < 0 && errno != EEXIST)
+		return errno;
+	else
+		return 0;
+}
+
 static volatile sig_atomic_t stop;
 
 static void sig_int(int signo)
+{
+	stop = 1;
+}
+
+static void sig_alarm(int signo)
 {
 	stop = 1;
 }
@@ -195,12 +215,16 @@ int main(int argc, char **argv)
 	struct nosched_bpf *skel;
 	struct args args;
 	int c, option_index, args_key;
-	unsigned long val;
+	unsigned long val, span = 0;
 	int err, map_fd0, /*map_fd1,*/ map_fd2, map_fd3;
+
+	err = prepare_dictory(log_dir);
+	if (err)
+		return err;
 
 	val = LAT_THRESH_NS;
 	for (;;) {
-		c = getopt_long(argc, argv, "t:f:h", NULL, &option_index);
+		c = getopt_long(argc, argv, "t:f:s:h", NULL, &option_index);
 		if (c == -1)
 			break;
 
@@ -220,12 +244,20 @@ int main(int argc, char **argv)
 					strncpy(filename, defaultfile, sizeof(filename));
 				else 
 					strncpy(filename, optarg, sizeof(filename));
-				filep = fopen(filename, "a+");
+				filep = fopen(filename, "w+");
 				if (!filep) {
 					int ret = errno;
 					fprintf(stderr, "%s :fopen %s\n",
 					strerror(errno), filename);
 					return ret;
+				}
+				break;
+			case 's':
+				span = (int)strtoul(optarg, NULL, 10);
+				if ((errno == ERANGE && (span == LONG_MAX || span == LONG_MIN))
+					|| (errno != 0 && span == 0)) {
+					perror("strtoul");
+					return errno;
 				}
 				break;
 			case 'h':
@@ -236,7 +268,7 @@ int main(int argc, char **argv)
 		}
 	}
 	if (!filep) {
-		filep = fopen(defaultfile, "a+");
+		filep = fopen(defaultfile, "w+");
 		if (!filep) {
 			int ret = errno;
 			fprintf(stderr, "%s :fopen %s\n",
@@ -277,7 +309,8 @@ int main(int argc, char **argv)
 	/* map_fd1 = bpf_map__fd(skel->maps.info_map); */
 	map_fd2 = bpf_map__fd(skel->maps.stackmap);
 	map_fd3 = bpf_map__fd(skel->maps.stackmap_ext);
-	if (signal(SIGINT, sig_int) == SIG_ERR) {
+	if (signal(SIGINT, sig_int) == SIG_ERR ||
+		signal(SIGALRM, sig_alarm) == SIG_ERR) {
 		fprintf(stderr, "can't set signal handler: %s\n", strerror(errno));
 		goto cleanup;
 	}
@@ -290,6 +323,9 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Failed to update flag map\n");
 		goto cleanup;
 	}
+
+	if (span)
+		alarm(span);
 
 	fprintf(stderr, "Running....\n tips:Ctl+c show the result!\n");
 	while (!stop) {
