@@ -125,10 +125,21 @@ def is_number(s):
         pass
     return False
 
+def hugepagesz_supported(hugepagesz):
+    if int(hugepagesz) != 2 and int(hugepagesz) != 1024:
+        return False
+    if os.path.exists("/sys/kernel/mm/hugepages/hugepages-" + str(hugepagesz * 1024) + "kB"):
+            return True
+    return False
+
 def get_page_used(meminfo):
     user = meminfo["Buffers"] + meminfo["Active(anon)"] + meminfo["Inactive(anon)"]
     user += meminfo["Active(file)"] + meminfo["Inactive(file)"]
-    user += meminfo["Mlocked"] + meminfo["2048"] + meminfo["1048576"]
+    user += meminfo["Mlocked"]
+    if "2048" in meminfo:
+        user += meminfo["2048"]
+    if "1048576" in meminfo:
+        user += meminfo["1048576"]
     kernelOther = meminfo["Slab"] + meminfo["KernelStack"] + meminfo["PageTables"]
     kernelOther += meminfo["VmallocUsed"]
     pageUsed = meminfo["MemTotal"] - meminfo["MemFree"] - user - kernelOther
@@ -176,8 +187,10 @@ def memgraph_get_meminfo(meminfo):
         name = line[0].strip()[:-1]
         size = int(line[1].strip())
         meminfo[name] = size
-    get_hugepage_used(meminfo, "2048")
-    get_hugepage_used(meminfo, "1048576")
+    if hugepagesz_supported(2):
+        get_hugepage_used(meminfo, "2048")
+    if hugepagesz_supported(1024):
+        get_hugepage_used(meminfo, "1048576")
     get_VmallocUsed(meminfo)
     get_page_used(meminfo)
     fd.close()
@@ -211,8 +224,10 @@ def memgraph_graph(meminfo):
     user["cache"] = meminfo["Active(file)"] + meminfo["Inactive(file)"]
     user["buffers"] = meminfo["Buffers"]
     user["mlock"] = meminfo["Mlocked"]
-    user["huge2M"] = meminfo["2048"]
-    user["huge1G"] = meminfo["1048576"]
+    if "2048" in meminfo:
+        user["huge2M"] = meminfo["2048"]
+    if "1048576" in meminfo:
+        user["huge1G"] = meminfo["1048576"]
     user["shmem"] = meminfo["Shmem"]
     res["user"] = user
     kernel = {}
