@@ -16,7 +16,6 @@
 #include <linux/genhd.h>
 #include "iosdiag.h"
 #include <virtio_blk.h>
-#include <nvme.h>
 
 struct req_op_name{
 	int op;
@@ -53,7 +52,10 @@ static const char *const blk_mq_rq_state_name_array[] = {
 extern fn_get_files_struct sym_get_files_struct;
 extern fn_put_files_struct sym_put_files_struct;
 extern int get_bio_file_info(void);
+
+extern void get_vq_info(struct vq_info *vq_i, struct request *rq);
 extern void get_scsi_info(struct scsi_info *scsi_i, struct request *rq);
+extern void get_nvme_info(struct nvme_info *nvme_i, struct request *rq);
 
 static char *get_disk_name(struct gendisk *hd, int partno, char *buf)
 {
@@ -83,8 +85,7 @@ static void blk_rq_op_name(int op_flags, char *op_buf, int buf_len)
 			if ((len = strlen(op_buf)) >= buf_len)
 				return;
 			if (len) {
-				strncat(op_buf, "|", min((strlen("|") + 1),
-							(buf_len - len)));
+				strncat(op_buf, "|", min((strlen("|") + 1),(buf_len - len)));
 				op_buf[buf_len - 1] = '\0';
 				if ((len = strlen(op_buf)) >= buf_len)
 					return;
@@ -265,17 +266,12 @@ static void get_bio_info(struct bio_info *bio_i, struct bio *bio)
 static void get_rq_info(struct rq_hang_info *rq_hi, struct request *rq)
 {
 	char op_buf[MAX_OP_NAME_SIZE];
-	int op;
 
 	rq_hi->data_len = rq->__data_len;
 	rq_hi->sector = rq->__sector;
 	strcpy(op_buf, "");
-	//rq_hi->cmd_flags = rq->cmd_flags;
-	//rq_hi->errors = rq->errors;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0)
-	//op = rq->cmd_flags & REQ_OP_MASK;
-	op = req_op(rq);
-	blk_rq_op_name(op, op_buf, sizeof(op_buf));
+	blk_rq_op_name(req_op(rq), op_buf, sizeof(op_buf));
 #else
 	blk_rq_op_name(rq->cmd_flags, op_buf, sizeof(op_buf));
 #endif

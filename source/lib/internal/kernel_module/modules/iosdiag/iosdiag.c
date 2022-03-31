@@ -244,7 +244,7 @@ static ssize_t rq_hang_store(struct file *file,
 		return -EFAULT;
 
 	/* echo "vdb:253:16 1000" > /proc/xxxxx */
-	if (p = strstr(chr, ":")) {
+	if ((p = strstr(chr, ":"))) {
 		memcpy(diskname, chr, (p - chr));
 		ret = sscanf(p+1, "%d:%d %d %d", &major, &minor, &threshold, &g_bio_file_info);
 		if (ret < 3 || threshold <= 0 || major < 1 || minor < 0) {
@@ -335,7 +335,4 @@ int disk_hang_exit(void)
 	remove_proc_subtree(DISKHANG_DIR_NAME, NULL);
 	return 0;
 }
-//module_init(disk_hang_init);
-//module_exit(disk_hang_exit);
-MODULE_LICENSE("GPL");
 
