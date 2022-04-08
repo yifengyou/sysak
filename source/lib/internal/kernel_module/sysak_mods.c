@@ -57,14 +57,6 @@ int __attribute__((weak)) mmaptrace_exit(void)
 {
         return 0;
 }
-int __attribute__((weak)) loadtask_init(void)
-{
-        return 0;
-}
-int __attribute__((weak)) loadtask_exit(void)
-{
-        return 0;
-}
 int __attribute__((weak)) disk_hang_init(void)
 {
         return 0;
@@ -81,7 +73,6 @@ struct sysak_module sysak_modules[] = {
 	{ "task_ctl", task_ctl_init, task_ctl_exit},
 	{ "schedtrace", schedtrace_init, schedtrace_exit},
 	{ "mmap_trace", mmaptrace_init, mmaptrace_exit},
-	{ "loadtask", loadtask_init, loadtask_exit},
 	{ "iosdiag", disk_hang_init, disk_hang_exit},
 };
 
