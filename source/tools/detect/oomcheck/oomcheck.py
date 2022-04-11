@@ -19,6 +19,7 @@ OOM_REASON_CGROUP = 'Cgroup内存使用量达到上限',
 OOM_REASON_PCGROUP = '父Cgroup内存使用量达到上限',
 OOM_REASON_HOST = '主机内存不足',
 OOM_REASON_MEMLEAK = '主机内存不足,存在内存泄漏',
+OOM_REASON_NODEMASK = 'nodemask=0时不支持跨节点申请内存',
 OOM_REASON_NODE = 'CPUSET 的mems值设置不合理',
 OOM_REASON_MEMFRAG = '内存碎片化,需要进行内存规整',
 OOM_RESAON_SYSRQ = 'sysrq',
@@ -140,6 +141,8 @@ def oom_get_host_mem(oom_result, line, num):
     memory_low = line.strip().split('low:')[1].split()[0]
     oom_result['sub_msg'][num]['host_free'] = memory_free
     oom_result['sub_msg'][num]['host_low'] = memory_low
+    if 'nodemask' in oom_result['sub_msg'][num] and oom_result['sub_msg'][num]['nodemask'] = 0 and memory_free > memory_low * 2:
+        oom_result['sub_msg'][num]['reason'] = OOM_REASON_NODEMASK
 
 def oom_get_cgroup_mem(oom_result, line, num):
     memory_usage = line.strip().split('memory: usage')[1].split()[0].strip(',')
@@ -164,6 +167,10 @@ def oom_get_cgroup_name(oom_result, line, num):
 def oom_get_order(oom_result, line, num):
     order = int(line.strip().split("order=")[1].split()[0][:-1])
     oom_result['sub_msg'][num]['order'] = order
+
+def oom_get_nodemask(oom_result, line, num):
+    nodemask = int(line.strip().split("nodemask=")[1].split()[0][:-1])
+    oom_result['sub_msg'][num]['nodemask'] = nodemask
 
 def oom_set_node_oom(oom_result, num, node_num):
     task_mem_allow = oom_result['sub_msg'][num]['mems_allowed']
@@ -316,6 +323,8 @@ def oom_reason_analyze(num, oom_result):
             #print line
             if "invoked oom-killer" in line:
                 oom_get_order(oom_result, line, num)
+                if 'nodemask' in line:
+                    oom_get_nodemask(oom_result, line, num)
             elif oom_is_node_num(line):
                 node_num += 1
             elif "mems_allowed=" in line:
