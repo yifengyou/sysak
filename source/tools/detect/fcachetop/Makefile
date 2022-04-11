@@ -1,3 +1,3 @@
-target = fcachetop
+target := fcachetop
 
 include $(SRC)/mk/py.mk
