@@ -73,7 +73,7 @@ struct {
 	int i;						\
 	unsigned long size = pcom.size;			\
 	for (int i = 0; i < 16; i++) {			\
-		if (i > size)				\
+		if (i >= size)				\
 			break;				\
 		if (a[i] != pcom.comm[i]) {		\
 			ret = false;			\
@@ -81,6 +81,18 @@ struct {
 	}						\
 	ret;						\
 })
+
+static bool program_ready(void)
+{
+	int i = 0;
+	struct args *argp;
+	bool ready = false;
+
+	argp = bpf_map_lookup_elem(&argmap, &i);
+	if (argp)
+		ready = argp->ready;
+	return ready;
+}
 
 static inline int test_bit(int nr, const volatile unsigned long *addr)
 {               
@@ -143,8 +155,9 @@ static int trace_enqueue(struct task_struct *p, unsigned int runqlen)
 			comm_eqaul = strequal(comm,  comm_i);
 			if (!comm_eqaul)
 				return 0;
-		} else 
+		} else { 
 			use_comm = false;
+		}
 	}
 
 	if (!use_comm) {
@@ -167,9 +180,11 @@ static int trace_enqueue(struct task_struct *p, unsigned int runqlen)
 SEC("raw_tracepoint/sched_wakeup")
 int raw_tracepoint__sched_wakeup(struct bpf_raw_tracepoint_args *ctx)
 {
-	char abcde[16];
 	unsigned int runqlen = 0;
 	struct task_struct *p = (void *)ctx->args[0];
+
+	if (!program_ready())
+		return 0;
 
 	runqlen = BPF_CORE_READ(p, se.cfs_rq, nr_running);
 	return trace_enqueue(p, runqlen);
@@ -178,9 +193,11 @@ int raw_tracepoint__sched_wakeup(struct bpf_raw_tracepoint_args *ctx)
 SEC("raw_tracepoint/sched_wakeup_new")
 int raw_tracepoint__sched_wakeup_new(struct bpf_raw_tracepoint_args *ctx)
 {
-	char abcde[16];
 	unsigned int runqlen = 0;
 	struct task_struct *p = (void *)ctx->args[0];
+
+	if (!program_ready())
+		return 0;
 
 	runqlen = BPF_CORE_READ(p, se.cfs_rq, nr_running);
 	return trace_enqueue(p, runqlen);
@@ -199,6 +216,9 @@ int handle_switch(struct trace_event_raw_sched_switch *ctx)
 	struct args *argp;
 	struct latinfo *latp;
 	struct latinfo lati;
+
+	if (!program_ready())
+		return 0;
 
 	prev_pid = ctx->prev_pid;
 	pid = ctx->next_pid;
@@ -271,6 +291,8 @@ int BPF_KPROBE(account_process_tick, struct task_struct *p, int user_tick)
 	struct latinfo lati, *latp;
 	struct args args, *argsp;
 
+	if (!program_ready())
+		return 0;
 	__builtin_memset(&args_key, 0, sizeof(int));
 	argsp = bpf_map_lookup_elem(&argmap, &args_key);
 	if (!argsp)

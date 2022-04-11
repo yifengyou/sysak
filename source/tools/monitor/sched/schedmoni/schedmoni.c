@@ -296,6 +296,7 @@ int main(int argc, char **argv)
 	args.targ_pid = env.tid;
 	args.min_us = env.min_us;
 	args.flag = TIF_NEED_RESCHED;
+	args.ready = false;
 
 	err = bpf_map_update_elem(arg_fd, &i, &args, 0);
 	if (err) {
@@ -311,6 +312,7 @@ int main(int argc, char **argv)
 	}
 
 	runslw.fd = ent_fd;
+	runslw.ext_fd = arg_fd;
 	err = pthread_create(&pt_runslw, NULL, runslw_handler, &runslw);
 	if (err) {
 		fprintf(stderr, "can't pthread_create runslw: %s\n", strerror(errno));

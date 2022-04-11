@@ -19,6 +19,7 @@ struct args {
 	pid_t targ_tgid;
 	struct comm_item comm_i;
 	int flag;
+	bool ready;
 };
 
 struct tharg {
