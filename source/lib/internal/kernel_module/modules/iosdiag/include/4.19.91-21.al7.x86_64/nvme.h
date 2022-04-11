@@ -58,5 +58,4 @@ static unsigned long get_cmd_ctx(struct nvme_queue *nvmeq, struct request *rq)
 	//struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 	return 0;
 }
-void get_nvme_info(struct nvme_info *nvme_i, struct request *rq);
 #endif

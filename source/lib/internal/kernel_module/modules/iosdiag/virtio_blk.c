@@ -55,7 +55,6 @@ static int get_rq_avail_idx(struct request *rq)
 	u16 last_used_idx;
 	u16 current_avail_idx;
 	int head;
-	void *data;
 
 	if (!(vq = get_virtqueue_by_rq(rq)))
 		return -1;
@@ -65,11 +64,12 @@ static int get_rq_avail_idx(struct request *rq)
 	while (last_used_idx <= current_avail_idx) {
 		i = last_used_idx & (vring->num - 1);
 		head = virtio16_to_cpu(vq->vdev, vring->avail->ring[i]);
-		if (head < vring->num)
+		if (head < vring->num) {
 			if (desc_state_data_to_req(vq, head) == rq)
 				return last_used_idx;
-		else
+		} else {
 			return -1;
+		}
 		last_used_idx++;
 	}
 	return -1;
@@ -83,7 +83,6 @@ static int get_rq_used_idx(struct request *rq)
 	u16 last_used_idx;
 	u16 used_idx;
 	int head;
-	void *data;
 
 	if (!(vq = get_virtqueue_by_rq(rq)))
 		return -1;
@@ -93,11 +92,12 @@ static int get_rq_used_idx(struct request *rq)
 	while (last_used_idx < used_idx) {
 		i = last_used_idx & (vring->num - 1);
 		head = virtio32_to_cpu(vq->vdev, vring->used->ring[i].id);
-		if (head < vring->num)
+		if (head < vring->num) {
 			if (desc_state_data_to_req(vq, head) == rq)
 				return last_used_idx;
-		else
+		} else {
 			return -1;
+		}
 		last_used_idx++;
 	}
 	return -1;

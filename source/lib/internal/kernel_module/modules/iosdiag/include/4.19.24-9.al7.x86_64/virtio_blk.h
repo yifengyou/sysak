@@ -151,7 +151,6 @@ struct blk_flush_queue {
 	spinlock_t		mq_flush_lock;
 };
 
-//only kernel ali4000 >= 007
 static inline int enable_detect_flush_rq(void)
 {
 	return 0;
@@ -191,7 +190,6 @@ static inline unsigned long get_issue_driver_ns(struct request *rq)
 }
 
 /*
- * (ALIKERNEL && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 151)) ||
  * LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)
  */
 static inline u64 get_check_hang_time_ns(void)

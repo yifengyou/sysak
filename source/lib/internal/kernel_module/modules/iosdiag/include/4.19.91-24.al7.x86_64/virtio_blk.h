@@ -173,7 +173,6 @@ struct blk_flush_queue {
 	spinlock_t		mq_flush_lock;
 };
 
-//only kernel ali4000 >= 007
 static inline int enable_detect_flush_rq(void)
 {
 	return 1;
@@ -240,7 +239,6 @@ static inline unsigned long get_issue_driver_ns(struct request *rq)
 }
 
 /*
- * (ALIKERNEL && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 151)) ||
  * LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)
  */
 static inline u64 get_check_hang_time_ns(void)
@@ -248,9 +246,7 @@ static inline u64 get_check_hang_time_ns(void)
 	return ktime_get_ns();
 }
 
-//#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
 extern fn_queue_tag_busy_iter sym_blk_mq_queue_tag_busy_iter;
-//#endif
 typedef void (*blk_mq_rq_iter)(struct request *, void *, bool);
 static blk_mq_rq_iter fn_blk_mq_check_hang = NULL;
 static void blk_mq_check_rq_hang(struct blk_mq_hw_ctx *hctx,
@@ -263,30 +259,7 @@ static void blk_mq_check_rq_hang(struct blk_mq_hw_ctx *hctx,
 static inline int iter_all_rq(struct request_queue *q, blk_mq_rq_iter fn, void *data)
 {
 	fn_blk_mq_check_hang = fn;
-/*
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
-	if (!percpu_ref_tryget(&q->q_usage_counter))
-		return -EBUSY;
-#endif
-*/
 	sym_blk_mq_queue_tag_busy_iter(q, blk_mq_check_rq_hang, data);
-/*
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
-	blk_queue_exit(q);
-#endif
-#else
-	struct blk_mq_hw_ctx *hctx;
-	int i;
-
-	queue_for_each_hw_ctx(q, hctx, i) {
-		if (!(hctx->nr_ctx && hctx->tags))
-			continue;
-		blk_mq_tag_busy_iter(hctx, blk_mq_check_rq_hang, data);
-	}
-#endif
-*/
 	return 0;
 }
-void get_vq_info(struct vq_info *vq_i, struct request *rq);
 #endif
