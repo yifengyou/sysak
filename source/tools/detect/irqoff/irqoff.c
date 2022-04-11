@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
+#include <string.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <linux/perf_event.h>
@@ -26,8 +27,13 @@ struct env {
 	.duration = 10,
 };
 
-__u64 threshold;
+static struct ksym *ksyms;
+static int stackmp_fd;
+static __u64 threshold;
 volatile sig_atomic_t exiting = 0;
+
+void print_stack(int fd, __u32 ret, struct ksym *syms);
+int load_kallsyms(struct ksym **pksyms);
 
 const char *argp_program_version = "irqoff 0.1";
 const char argp_program_doc[] =
@@ -148,6 +154,7 @@ void handle_event(void *ctx, int cpu, void *data, __u32 data_sz)
 	strftime(ts, sizeof(ts), "%F_%H:%M:%S", tm);
 	fprintf(stdout, "%-21s %-5d %-15s %-8d %-10llu\n",
 		ts, e->cpu, e->comm, e->pid, e->delay);
+	print_stack(stackmp_fd, e->ret, ksyms);
 }
 
 void irqoff_handler(int poll_fd)
@@ -209,6 +216,7 @@ int main(int argc, char **argv)
 		.doc = argp_program_doc,
 	};
 
+	ksyms = NULL;
 	threshold = LAT_THRESH_NS;
 	err = argp_parse(&argp, argc, argv, 0, NULL, NULL);
 	if (err)
@@ -217,6 +225,11 @@ int main(int argc, char **argv)
 	libbpf_set_print(libbpf_print_fn);
 
 	bump_memlock_rlimit();
+	err = load_kallsyms(&ksyms);
+	if (err) {
+		fprintf(stderr, "Failed to load kallsyms\n");
+		return err;
+	}
 
 	nr_cpus = libbpf_num_possible_cpus();
 	if (nr_cpus < 0) {
@@ -243,6 +256,7 @@ int main(int argc, char **argv)
 
 	map_fd = bpf_map__fd(obj->maps.argmap);
 	ent_fd = bpf_map__fd(obj->maps.events);
+	stackmp_fd = bpf_map__fd(obj->maps.stackmap);
 
 	args_key = 0;
 	args.threshold = threshold;
@@ -269,6 +283,8 @@ cleanup:
 		bpf_link__destroy(mlinks[i]);
 	}
 	free(mlinks);
+	if (ksyms)
+		free(ksyms);
 	irqoff_bpf__destroy(obj);
 
 	return err != 0;

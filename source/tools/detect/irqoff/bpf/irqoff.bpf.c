@@ -4,7 +4,24 @@
 #include <bpf/bpf_tracing.h>
 #include "../irqoff.h"
 
+#define PERF_MAX_STACK_DEPTH	127
 #define MAX_ENTRIES	10240
+#define BPF_F_FAST_STACK_CMP	(1ULL << 9)
+#define KERN_STACKID_FLAGS	(0 | BPF_F_FAST_STACK_CMP)
+
+struct bpf_map_def SEC("maps") args_map = {
+	.type = BPF_MAP_TYPE_HASH,
+	.key_size = sizeof(int),
+	.value_size = sizeof(struct args),
+	.max_entries = 1,
+};
+
+struct bpf_map_def SEC("maps") stackmap = {
+	.type = BPF_MAP_TYPE_STACK_TRACE,
+	.key_size = sizeof(u32),
+	.value_size = PERF_MAX_STACK_DEPTH * sizeof(u64),
+	.max_entries = 10000,
+};
 
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
@@ -107,6 +124,7 @@ int on_irqoff_event(struct bpf_perf_event_data *ctx)
 			event.delay = delta/1000;
 			event.pid = bpf_get_current_pid_tgid();
 			bpf_get_current_comm(&event.comm, sizeof(event.comm));
+			event.ret = bpf_get_stackid(ctx, &stackmap, KERN_STACKID_FLAGS);
 			bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU,
 					      &event, sizeof(event));
 		}

@@ -14,9 +14,14 @@ struct args {
 };
 
 struct event {
-	__u32 pid, cpu;
+	__u32 ret, pid, cpu;
 	__u64 delay;
 	char comm[TASK_COMM_LEN];
+};
+
+struct ksym {
+	long addr;
+	char *name;
 };
 
 #endif /* __LLCSTAT_H */
