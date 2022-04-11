@@ -74,11 +74,11 @@ class Filecachestat:
 		self.nr_page = nr_page
 		self.hit_percent = round(float(pagecached) * 100 / float(nr_page), 2)
 
-	def dumpStat(self, hide):
+	def dumpStat(self, verbose):
 		len_filename = len(self.filename)
 		filename = self.filename
 		if len_filename > 48:
-			if hide == 1:
+			if verbose == 0:
 				filename_end = (self.filename)[(len_filename-30):len_filename]
 				filename_start = (self.filename)[0:13]
 				filename = "%s...%s" % (filename_start, filename_end)
@@ -177,7 +177,7 @@ def topFileCache(interval, top):
 		global global_stat_list
 		for stat in global_stat_list:
 			if topDisplay <= top:
-				stat.dumpStat(hide_long_filepath)
+				stat.dumpStat(verbose_long_filepath)
 			total_cached += (stat.pagecached * PAGESIZE)
 			topDisplay += 1
 		if total_cached != 0:
@@ -203,7 +203,7 @@ def main():
 			    help='Statistics the file pages cached from specified file.')
 	parser.add_argument('-i','--interval', help='Display the file pages cached per N seconds(CTRL+C exit).')
 	parser.add_argument('-T','--top', help='Display the file pages cached of TopN (default Top 10).')
-	parser.add_argument('-v','--verbo', action='store_true',\
+	parser.add_argument('-v','--verbose', action='store_true',\
 			    help='Display the full path of the file(By default, when the file path exceeds 48 characters, the full path of the file is hidden).')
 	args = parser.parse_args()
 
@@ -212,8 +212,8 @@ def main():
 	top = int(args.top) if args.top else 10
 	interval = int(args.interval) if args.interval is not None else 0
 
-	global hide_long_filepath
-	hide_long_filepath = False if args.verbo is None else True
+	global verbose_long_filepath
+	verbose_long_filepath = args.verbose
 
 	signal.signal(signal.SIGINT, signal_exit_handler)
 	signal.signal(signal.SIGHUP, signal_exit_handler)
@@ -225,7 +225,7 @@ def main():
 		print(head_txt)
 		stat = getCacheStat(filename, None)
 		assert stat != 0, "getCacheStat() failed"
-		stat.dumpStat(hide_long_filepath)
+		stat.dumpStat(verbose_long_filepath)
 
 if __name__ == "__main__":
 	main()
