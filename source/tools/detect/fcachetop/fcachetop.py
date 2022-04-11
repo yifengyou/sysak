@@ -160,6 +160,7 @@ def threadStatListUpdata(interval):
 			break
 		sleep(interval - 1)
 
+head_txt = "Name".ljust(48)+"Cached pages/size".ljust(24)+"Total pages".ljust(16)+"Hit percent".ljust(16)+"Comm:Pid"
 def topFileCache(interval, top):
 	if interval == 0:
 		threadStatListUpdata(0)
@@ -185,23 +186,6 @@ def topFileCache(interval, top):
 			break
 		sleep(interval)
 	sys.exit(0)
-
-head_txt = "Name".ljust(48)+"Cached pages/size".ljust(24)+"Total pages".ljust(16)+"Hit percent".ljust(16)+"Comm:Pid"
-usage_txt = "usage: \n./fcachetop [option]    Statistics the open files page cached\n\
--f, --file=filepath     Statistics the file pages cached from specified file\n\
--i, --interval=n        Display the file pages cached per N seconds(ctrl+c exit)\n\
--T, --top=n             Display the file pages cached of TopN (default Top 10)\n\
--v                      Display the full path of the file\n\
-                        (By default, when the file path exceeds 48 characters, the full path of the file is hidden)\n\ne.g.\n\
-./fcachetop             Display the file pages cached of Top10\n\
-./fcachetop -f /xxx/file\n\
-                        Statistics the file pages cached for \'/xxx/file\'\n\
-./fcachetop -i 2        Display the file pages cached per N seconds(ctrl+c exit)\n\
-./fcachetop -T 30       Display the file pages cached of Top30\n"
-
-def usage(err):
-	print(usage_txt)
-	sys.exit(err)
 
 def main():
 	examples = """e.g.
