@@ -8,11 +8,16 @@
 #define TIF_NEED_RESCHED	1
 #endif
 
+struct comm_item {
+	char comm[TASK_COMM_LEN];
+	unsigned long size;
+};
 
 struct args {
 	__u64 min_us;
 	pid_t targ_pid;
 	pid_t targ_tgid;
+	struct comm_item comm_i;
 	int flag;
 };
 
@@ -37,6 +42,7 @@ struct env {
 	bool previous;
 	bool verbose;
 	void *fp;
+	struct comm_item comm;
 };
 
 struct event {

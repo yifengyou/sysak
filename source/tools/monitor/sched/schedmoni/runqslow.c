@@ -58,7 +58,7 @@ void *runslw_handler(void *arg)
 		fprintf(stderr, "failed to open perf buffer: %d\n", err);
 		goto clean_runslw;
 	}
-
+	/* todo: warm up */
 	while (!exiting) {
 		err = perf_buffer__poll(pb, 100);
 		if (err < 0 && err != -EINTR) {
