@@ -133,7 +133,7 @@ def hugepagesz_supported(hugepagesz):
     return False
 
 def get_page_used(meminfo):
-    user = meminfo["Buffers"] + meminfo["Active(anon)"] + meminfo["Inactive(anon)"]
+    user = meminfo["Active(anon)"] + meminfo["Inactive(anon)"]
     user += meminfo["Active(file)"] + meminfo["Inactive(file)"]
     user += meminfo["Mlocked"]
     if "2048" in meminfo:
@@ -221,7 +221,7 @@ def memgraph_graph(meminfo):
     res["used"] = memgraph_free(meminfo)
     user = {}
     user["anon"] = meminfo["Active(anon)"] + meminfo["Inactive(anon)"]
-    user["cache"] = meminfo["Active(file)"] + meminfo["Inactive(file)"]
+    user["cache"] = meminfo["Cached"]
     user["buffers"] = meminfo["Buffers"]
     user["mlock"] = meminfo["Mlocked"]
     if "2048" in meminfo:
