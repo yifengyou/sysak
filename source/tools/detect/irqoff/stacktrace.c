@@ -17,6 +17,7 @@
 #define PERF_MAX_STACK_DEPTH	127
 
 static int sym_cnt;
+extern  FILE *filep;
 
 static int ksym_cmp(const void *p1, const void *p2)
 {
@@ -101,7 +102,7 @@ static void print_ksym(__u64 addr, struct ksym *psym)
 		return;
 
 	sym = ksym_search(addr, psym);
-	fprintf(stdout, "<0x%llx> %s\n", addr, sym->name);
+	fprintf(filep, "<0x%llx> %s\n", addr, sym->name);
 }
 
 void print_stack(int fd, __u32 ret, struct ksym *syms)
@@ -114,7 +115,7 @@ void print_stack(int fd, __u32 ret, struct ksym *syms)
 			print_ksym(ip[i], syms);
 	} else {
 		if ((int)(ret) < 0)
-		fprintf(stdout, "<0x0000000000000000>:error=%d\n", (int)(ret));
+		fprintf(filep, "<0x0000000000000000>:error=%d\n", (int)(ret));
 	}
 }
 
