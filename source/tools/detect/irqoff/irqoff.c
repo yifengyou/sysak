@@ -25,8 +25,8 @@ struct env {
 	time_t duration;
 	bool verbose;
 } env = {
-	.sample_period = 4*1000*1000 + 1,	//4ms
-	.duration = 10,
+	.sample_period = 1*1000*1000 + 1,	//1ms
+	.duration = 0,
 };
 
 FILE *filep = NULL;
@@ -46,16 +46,16 @@ const char *argp_program_version = "irqoff 0.1";
 const char argp_program_doc[] =
 "Catch the irq-off time more than threshold.\n"
 "\n"
-"USAGE: irqoff [--help] [-c SAMPLE_PERIOD(ns)] [-t THRESH(ns)] [-f LOGFILE] [duration(s)]\n"
+"USAGE: irqoff [--help] [-p SAMPLE_PERIOD(us)] [-t THRESH(us)] [-f LOGFILE] [duration(s)]\n"
 "\n"
 "EXAMPLES:\n"
 "    irqoff                # run 10s, and detect irqoff more than 10ms(default)\n"
-"    irqoff -c 1000000     # detect irqoff with period 1ms (default 4ms)\n"
-"    irqoff -t 15000000    # detect irqoff with threshold 15ms (default 10ms)\n"
+"    irqoff -p 2000        # detect irqoff with period 2ms (default 1ms)\n"
+"    irqoff -t 15000       # detect irqoff with threshold 15ms (default 10ms)\n"
 "    irqoff -f a.log       # record result to a.log (default to ~sysak/irqoff/irqoff.log)\n";
 
 static const struct argp_option opts[] = {
-	{ "sample_period", 'c', "SAMPLE_PERIOD", 0, "Period default to 2ms"},
+	{ "sample_period", 'p', "SAMPLE_PERIOD", 0, "Period default to 1ms"},
 	{ "threshold", 't', "THRESH", 0, "Threshold to detect, default 10ms"},
 	{ "logfile", 'f', "LOGFILE", 0, "logfile for result"},
 	{ "verbose", 'v', NULL, 0, "Verbose debug output" },
@@ -74,21 +74,23 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	case 'v':
 		env.verbose = true;
 		break;
-	case 'c':
+	case 'p':
 		errno = 0;
-		env.sample_period = strtol(arg, NULL, 10);
+		env.sample_period = strtoull(arg, NULL, 10);
 		if (errno) {
 			fprintf(stderr, "invalid sample period\n");
 			argp_usage(state);
 		}
+		env.sample_period = env.sample_period * 10;
 		break;
 	case 't':
 		errno = 0;
-		threshold = strtol(arg, NULL, 10);
+		threshold = strtoull(arg, NULL, 10);
 		if (errno) {
 			fprintf(stderr, "invalid threshold\n");
 			argp_usage(state);
 		}
+		threshold = threshold * 1000;
 		break;
 	case 'f':
 		if (strlen(arg) < 2)
@@ -128,6 +130,10 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 			return ret;
 		}
 	}
+
+	if (env.sample_period > threshold)
+		env.sample_period = threshold >> 2 ;
+
 	return 0;
 }
 
@@ -317,7 +323,6 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Failed to update args map\n");
 		goto cleanup;
 	}
-	printf("Running for %ld seconds thresh=%llu, or Hit Ctrl-C to end.\n", env.duration, threshold);
 
 	if (signal(SIGINT, sig_int) == SIG_ERR ||
 		signal(SIGALRM, sig_alarm) == SIG_ERR) {
@@ -326,7 +331,9 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 
-	alarm(env.duration);
+	if (env.duration)
+		alarm(env.duration);
+
 	irqoff_handler(ent_fd);
 
 cleanup:
