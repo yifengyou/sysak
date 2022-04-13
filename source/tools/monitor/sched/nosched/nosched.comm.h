@@ -44,3 +44,9 @@ struct latinfo {
 	__u64 last_seen_need_resched_ns;
 	int ticks_without_resched;
 };
+
+struct event {
+	__u32 ret, pid, cpu;
+	__u64 delay;
+	char comm[TASK_COMM_LEN];
+};

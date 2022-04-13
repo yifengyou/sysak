@@ -47,11 +47,15 @@ struct env {
 };
 
 struct event {
-	unsigned int rqlen;
+	union {
+		unsigned int rqlen;
+		__u32 ret;
+	};
 	char task[TASK_COMM_LEN];
 	char prev_task[TASK_COMM_LEN];
 	
 	__u64 delta_us;
+	__u64 stamp;
 	pid_t pid;
 	pid_t prev_pid;
 	int cpuid;

@@ -28,20 +28,19 @@ struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
 	__uint(key_size, sizeof(u32));
 	__uint(value_size, sizeof(u32));
-} events SEC(".maps");
+} events_rnslw SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+	__uint(key_size, sizeof(u32));
+	__uint(value_size, sizeof(u32));
+} events_nosch SEC(".maps");
 
 struct bpf_map_def SEC("maps") stackmap = {
 	.type = BPF_MAP_TYPE_STACK_TRACE,
 	.key_size = sizeof(u32),
 	.value_size = PERF_MAX_STACK_DEPTH * sizeof(u64),
-	.max_entries = 10000,
-};
-
-struct bpf_map_def SEC("maps") stackmap_ext = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(struct ext_key),
-	.value_size = sizeof(struct ext_val),
-	.max_entries = 10000,
+	.max_entries = 1000,
 };
 
 struct {
@@ -262,11 +261,12 @@ int handle_switch(struct trace_event_raw_sched_switch *ctx)
 	event.prev_pid = prev_pid;
 	event.delta_us = delta_us;
 	event.rqlen = _(enq->rqlen);
+	event.stamp = bpf_ktime_get_ns();
 	bpf_probe_read(event.task, sizeof(event.task), &(ctx->next_comm));
 	bpf_probe_read(event.prev_task, sizeof(event.prev_task), &(ctx->prev_comm));
 
 	/* output */
-	bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU,
+	bpf_perf_event_output(ctx, &events_rnslw, BPF_F_CURRENT_CPU,
 			      &event, sizeof(event));
 
 	bpf_map_delete_elem(&start, &pid);
@@ -315,23 +315,15 @@ int BPF_KPROBE(account_process_tick, struct task_struct *p, int user_tick)
 			resched_latency = (now - latp->last_seen_need_resched_ns)/1000;
 			min_us = adjust_thresh(_(argsp->min_us));
 			if (resched_latency > min_us) {
-				struct key_t key;
-				struct ext_key ext_key;
-				struct ext_val ext_val;
-
-				__builtin_memset(&key, 0, sizeof(struct key_t));
-				__builtin_memset(&ext_key, 0, sizeof(struct ext_key));
-				__builtin_memset(&ext_val, 0, sizeof(struct ext_val));
-				key.ret = bpf_get_stackid(ctx, &stackmap, KERN_STACKID_FLAGS);
-				ext_key.stamp = now;
-				ext_key.ret = key.ret;
-				ext_val.lat_us = resched_latency;
-				bpf_get_current_comm(&ext_val.comm, sizeof(ext_val.comm));
-				ext_val.pid = bpf_get_current_pid_tgid();
-				ext_val.nosched_ticks = latp->ticks_without_resched;
-				ext_val.cpu = cpuid;
-				ext_val.stamp = latp->last_seen_need_resched_ns;
-				bpf_map_update_elem(&stackmap_ext, &ext_key, &ext_val, BPF_ANY);
+				struct event event = {};
+				event.stamp = now;
+				event.cpuid = cpuid;
+				event.delta_us = resched_latency;
+				event.pid = bpf_get_current_pid_tgid();
+				bpf_get_current_comm(&event.task, sizeof(event.task));
+				event.ret = bpf_get_stackid(ctx, &stackmap, KERN_STACKID_FLAGS);
+				bpf_perf_event_output(ctx, &events_nosch, BPF_F_CURRENT_CPU,
+							&event, sizeof(event));
 			}
 		}
 	} else {

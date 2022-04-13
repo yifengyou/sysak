@@ -15,6 +15,7 @@
 #include "schedmoni.h"
 #include "bpf/schedmoni.skel.h"
 
+extern int stk_fd;
 FILE *fp_nsc = NULL, *fp_rsw = NULL;
 volatile sig_atomic_t exiting = 0;
 char log_dir[] = "/var/log/sysak/schedmoni";
@@ -243,7 +244,7 @@ int main(int argc, char **argv)
 {
 	void *res;
 	int i, err, err1, err2;
-	int arg_fd, ent_fd, stk_fd, stkext_fd;
+	int arg_fd, ent_rslw_fd, ent_nsch_fd;
 	pthread_t pt_runslw, pt_runnsc;
 	struct schedmoni_bpf *obj;
 	struct args args = {};
@@ -288,9 +289,9 @@ int main(int argc, char **argv)
 
 	i = 0;
 	arg_fd = bpf_map__fd(obj->maps.argmap);
-	ent_fd = bpf_map__fd(obj->maps.events);
+	ent_rslw_fd = bpf_map__fd(obj->maps.events_rnslw);
+	ent_nsch_fd = bpf_map__fd(obj->maps.events_nosch);
 	stk_fd = bpf_map__fd(obj->maps.stackmap);
-	stkext_fd = bpf_map__fd(obj->maps.stackmap_ext);
 	args.comm_i = env.comm;
 	args.targ_tgid = env.pid;
 	args.targ_pid = env.tid;
@@ -311,7 +312,7 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 
-	runslw.fd = ent_fd;
+	runslw.fd = ent_rslw_fd;
 	runslw.ext_fd = arg_fd;
 	err = pthread_create(&pt_runslw, NULL, runslw_handler, &runslw);
 	if (err) {
@@ -319,7 +320,7 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 	runnsc.fd = stk_fd;
-	runnsc.ext_fd = stkext_fd;
+	runnsc.ext_fd = ent_nsch_fd;
 
 	err = pthread_create(&pt_runnsc, NULL, runnsc_handler, &runnsc);
 	if (err) {

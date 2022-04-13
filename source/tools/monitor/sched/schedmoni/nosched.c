@@ -18,6 +18,7 @@
 extern FILE *fp_nsc;
 //extern char filename[256] = {0};
 
+int stk_fd;
 extern volatile sig_atomic_t exiting;
 static struct ksym syms[MAX_SYMS];
 static int sym_cnt;
@@ -96,17 +97,17 @@ static void print_ksym(__u64 addr)
 	fprintf(fp_nsc, "<0x%llx> %s\n", addr, sym->name);
 }
 
-static void print_stack(int fd, struct ext_key *key)
+static void print_stack(int fd, __u32 ret)
 {
 	int i;
 	__u64 ip[PERF_MAX_STACK_DEPTH] = {};
 
-	if (bpf_map_lookup_elem(fd, &key->ret, &ip) == 0) {
+	if (bpf_map_lookup_elem(fd, &ret, &ip) == 0) {
 		for (i = 7; i < PERF_MAX_STACK_DEPTH - 1; i++)
 			print_ksym(ip[i]);
 	} else {
-		if ((int)(key->ret) < 0)
-		fprintf(fp_nsc, "<0x0000000000000000>:error=%d\n", (int)(key->ret));
+		if ((int)(ret) < 0)
+		fprintf(fp_nsc, "<0x0000000000000000>:error=%d\n", (int)(ret));
 	}
 }
 
@@ -127,24 +128,46 @@ static void stamp_to_date(__u64 stamp, char dt[], int len)
 	strftime(dt, len, "%F_%H:%M:%S", tm);
 }
 
-static void print_stacks(int fd, int ext_fd)
+void handle_event_nosch(void *ctx, int cpu, void *data, __u32 data_sz)
 {
-	char dt[64] = {0};
-	struct ext_key ext_key = {}, next_key;
-	struct ext_val value;
+	const struct event *e = data;
+	char ts[64];
 
-	fprintf(fp_nsc, "%-21s %-6s %-16s %-8s %-10s\n", "TIME(nosch)", "CPU", "COMM", "TID", "LAT(us)");
-	while (bpf_map_get_next_key(ext_fd, &ext_key, &next_key) == 0) {
-		bpf_map_lookup_elem(ext_fd, &next_key, &value);
-		memset(dt, 0, sizeof(dt));
-		stamp_to_date(value.stamp, dt, sizeof(dt));
-		fprintf(fp_nsc, "%-21s %-6d %-16s %-8d %-10llu\n",
-			dt, value.cpu, value.comm, value.pid, value.lat_us);
-		print_stack(fd, &next_key);
-		bpf_map_delete_elem(ext_fd, &next_key);
-		ext_key = next_key;
+	stamp_to_date(e->stamp, ts, sizeof(ts));
+	fprintf(fp_nsc, "%-21s %-5d %-15s %-8d %-10llu\n",
+		ts, e->cpuid, e->task, e->pid, e->delta_us);
+	print_stack(stk_fd, e->ret);
+}
+
+void nosched_handler(int poll_fd)
+{
+	int err = 0;
+	struct perf_buffer *pb = NULL;
+	struct perf_buffer_opts pb_opts = {};
+
+	fprintf(fp_nsc, "%-21s %-5s %-15s %-8s %-10s\n",
+		"TIME(nosched)", "CPU", "COMM", "TID", "LAT(us)");
+
+	pb_opts.sample_cb = handle_event_nosch;
+	pb = perf_buffer__new(poll_fd, 64, &pb_opts);
+	if (!pb) {
+		err = -errno;
+		fprintf(stderr, "failed to open perf buffer: %d\n", err);
+		goto clean_nosched;
 	}
-	printf("\n");
+
+	while (!exiting) {
+		err = perf_buffer__poll(pb, 100);
+		if (err < 0 && err != -EINTR) {
+			fprintf(stderr, "error polling perf buffer: %s\n", strerror(-err));
+			goto clean_nosched;
+		}
+		/* reset err to return 0 if exiting */
+		err = 0;
+	}
+
+clean_nosched:
+	perf_buffer__free(pb);
 }
 
 void *runnsc_handler(void *arg)
@@ -158,11 +181,7 @@ void *runnsc_handler(void *arg)
 		return NULL;
 	}
 
-	while (!exiting) {
-		sleep(1);
-	}
-	printf("\n");
-	print_stacks(runnsc->fd, runnsc->ext_fd);
+	nosched_handler(runnsc->ext_fd);
 
 	return NULL;
 }
