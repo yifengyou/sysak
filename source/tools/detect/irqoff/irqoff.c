@@ -81,7 +81,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 			fprintf(stderr, "invalid sample period\n");
 			argp_usage(state);
 		}
-		env.sample_period = env.sample_period * 10;
+		env.sample_period = env.sample_period * 1000;
 		break;
 	case 't':
 		errno = 0;
