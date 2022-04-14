@@ -19,7 +19,7 @@ OOM_REASON_CGROUP = 'Cgroup内存使用量达到上限',
 OOM_REASON_PCGROUP = '父Cgroup内存使用量达到上限',
 OOM_REASON_HOST = '主机内存不足',
 OOM_REASON_MEMLEAK = '主机内存不足,存在内存泄漏',
-OOM_REASON_NODEMASK = 'nodemask=0时不支持跨节点申请内存',
+OOM_REASON_NODEMASK = 'mempolicy配置不合理',
 OOM_REASON_NODE = 'CPUSET 的mems值设置不合理',
 OOM_REASON_MEMFRAG = '内存碎片化,需要进行内存规整',
 OOM_RESAON_SYSRQ = 'sysrq',
@@ -42,6 +42,16 @@ if sys.version[0] == '2':
     reload(sys)
     sys.setdefaultencoding('utf8')
 
+def set_to_list(setstr):
+    setstr = setstr.split(',')
+    resset = []
+    for line in setstr:
+        line = line.strip()
+        if line.find('-') >= 0:
+            resset.extend([i for i in range(int(line.split('-')[0]), int(line.split('-')[1])+1)])
+        else:
+            resset.append(int(line))
+    return resset
 
 def bignum_to_num(ori_num):
     try:
@@ -118,7 +128,7 @@ def oom_is_node_num(line):
 def oom_get_mem_allowed(oom_result, line, num):
     cpuset = line.strip().split("cpuset=")[1].split()[0]
     allowed = line.strip().split("mems_allowed=")[1]
-    oom_result['sub_msg'][num]['mems_allowed'] = list(filter(str.isdigit, allowed))
+    oom_result['sub_msg'][num]['mems_allowed'] = set_to_list(allowed)
     oom_result['sub_msg'][num]['cpuset'] = cpuset
 
 def oom_is_host_oom(reason):
@@ -141,8 +151,6 @@ def oom_get_host_mem(oom_result, line, num):
     memory_low = line.strip().split('low:')[1].split()[0]
     oom_result['sub_msg'][num]['host_free'] = memory_free
     oom_result['sub_msg'][num]['host_low'] = memory_low
-    if 'nodemask' in oom_result['sub_msg'][num] and oom_result['sub_msg'][num]['nodemask'] = 0 and memory_free > memory_low * 2:
-        oom_result['sub_msg'][num]['reason'] = OOM_REASON_NODEMASK
 
 def oom_get_cgroup_mem(oom_result, line, num):
     memory_usage = line.strip().split('memory: usage')[1].split()[0].strip(',')
@@ -169,8 +177,8 @@ def oom_get_order(oom_result, line, num):
     oom_result['sub_msg'][num]['order'] = order
 
 def oom_get_nodemask(oom_result, line, num):
-    nodemask = int(line.strip().split("nodemask=")[1].split()[0][:-1])
-    oom_result['sub_msg'][num]['nodemask'] = nodemask
+    nodemask = line.strip().split("nodemask=")[1].split()[0][:-1]
+    oom_result['sub_msg'][num]['nodemask'] = set_to_list(nodemask)
 
 def oom_set_node_oom(oom_result, num, node_num):
     task_mem_allow = oom_result['sub_msg'][num]['mems_allowed']
@@ -182,7 +190,11 @@ def oom_get_slab_unrecl(oom_result, line, num):
     if "slab_unreclaimable" not in line:
         oom_result['sub_msg'][num]['slab'] = 0
         return True
-    slab = int(line.strip().split("slab_unreclaimable:")[1])
+    slab_str = line.strip().split("slab_unreclaimable:")[1].split()[0]
+    if slab_str.endswith('kB'):
+        slab = int(slab_str[:-2])
+    else:
+        slab = int(slab_str)
     oom_result['sub_msg'][num]['slab'] = slab
     return True
 
@@ -232,6 +244,16 @@ def oom_host_output(oom_result, num):
         summary += "Cpuset名:%s,"%(oom['cpuset'])
         summary += "Cpuset内存配置:"
         for node in oom['mems_allowed']:
+            summary +="%s "%(node)
+        summary += "\n"
+        summary += "Node剩余内存:%s,"%(oom['host_free'])
+        summary += "Node low水线:%s\n"%(oom['host_low'])
+        return summary
+    elif 'nodemask' in oom and len(oom['nodemask']) != oom_result['node_num'] and free > low * 2:
+        oom['reason'] = OOM_REASON_NODEMASK
+        summary += "Node总内存:%d\n"%(oom_result['node_num'])
+        summary += "nodemask内存配置:"
+        for node in oom['nodemask']:
             summary +="%s "%(node)
         summary += "\n"
         summary += "Node剩余内存:%s,"%(oom['host_free'])
