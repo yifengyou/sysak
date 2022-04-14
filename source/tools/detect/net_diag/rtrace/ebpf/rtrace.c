@@ -84,6 +84,22 @@ int rtrace_filter_map_fd(struct rtrace *r)
     return bpf_map__fd(r->obj->maps.filter_map);
 }
 
+static void rtrace_free(struct rtrace *r) 
+{
+    rtrace_bpf__destroy(r->obj);
+
+    free(r->btf);
+    r->btf = NULL;
+
+    free(r->btf_custom_path);
+    r->btf_custom_path = NULL;
+    
+    free(r->pin_path);
+    r->pin_path = NULL;
+
+    free(r);
+}
+
 static int rtrace_init(struct rtrace *r, char *btf_custom_path, char *pin_path)
 {
     int err;
@@ -163,7 +179,7 @@ struct rtrace *rtrace_alloc_and_init(char *btf_custom_path, char *pin_path)
     return r;
 
 err_out:
-    // rtrace_free(r);
+    rtrace_free(r);
     return NULL;
 }
 
