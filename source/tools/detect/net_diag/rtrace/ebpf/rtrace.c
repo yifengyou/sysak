@@ -275,7 +275,7 @@ int rtrace_trace_load_prog(struct rtrace *r, struct bpf_program *prog,
         printf("%s\n", log_buf);
         return fd;
     }
-    bpf_program__set_fd(prog, fd);
+    bpf_program__nth_fd(prog, fd);
     return fd;
 }
 
