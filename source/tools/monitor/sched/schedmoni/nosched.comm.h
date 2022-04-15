@@ -17,18 +17,6 @@ struct key_t {
 	__u32 ret;
 };
 
-struct ext_key {
-	__u32 ret;
-	__u64 stamp;
-};
-
-struct ext_val {
-	int pid, cpu;
-	int nosched_ticks;
-	__u64 lat_us, stamp;
-	char comm[TASK_COMM_LEN];
-};
-
 struct latinfo {
 	__u64 last_seen_need_resched_ns;
 	int ticks_without_resched;

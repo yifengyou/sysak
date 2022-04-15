@@ -20,7 +20,6 @@ usage() {
 	echo "         -k,          terminate running ${selftaskname} which started previously"
 	echo "         -g,          default collect cpu perf flamegraph by cpu_flamegraph tool"
 	echo "         -r datafile, read datafile created by '-f datafile' or by default(datafile directory /var/log/sysak/loadtask/) and show result"
-	echo "         -e,          rmmod loadtask.ko"
 }
 
 uninterrupt_cnt=0
@@ -191,9 +190,24 @@ current_analyse() {
 	load_proc=`cat /proc/loadavg`
 	load_proc="load_proc: $load_proc"
 	echo "$load_proc" >> $tmpfile
-	if [ "$summary" == "true" ];then	
-		if [ -f "/proc/sysak/loadtask/loadavg" ]; then
-			cat /proc/sysak/loadtask/loadavg >> $tmpfile
+	if [ "$summary" == "true" ];then
+		if [ -f "/sys/fs/cgroup/cpuacct/cpuacct.proc_stat" ]; then
+			load_1=`echo $load_proc | awk -F " " '{print$2}'`
+			load_5=`echo $load_proc | awk -F " " '{print$3}'`
+			load_15=`echo $load_proc | awk -F " " '{print$4}'`
+
+			r_count=`cat /sys/fs/cgroup/cpuacct/cpuacct.proc_stat | grep nr_running | awk -F " " '{print$2}'`
+			d_count=`cat /sys/fs/cgroup/cpuacct/cpuacct.proc_stat | grep nr_uninterruptible | awk -F " " '{print$2}'`
+
+			loadavg_r_1=$(echo "$r_count/($r_count+$d_count)*$load_1" | bc | awk '{printf "%.2f\n", $0}')
+			loadavg_r_5=$(echo "$r_count/($r_count+$d_count)*$load_5" | bc | awk '{printf "%.2f\n", $0}')
+			loadavg_r_15=$(echo "$r_count/($r_count+$d_count)*$load_15" | bc | awk '{printf "%.2f\n", $0}')
+			loadavg_d_1=$(echo "$load_1-$loadavg_r_1" | bc | awk '{printf "%.2f\n", $0}')
+			loadavg_d_5=$(echo "$load_5-$loadavg_r_5" | bc | awk '{printf "%.2f\n", $0}')
+			loadavg_d_15=$(echo "$load_15-$loadavg_r_15" | bc | awk '{printf "%.2f\n", $0}')
+
+			echo "loadavg_r: $loadavg_r_1 $loadavg_r_5 $loadavg_r_15" >> $tmpfile
+			echo "loadavg_d: $loadavg_d_1 $loadavg_d_5 $loadavg_d_15" >> $tmpfile
 		fi
 	fi
 	load=`cat /proc/loadavg | awk '{print $1}'`
@@ -398,7 +412,7 @@ selftaskname="`cat /proc/$$/status | grep -w "Name" | awk -F" " '{print $2}'`"
 parsed_datafile=""
 tmp_parsed_datafile=${loadtask_dir}.parsedlog
 
-while getopts 'm:f:i:t:r:deskgh' OPT; do
+while getopts 'm:f:i:t:r:dskgh' OPT; do
 	case $OPT in
 		"h")
 			usage
@@ -434,10 +448,6 @@ while getopts 'm:f:i:t:r:deskgh' OPT; do
 			;;
 		"g")
 			is_cpuflamegraph="true"
-			;;
-		"e")
-			echo "rmmod loadtask.ko"
-			exit 0
 			;;
 		*)
 			usage

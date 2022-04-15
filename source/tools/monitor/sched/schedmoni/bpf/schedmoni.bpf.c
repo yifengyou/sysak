@@ -8,7 +8,7 @@
 
 #define MAX_THRESH	(10*1000)
 #define TASK_RUNNING	0
-#define _(P) ({typeof(P) val = 0; bpf_probe_read(&val, sizeof(val), &P); val;})
+#define _(P) ({typeof(P) val; __builtin_memset(&val, 0, sizeof(val)); bpf_probe_read(&val, sizeof(val), &P); val;})
 
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
@@ -28,20 +28,19 @@ struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
 	__uint(key_size, sizeof(u32));
 	__uint(value_size, sizeof(u32));
-} events SEC(".maps");
+} events_rnslw SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+	__uint(key_size, sizeof(u32));
+	__uint(value_size, sizeof(u32));
+} events_nosch SEC(".maps");
 
 struct bpf_map_def SEC("maps") stackmap = {
 	.type = BPF_MAP_TYPE_STACK_TRACE,
 	.key_size = sizeof(u32),
 	.value_size = PERF_MAX_STACK_DEPTH * sizeof(u64),
-	.max_entries = 10000,
-};
-
-struct bpf_map_def SEC("maps") stackmap_ext = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(struct ext_key),
-	.value_size = sizeof(struct ext_val),
-	.max_entries = 10000,
+	.max_entries = 1000,
 };
 
 struct {
@@ -51,18 +50,15 @@ struct {
 	__type(value, struct latinfo);
 } info_map SEC(".maps");
 
-/* 
- * the return value type can only be assigned to 0,
- * so it can be int ,long , long long and the unsinged version 
- * */
 #define GETARG_FROM_ARRYMAP(map,argp,type,member)({	\
-	type retval = 0;			\
-	int i = 0;				\
-	argp = bpf_map_lookup_elem(&map, &i);	\
-	if (argp) {				\
+	int i = 0;					\
+	type retval;					\
+	__builtin_memset(&retval, 0, sizeof(type));	\
+	argp = bpf_map_lookup_elem(&map, &i);		\
+	if (argp) {					\
 		retval = _(argp->member);		\
-	}					\
-	retval;					\
+	}						\
+	retval;						\
 	})
 
 #define BPF_F_FAST_STACK_CMP	(1ULL << 9)
@@ -70,6 +66,32 @@ struct {
 
 #define BIT_WORD(nr)	((nr) / BITS_PER_LONG)
 #define BITS_PER_LONG	64
+
+#define strequal(a, pcom) ({				\
+	bool ret = true;				\
+	int i;						\
+	unsigned long size = pcom.size;			\
+	for (int i = 0; i < 16; i++) {			\
+		if (i >= size)				\
+			break;				\
+		if (a[i] != pcom.comm[i]) {		\
+			ret = false;			\
+			break;}				\
+	}						\
+	ret;						\
+})
+
+static bool program_ready(void)
+{
+	int i = 0;
+	struct args *argp;
+	bool ready = false;
+
+	argp = bpf_map_lookup_elem(&argmap, &i);
+	if (argp)
+		ready = argp->ready;
+	return ready;
+}
 
 static inline int test_bit(int nr, const volatile unsigned long *addr)
 {               
@@ -103,23 +125,49 @@ static inline int test_tsk_need_resched(struct task_struct *tsk, int flag)
 }
 
 /* record enqueue timestamp */
-static __always_inline
-int trace_enqueue(u32 tgid, u32 pid, unsigned int runqlen)
+static int trace_enqueue(struct task_struct *p, unsigned int runqlen)
 {
-	struct enq_info enq_info;
+	bool comm_eqaul = false, use_comm = true;
+	char comm[16];
 	u64 ts;
-	pid_t targ_tgid, targ_pid;
 	struct args *argp;
+	u32 tgid, pid;
+	struct enq_info enq_info;
+	pid_t targ_tgid, targ_pid;
+
+	tgid = _(p->tgid);
+	pid = _(p->pid);
 
 	if (!pid)
 		return 0;
 
-	targ_tgid = GETARG_FROM_ARRYMAP(argmap, argp, pid_t, targ_tgid);
-	targ_pid = GETARG_FROM_ARRYMAP(argmap, argp, pid_t, targ_pid);
-	if (targ_tgid && targ_tgid != tgid)
-		return 0;
-	if (targ_pid && targ_pid != pid)
-		return 0;
+	{
+		int k = 0;
+		struct comm_item comm_i;
+
+		argp = bpf_map_lookup_elem(&argmap, &k);
+		__builtin_memset(&comm_i, 0, sizeof(comm_i));
+		if (argp)
+			comm_i = _(argp->comm_i);
+		bpf_probe_read(comm, sizeof(comm), &(p->comm));
+		if (comm_i.size) {
+			comm_eqaul = strequal(comm,  comm_i);
+			if (!comm_eqaul)
+				return 0;
+		} else { 
+			use_comm = false;
+		}
+	}
+
+	if (!use_comm) {
+		targ_tgid = GETARG_FROM_ARRYMAP(argmap, argp, pid_t, targ_tgid);
+		targ_pid = GETARG_FROM_ARRYMAP(argmap, argp, pid_t, targ_pid);
+		if (targ_tgid && targ_tgid != tgid)
+			return 0;
+
+		if (targ_pid && targ_pid != pid)
+			return 0;
+	}
 
 	ts = bpf_ktime_get_ns();
 	enq_info.ts = ts;
@@ -134,8 +182,11 @@ int raw_tracepoint__sched_wakeup(struct bpf_raw_tracepoint_args *ctx)
 	unsigned int runqlen = 0;
 	struct task_struct *p = (void *)ctx->args[0];
 
+	if (!program_ready())
+		return 0;
+
 	runqlen = BPF_CORE_READ(p, se.cfs_rq, nr_running);
-	return trace_enqueue(_(p->tgid), _(p->pid), runqlen);
+	return trace_enqueue(p, runqlen);
 }
 
 SEC("raw_tracepoint/sched_wakeup_new")
@@ -144,8 +195,11 @@ int raw_tracepoint__sched_wakeup_new(struct bpf_raw_tracepoint_args *ctx)
 	unsigned int runqlen = 0;
 	struct task_struct *p = (void *)ctx->args[0];
 
+	if (!program_ready())
+		return 0;
+
 	runqlen = BPF_CORE_READ(p, se.cfs_rq, nr_running);
-	return trace_enqueue(_(p->tgid), _(p->pid), runqlen);
+	return trace_enqueue(p, runqlen);
 }
 
 SEC("tp/sched/sched_switch")
@@ -161,6 +215,9 @@ int handle_switch(struct trace_event_raw_sched_switch *ctx)
 	struct args *argp;
 	struct latinfo *latp;
 	struct latinfo lati;
+
+	if (!program_ready())
+		return 0;
 
 	prev_pid = ctx->prev_pid;
 	pid = ctx->next_pid;
@@ -186,7 +243,7 @@ int handle_switch(struct trace_event_raw_sched_switch *ctx)
 		unsigned int runqlen = 0;
 
 		runqlen = BPF_CORE_READ(prev, se.cfs_rq, nr_running);
-		return trace_enqueue(_(prev->tgid), _(prev->pid), runqlen);
+		return trace_enqueue(prev, runqlen);
 	}
 	/* fetch timestamp and calculate delta */
 	enq = bpf_map_lookup_elem(&start, &pid);
@@ -204,10 +261,12 @@ int handle_switch(struct trace_event_raw_sched_switch *ctx)
 	event.prev_pid = prev_pid;
 	event.delta_us = delta_us;
 	event.rqlen = _(enq->rqlen);
+	event.stamp = bpf_ktime_get_ns();
 	bpf_probe_read(event.task, sizeof(event.task), &(ctx->next_comm));
 	bpf_probe_read(event.prev_task, sizeof(event.prev_task), &(ctx->prev_comm));
+
 	/* output */
-	bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU,
+	bpf_perf_event_output(ctx, &events_rnslw, BPF_F_CURRENT_CPU,
 			      &event, sizeof(event));
 
 	bpf_map_delete_elem(&start, &pid);
@@ -232,6 +291,8 @@ int BPF_KPROBE(account_process_tick, struct task_struct *p, int user_tick)
 	struct latinfo lati, *latp;
 	struct args args, *argsp;
 
+	if (!program_ready())
+		return 0;
 	__builtin_memset(&args_key, 0, sizeof(int));
 	argsp = bpf_map_lookup_elem(&argmap, &args_key);
 	if (!argsp)
@@ -254,23 +315,15 @@ int BPF_KPROBE(account_process_tick, struct task_struct *p, int user_tick)
 			resched_latency = (now - latp->last_seen_need_resched_ns)/1000;
 			min_us = adjust_thresh(_(argsp->min_us));
 			if (resched_latency > min_us) {
-				struct key_t key;
-				struct ext_key ext_key;
-				struct ext_val ext_val;
-
-				__builtin_memset(&key, 0, sizeof(struct key_t));
-				__builtin_memset(&ext_key, 0, sizeof(struct ext_key));
-				__builtin_memset(&ext_val, 0, sizeof(struct ext_val));
-				key.ret = bpf_get_stackid(ctx, &stackmap, KERN_STACKID_FLAGS);
-				ext_key.stamp = now;
-				ext_key.ret = key.ret;
-				ext_val.lat_us = resched_latency;
-				bpf_get_current_comm(&ext_val.comm, sizeof(ext_val.comm));
-				ext_val.pid = bpf_get_current_pid_tgid();
-				ext_val.nosched_ticks = latp->ticks_without_resched;
-				ext_val.cpu = cpuid;
-				ext_val.stamp = latp->last_seen_need_resched_ns;
-				bpf_map_update_elem(&stackmap_ext, &ext_key, &ext_val, BPF_ANY);
+				struct event event = {};
+				event.stamp = now;
+				event.cpuid = cpuid;
+				event.delta_us = resched_latency;
+				event.pid = bpf_get_current_pid_tgid();
+				bpf_get_current_comm(&event.task, sizeof(event.task));
+				event.ret = bpf_get_stackid(ctx, &stackmap, KERN_STACKID_FLAGS);
+				bpf_perf_event_output(ctx, &events_nosch, BPF_F_CURRENT_CPU,
+							&event, sizeof(event));
 			}
 		}
 	} else {

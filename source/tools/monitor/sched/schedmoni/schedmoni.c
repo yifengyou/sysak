@@ -15,6 +15,7 @@
 #include "schedmoni.h"
 #include "bpf/schedmoni.skel.h"
 
+extern int stk_fd;
 FILE *fp_nsc = NULL, *fp_rsw = NULL;
 volatile sig_atomic_t exiting = 0;
 char log_dir[] = "/var/log/sysak/schedmoni";
@@ -32,20 +33,22 @@ const char *argp_program_version = "schedmoni 0.1";
 const char argp_program_doc[] =
 "Trace schedule latency.\n"
 "\n"
-"USAGE: schedmoni [--help] [-s SPAN] [-t TID] [-P] [min_us] [-f ./runslow.log]\n"
+"USAGE: schedmoni [--help] [-s SPAN] [-t TID] [-c COMM] [-P] [min_us] [-f LOGFILE]\n"
 "\n"
 "EXAMPLES:\n"
 "    schedmoni          # trace latency higher than 10000 us (default)\n"
-"    schedmoni -f a.log # trace latency and record result to a.log (default to /var/log/sysak/runslow.log)\n"
+"    schedmoni -f a.log # record result to a.log (default to ~sysak/schedmoni/schedmoni.log)\n"
 "    schedmoni 1000     # trace latency higher than 1000 us\n"
 "    schedmoni -p 123   # trace pid 123\n"
 "    schedmoni -t 123   # trace tid 123 (use for threads only)\n"
+"    schedmoni -c bash  # trace aplication who's name is bash\n"
 "    schedmoni -s 10    # monitor for 10 seconds\n"
 "    schedmoni -P       # also show previous task name and TID\n";
 
 static const struct argp_option opts[] = {
 	{ "pid", 'p', "PID", 0, "Process PID to trace"},
 	{ "tid", 't', "TID", 0, "Thread TID to trace"},
+	{ "comm", 'c', "COMM", 0, "Name of the application"},
 	{ "span", 's', "SPAN", 0, "How long to run"},
 	{ "verbose", 'v', NULL, 0, "Verbose debug output" },
 	{ "previous", 'P', NULL, 0, "also show previous task name and TID" },
@@ -100,6 +103,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		if (errno || pid <= 0) {
 			fprintf(stderr, "Invalid PID: %s\n", arg);
 			argp_usage(state);
+			return errno;
 		}
 		env.pid = pid;
 		break;
@@ -109,8 +113,22 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		if (errno || pid <= 0) {
 			fprintf(stderr, "Invalid TID: %s\n", arg);
 			argp_usage(state);
+			return errno;
 		}
 		env.tid = pid;
+		break;
+	case 'c':
+		env.comm.size = strlen(arg);
+		if (env.comm.size < 1) {
+			fprintf(stderr, "Invalid COMM: %s\n", arg);
+			argp_usage(state);
+			return -1;
+		}
+			
+		if (env.comm.size > TASK_COMM_LEN - 1)
+			env.comm.size = TASK_COMM_LEN - 1;
+
+		strncpy(env.comm.comm, arg, env.comm.size);
 		break;
 	case 's':
 		errno = 0;
@@ -118,6 +136,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		if (errno || span <= 0) {
 			fprintf(stderr, "Invalid SPAN: %s\n", arg);
 			argp_usage(state);
+			return errno;
 		}
 		env.span = span;
 		break;
@@ -225,7 +244,7 @@ int main(int argc, char **argv)
 {
 	void *res;
 	int i, err, err1, err2;
-	int arg_fd, ent_fd, stk_fd, stkext_fd;
+	int arg_fd, ent_rslw_fd, ent_nsch_fd;
 	pthread_t pt_runslw, pt_runnsc;
 	struct schedmoni_bpf *obj;
 	struct args args = {};
@@ -241,6 +260,7 @@ int main(int argc, char **argv)
 	if (err)
 		return err;
 
+	memset(&env.comm, 0, sizeof(struct comm_item));
 	err = argp_parse(&argp, argc, argv, 0, NULL, NULL);
 	if (err)
 		return err;
@@ -269,13 +289,15 @@ int main(int argc, char **argv)
 
 	i = 0;
 	arg_fd = bpf_map__fd(obj->maps.argmap);
-	ent_fd = bpf_map__fd(obj->maps.events);
+	ent_rslw_fd = bpf_map__fd(obj->maps.events_rnslw);
+	ent_nsch_fd = bpf_map__fd(obj->maps.events_nosch);
 	stk_fd = bpf_map__fd(obj->maps.stackmap);
-	stkext_fd = bpf_map__fd(obj->maps.stackmap_ext);
+	args.comm_i = env.comm;
 	args.targ_tgid = env.pid;
 	args.targ_pid = env.tid;
 	args.min_us = env.min_us;
 	args.flag = TIF_NEED_RESCHED;
+	args.ready = false;
 
 	err = bpf_map_update_elem(arg_fd, &i, &args, 0);
 	if (err) {
@@ -290,14 +312,15 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 
-	runslw.fd = ent_fd;
+	runslw.fd = ent_rslw_fd;
+	runslw.ext_fd = arg_fd;
 	err = pthread_create(&pt_runslw, NULL, runslw_handler, &runslw);
 	if (err) {
 		fprintf(stderr, "can't pthread_create runslw: %s\n", strerror(errno));
 		goto cleanup;
 	}
 	runnsc.fd = stk_fd;
-	runnsc.ext_fd = stkext_fd;
+	runnsc.ext_fd = ent_nsch_fd;
 
 	err = pthread_create(&pt_runnsc, NULL, runnsc_handler, &runnsc);
 	if (err) {

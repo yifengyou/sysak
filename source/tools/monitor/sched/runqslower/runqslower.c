@@ -4,11 +4,14 @@
 // Based on runqslower(8) from BCC by Ivan Babrou.
 // 11-Feb-2020   Andrii Nakryiko   Created this.
 #include <argp.h>
+#include <unistd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/resource.h>
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
@@ -17,16 +20,19 @@
 
 FILE *filep = NULL;
 static volatile sig_atomic_t exiting = 0;
-char defaultfile[] = "/var/log/sysak/runslow.log";
+char log_dir[] = "/var/log/sysak/runqslow/";
+char defaultfile[] = "/var/log/sysak/runqslow/runqslow.log";
 char filename[256] = {0};
 
 struct env {
 	pid_t pid;
 	pid_t tid;
+	unsigned long span;
 	__u64 min_us;
 	bool previous;
 	bool verbose;
 } env = {
+	.span = 0,
 	.min_us = 10000,
 };
 
@@ -36,19 +42,21 @@ const char *argp_program_bug_address =
 const char argp_program_doc[] =
 "Trace high run queue latency.\n"
 "\n"
-"USAGE: runqslower [--help] [-p PID] [-t TID] [-P] [min_us] [-f ./runqslow.log]\n"
+"USAGE: runqslower [--help] [-s SPAN] [-t TID] [-P] [min_us] [-f ./runslow.log]\n"
 "\n"
 "EXAMPLES:\n"
 "    runqslower          # trace latency higher than 10000 us (default)\n"
-"    runqslower -f a.log # trace latency and record result to a.log (default to /var/log/sysak/runslow.log)\n"
+"    runqslower -f a.log # trace latency and record result to a.log (default to /var/log/sysak/runqslow/runqslow.log)\n"
 "    runqslower 1000     # trace latency higher than 1000 us\n"
 "    runqslower -p 123   # trace pid 123\n"
 "    runqslower -t 123   # trace tid 123 (use for threads only)\n"
+"    schedmoni -s 10     # monitor for 10 seconds\n"
 "    runqslower -P       # also show previous task name and TID\n";
 
 static const struct argp_option opts[] = {
 	{ "pid", 'p', "PID", 0, "Process PID to trace"},
 	{ "tid", 't', "TID", 0, "Thread TID to trace"},
+	{ "span", 's', "SPAN", 0, "How long to run"},
 	{ "verbose", 'v', NULL, 0, "Verbose debug output" },
 	{ "previous", 'P', NULL, 0, "also show previous task name and TID" },
 	{ "logfile", 'f', "LOGFILE", 0, "logfile for result"},
@@ -69,11 +77,23 @@ static void bump_memlock_rlimit(void)
 	}
 }
 
+static int prepare_dictory(char *path)
+{
+	int ret;
+
+	ret = mkdir(path, 0777);
+	if (ret < 0 && errno != EEXIST)
+		return errno;
+	else
+		return 0;
+}
+
 static error_t parse_arg(int key, char *arg, struct argp_state *state)
 {
 	static int pos_args;
 	int pid;
 	long long min_us;
+	unsigned long span;
 
 	switch (key) {
 	case 'h':
@@ -103,12 +123,21 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		}
 		env.tid = pid;
 		break;
+	case 's':
+		errno = 0;
+		span = strtoul(arg, NULL, 10);
+		if (errno || span <= 0) {
+			fprintf(stderr, "Invalid SPAN: %s\n", arg);
+			argp_usage(state);
+		}
+		env.span = span;
+		break;
 	case 'f':
 		if (strlen(arg) < 2)
 			strncpy(filename, defaultfile, sizeof(filename));
 		else
 			strncpy(filename, arg, sizeof(filename));
-		filep = fopen(filename, "a+");
+		filep = fopen(filename, "w+");
 		if (!filep) {
 			int ret = errno;
 			fprintf(stderr, "%s :fopen %s\n",
@@ -134,7 +163,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		return ARGP_ERR_UNKNOWN;
 	}
 	if (!filep) {
-	filep = fopen(defaultfile, "a+");
+	filep = fopen(defaultfile, "w+");
 		if (!filep) {
 			int ret = errno;
 			fprintf(stderr, "%s :fopen %s\n",
@@ -150,6 +179,11 @@ static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va
 	if (level == LIBBPF_DEBUG && !env.verbose)
 		return 0;
 	return vfprintf(stderr, format, args);
+}
+
+static void sig_alarm(int signo)
+{
+	exiting = 1;
 }
 
 static void sig_int(int signo)
@@ -198,6 +232,10 @@ int main(int argc, char **argv)
 	struct perf_buffer_opts pb_opts = {};
 	struct args args = {};
 
+	err = prepare_dictory(log_dir);
+	if (err)
+		return err;
+
 	err = argp_parse(&argp, argc, argv, 0, NULL, NULL);
 	if (err)
 		return err;
@@ -237,9 +275,9 @@ int main(int argc, char **argv)
 
 	fprintf(filep, "Tracing run queue latency higher than %llu us\n", env.min_us);
 	if (env.previous)
-		fprintf(filep, "%-21s %-6s %-16s %-8s %-10s %-16s %-6s\n", "TIME", "CPU", "COMM", "TID", "LAT(us)", "PREV COMM", "PREV TID");
+		fprintf(filep, "%-21s %-6s %-16s %-8s %-10s %-16s %-6s\n", "TIME(runslw)", "CPU", "COMM", "TID", "LAT(us)", "PREV COMM", "PREV TID");
 	else
-		fprintf(filep, "%-21s %-6s %-16s %-8s %-10s\n", "TIME", "CPU", "COMM", "TID", "LAT(us)");
+		fprintf(filep, "%-21s %-6s %-16s %-8s %-10s\n", "TIME(runslw)", "CPU", "COMM", "TID", "LAT(us)");
 
 	pb_opts.sample_cb = handle_event;
 	pb = perf_buffer__new(bpf_map__fd(obj->maps.events), 64, &pb_opts);
@@ -249,11 +287,15 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 
-	if (signal(SIGINT, sig_int) == SIG_ERR) {
+	if (signal(SIGINT, sig_int) == SIG_ERR ||
+		signal(SIGALRM, sig_alarm) == SIG_ERR) {
 		fprintf(stderr, "can't set signal handler: %s\n", strerror(errno));
 		err = 1;
 		goto cleanup;
 	}
+
+	if (env.span)
+		alarm(env.span);
 
 	while (!exiting) {
 		err = perf_buffer__poll(pb, 100);

@@ -29,14 +29,7 @@ struct bpf_map_def SEC("maps") stackmap = {
 	.type = BPF_MAP_TYPE_STACK_TRACE,
 	.key_size = sizeof(u32),
 	.value_size = PERF_MAX_STACK_DEPTH * sizeof(u64),
-	.max_entries = 10000,
-};
-
-struct bpf_map_def SEC("maps") stackmap_ext = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(struct ext_key),
-	.value_size = sizeof(struct ext_val),
-	.max_entries = 10000,
+	.max_entries = 1000,
 };
 
 struct {
@@ -45,6 +38,12 @@ struct {
 	__type(key, u64);
 	__type(value, struct latinfo);
 } info_map SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+	__uint(key_size, sizeof(u32));
+	__uint(value_size, sizeof(u32));
+} events SEC(".maps");
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
@@ -112,25 +111,14 @@ int BPF_KPROBE(account_process_tick, struct task_struct *p, int user_tick)
 			latp->ticks_without_resched++;
 			resched_latency = now - latp->last_seen_need_resched_ns;
 			if (resched_latency > _(argsp->thresh)) {
-				struct key_t key;
-				struct ext_key ext_key;
-				struct ext_val ext_val;
-
-				__builtin_memset(&key, 0, sizeof(struct key_t));
-				__builtin_memset(&ext_key, 0, sizeof(struct ext_key));
-				__builtin_memset(&ext_val, 0, sizeof(struct ext_val));
-				key.ret = bpf_get_stackid(ctx, &stackmap, KERN_STACKID_FLAGS);
-				ext_key.stamp = now;
-				ext_key.ret = key.ret;
-				ext_val.lat_us = resched_latency/1000;
-				bpf_get_current_comm(&ext_val.comm, sizeof(ext_val.comm));
-				ext_val.pid = bpf_get_current_pid_tgid();
-				ext_val.nosched_ticks = latp->ticks_without_resched;
-				ext_val.cpu = cpuid;
-				ext_val.stamp = latp->last_seen_need_resched_ns;
-				bpf_map_update_elem(&stackmap_ext, &ext_key, &ext_val, BPF_ANY);
-				/* bpf_printk("%s :lat is %ld us, %d ticks\n", ext_val.comm, 
-					resched_latency/1000, latp->ticks_without_resched); */
+				struct event event = {};
+				event.cpu = cpuid;
+				event.delay = resched_latency/1000;
+				event.pid = bpf_get_current_pid_tgid();
+				bpf_get_current_comm(&event.comm, sizeof(event.comm));
+				event.ret = bpf_get_stackid(ctx, &stackmap, KERN_STACKID_FLAGS);
+				bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU,
+							&event, sizeof(event));
 			}
 		}
 	} else {

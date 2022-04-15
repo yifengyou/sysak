@@ -40,7 +40,8 @@ void handle_lost_events(void *ctx, int cpu, __u64 lost_cnt)
 
 void *runslw_handler(void *arg)
 {
-	int err = 0;
+	int i = 0, err = 0;
+	struct args bpf_args;
 	struct tharg *data = (struct tharg *)arg;
 	struct perf_buffer *pb = NULL;
 	struct perf_buffer_opts pb_opts = {};
@@ -56,6 +57,15 @@ void *runslw_handler(void *arg)
 	if (!pb) {
 		err = -errno;
 		fprintf(stderr, "failed to open perf buffer: %d\n", err);
+		goto clean_runslw;
+	}
+
+	memset(&bpf_args, 0, sizeof(bpf_args));
+	bpf_map_lookup_elem(data->ext_fd, &i, &bpf_args);
+	bpf_args.ready = true;
+	err = bpf_map_update_elem(data->ext_fd, &i, &bpf_args, 0);
+	if (err) {
+		fprintf(stderr, "Failed to update flag map\n");
 		goto clean_runslw;
 	}
 

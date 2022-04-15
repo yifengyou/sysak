@@ -134,11 +134,11 @@ echo "EXTRA_LDFLAGS = --static" >> $config_host_mak
 fi
 
 if [ $default_target = "yes" ]; then
-target_list="tcp_syn_drop cpuirq sysmonitor cpu_flamegraph $target_list"
+    target_list="tcp_syn_drop cpuirq sysmonitor cpu_flamegraph $target_list"
+fi
 for i in $target_list;do
 	target_files="$(grep -nrw "target := $i" $(pwd)/source/tools/ | awk -F ":" '{print $1}') $target_files"
 done
-fi
 
 if [ $disable_libbpf = "YES" ]; then
 disable_target=$(grep "bpf\.mk" $(pwd)/source/tools/ -nEr --color | xargs -I {} expr {} : '.*/source/tools/\(.*\)/\(.*\)' | awk -F "/" '{print$2}' | uniq)
