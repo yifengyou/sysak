@@ -48,6 +48,8 @@ int main(int argc, char *argv[])
 		switch (ch) {
 			case 'T':
 				timeout_s = (unsigned int)strtoul(optarg, NULL, 0);
+				if (timeout_s <= 0)
+					timeout_s = 10;
 				break;
 			case 't':
 				threshold_ms = (int)strtoul(optarg, NULL, 0);
