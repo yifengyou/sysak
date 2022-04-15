@@ -129,7 +129,7 @@ class latencyAnalysis:
 		delayDicts = self.delayDicts
 
 		for disk, diskIdx in diskIdxDicts.items():
-			totalIosDicts[disk] /= 2
+			totalIosDicts[disk] = int(totalIosDicts[disk] / 2)
 			totalIos = totalIosDicts[disk]
 			maxPercent = 0
 			avgTotalDelay = totalDelayDicts[disk] / totalIos
