@@ -55,7 +55,7 @@ check_bpf_kernel() {
 check_bpf_depend() {
 	check_bpf_kernel
 	if [ $kernel_bpf_support = "YES" ];then
-		rpm -q clang > /dev/null
+		clang -v > /dev/null
 		if [ $? = 0 ];then
 			echo "check clang OK"
 		else
