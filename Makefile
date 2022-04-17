@@ -37,6 +37,7 @@ $(TARGET_LIST):
 	make -C $@ -j
 
 binary:
+	$(CC) -o $(SRC)/sysak $(SRC)/sysak.c
 	cp $(SRC)/sysak $(OBJPATH)/
 	chmod +x $(OBJPATH)/sysak
 	chmod +x $(OBJPATH)/.sysak_compoents/tools/* -R
