@@ -224,7 +224,7 @@ void handle_event(void *ctx, int cpu, void *data, __u32 data_sz)
 			strncpy(summary.max.comm, e->task, 16);
 		}
 
-		fprintf(filep, "rqslow %-5ld %-6llu",
+		fprintf(filep, "rqslow %-5lu %-6llu",
 			summary.num, summary.total/1000);
 
 		for (i = 1; i <= CPU_ARRY_LEN; i++)
@@ -299,7 +299,6 @@ int main(int argc, char **argv)
 	args.filter_pid = getpid();
 	args.min_us = env.min_us;
 
-	//fprintf(filep, "Tracing run queue latency higher than %llu us\n", env.min_us);
 	if (!env.summary) {
 		if (env.previous)
 			fprintf(filep, "%-21s %-6s %-16s %-8s %-10s %-16s %-6s\n",
