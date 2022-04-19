@@ -7,12 +7,6 @@
 #define TASK_RUNNING	0
 #define _(P) ({typeof(P) val = 0; bpf_probe_read(&val, sizeof(val), &P); val;})
 
-struct args {
-	__u64 min_us;
-	pid_t targ_pid;
-	pid_t targ_tgid;
-};
-
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(max_entries, 4);
@@ -51,15 +45,20 @@ struct {
 static __always_inline
 int trace_enqueue(u32 tgid, u32 pid)
 {
-	u64 ts;
-	pid_t targ_tgid, targ_pid;
+	u64 ts, i = 0;
+	pid_t targ_tgid, targ_pid, filter_pid;
 	struct args *argp;
 
-	if (!pid)
+	argp = bpf_map_lookup_elem(&argmap, &i);
+	if (!argp)
 		return 0;
 
-	targ_tgid = GETARG_FROM_ARRYMAP(argmap, argp, pid_t, targ_tgid);
-	targ_pid = GETARG_FROM_ARRYMAP(argmap, argp, pid_t, targ_pid);
+	filter_pid = _(argp->filter_pid);
+	if (!pid || (pid == filter_pid))
+		return 0;
+
+	targ_tgid = _(argp->targ_tgid);
+	targ_pid = _(argp->targ_pid);
 	if (targ_tgid && targ_tgid != tgid)
 		return 0;
 	if (targ_pid && targ_pid != pid)
@@ -95,7 +94,7 @@ int handle_switch(struct trace_event_raw_sched_switch *ctx)
 	u32 pid, prev_pid;
 	long int prev_state;
 	struct event event = {};
-	u64 *tsp, delta_us, min_us;
+	u64 *tsp, delta_us, min_us, now;
 	struct args *argp;
 
 	prev_pid = ctx->prev_pid;
@@ -106,13 +105,12 @@ int handle_switch(struct trace_event_raw_sched_switch *ctx)
 	if (prev_state == TASK_RUNNING)
 		trace_enqueue(0, prev_pid);
 
-
 	/* fetch timestamp and calculate delta */
 	tsp = bpf_map_lookup_elem(&start, &pid);
 	if (!tsp)
 		return 0;   /* missed enqueue */
-
-	delta_us = (bpf_ktime_get_ns() - *tsp) / 1000;
+	now = bpf_ktime_get_ns();
+	delta_us = (now - *tsp) / 1000;
 	min_us = GETARG_FROM_ARRYMAP(argmap, argp, u64, min_us);
 	if (min_us && delta_us <= min_us)
 		return 0;
@@ -121,6 +119,7 @@ int handle_switch(struct trace_event_raw_sched_switch *ctx)
 	event.pid = pid;
 	event.prev_pid = prev_pid;
 	event.delta_us = delta_us;
+	event.stamp = now;
 	bpf_probe_read(event.task, sizeof(event.task), &(ctx->next_comm));
 	bpf_probe_read(event.prev_task, sizeof(event.prev_task), &(ctx->prev_comm));
 

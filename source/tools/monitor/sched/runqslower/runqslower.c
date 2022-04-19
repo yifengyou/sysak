@@ -24,6 +24,7 @@ char log_dir[] = "/var/log/sysak/runqslow/";
 char defaultfile[] = "/var/log/sysak/runqslow/runqslow.log";
 char filename[256] = {0};
 
+struct summary summary;
 struct env {
 	pid_t pid;
 	pid_t tid;
@@ -31,6 +32,7 @@ struct env {
 	__u64 min_us;
 	bool previous;
 	bool verbose;
+	bool summary;
 } env = {
 	.span = 0,
 	.min_us = 10000,
@@ -58,6 +60,7 @@ static const struct argp_option opts[] = {
 	{ "tid", 't', "TID", 0, "Thread TID to trace"},
 	{ "span", 's', "SPAN", 0, "How long to run"},
 	{ "verbose", 'v', NULL, 0, "Verbose debug output" },
+	{ "summary", 'S', NULL, 0, "Output the summary info" },
 	{ "previous", 'P', NULL, 0, "also show previous task name and TID" },
 	{ "logfile", 'f', "LOGFILE", 0, "logfile for result"},
 	{ NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
@@ -101,6 +104,9 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		break;
 	case 'v':
 		env.verbose = true;
+		break;
+	case 'S':
+		env.summary = true;
 		break;
 	case 'P':
 		env.previous = true;
@@ -201,23 +207,47 @@ void handle_event(void *ctx, int cpu, void *data, __u32 data_sz)
 	time(&t);
 	tm = localtime(&t);
 	strftime(ts, sizeof(ts), "%F %H:%M:%S", tm);
-	if (env.previous)
-		fprintf(filep, "%-21s %-6d %-16s %-8d %-10llu %-16s %-6d\n", ts, e->cpuid, e->task, e->pid,
-			e->delta_us, e->prev_task, e->prev_pid);
-	else
-		fprintf(filep, "%-21s %-6d %-16s %-8d %-10llu\n", ts, e->cpuid, e->task, e->pid, e->delta_us);
+	if (env.summary) {
+		int idx, i;
+
+		if(fseek(filep, 0L, SEEK_SET) < 0)
+			return;
+		summary.num++;
+		idx = summary.num % CPU_ARRY_LEN;
+		summary.total += e->delta_us;
+		summary.cpus[idx] = e->cpuid;
+		if (summary.max.value < e->delta_us) {
+			summary.max.value = e->delta_us;
+			summary.max.cpu = e->cpuid;
+			summary.max.pid = e->pid;
+			summary.max.stamp = e->stamp;
+			strncpy(summary.max.comm, e->task, 16);
+		}
+
+		fprintf(filep, "rqslow %-5ld %-6llu",
+			summary.num, summary.total/1000);
+
+		for (i = 1; i <= CPU_ARRY_LEN; i++)
+			fprintf(filep, " %d", summary.cpus[(idx+i)%CPU_ARRY_LEN]);
+		
+		fprintf(filep, "   %-4llu %-12llu %-3d %-9d %-15s\n",
+			summary.max.value/1000, summary.max.stamp/1000,
+			summary.max.cpu, summary.max.pid, summary.max.comm);
+	} else {
+		if (env.previous)
+			fprintf(filep, "%-21s %-6d %-16s %-8d %-10llu %-16s %-6d\n",
+				ts, e->cpuid, e->task, e->pid,
+				e->delta_us, e->prev_task, e->prev_pid);
+		else
+			fprintf(filep, "%-21s %-6d %-16s %-8d %-10llu\n",
+				ts, e->cpuid, e->task, e->pid, e->delta_us);
+	}
 }
 
 void handle_lost_events(void *ctx, int cpu, __u64 lost_cnt)
 {
 	printf("Lost %llu events on CPU #%d!\n", lost_cnt, cpu);
 }
-
-struct args {
-	__u64 min_us;
-	pid_t targ_pid;
-	pid_t targ_tgid;
-};
 
 int main(int argc, char **argv)
 {
@@ -266,19 +296,18 @@ int main(int argc, char **argv)
 	map_fd = bpf_map__fd(obj->maps.argmap);
 	args.targ_tgid = env.pid;
 	args.targ_pid = env.tid;
+	args.filter_pid = getpid();
 	args.min_us = env.min_us;
-	bpf_map_update_elem(map_fd, &i, &args, 0);
-	if (err) {
-		fprintf(stderr, "Failed to update flag map\n");
-		goto cleanup;
+
+	//fprintf(filep, "Tracing run queue latency higher than %llu us\n", env.min_us);
+	if (!env.summary) {
+		if (env.previous)
+			fprintf(filep, "%-21s %-6s %-16s %-8s %-10s %-16s %-6s\n",
+				"TIME(runslw)", "CPU", "COMM", "TID", "LAT(us)", "PREV COMM", "PREV TID");
+		else
+			fprintf(filep, "%-21s %-6s %-16s %-8s %-10s\n",
+				"TIME(runslw)", "CPU", "COMM", "TID", "LAT(us)");
 	}
-
-	fprintf(filep, "Tracing run queue latency higher than %llu us\n", env.min_us);
-	if (env.previous)
-		fprintf(filep, "%-21s %-6s %-16s %-8s %-10s %-16s %-6s\n", "TIME(runslw)", "CPU", "COMM", "TID", "LAT(us)", "PREV COMM", "PREV TID");
-	else
-		fprintf(filep, "%-21s %-6s %-16s %-8s %-10s\n", "TIME(runslw)", "CPU", "COMM", "TID", "LAT(us)");
-
 	pb_opts.sample_cb = handle_event;
 	pb = perf_buffer__new(bpf_map__fd(obj->maps.events), 64, &pb_opts);
 	if (!pb) {
@@ -297,6 +326,11 @@ int main(int argc, char **argv)
 	if (env.span)
 		alarm(env.span);
 
+	bpf_map_update_elem(map_fd, &i, &args, 0);
+	if (err) {
+		fprintf(stderr, "Failed to update flag map\n");
+		goto cleanup;
+	}
 	while (!exiting) {
 		err = perf_buffer__poll(pb, 100);
 		if (err < 0 && err != -EINTR) {
