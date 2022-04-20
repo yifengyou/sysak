@@ -1,9 +1,10 @@
 # iosdiag
-iosdiag (IO storage diagnostics tools), IO存储诊断工具，目前包括已实现的IO延迟诊断功能以及正在实现的IO夯诊断或其他功能等等
+iosdiag (IO storage diagnostics tools), IO存储诊断工具，目前包括IO延迟诊断功能以及IO夯诊断或其他功能等等
 
 # 代码目录结构
 entry          IO诊断功能入口代码
 latency        IO延迟诊断代码
+hangdetect     IO夯诊断代码     
 data_analysis  IO诊断数据分析与结果输出代码
 
 # 编译
