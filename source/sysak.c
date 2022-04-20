@@ -10,7 +10,10 @@
 #define KVERSION 64
 #define MAX_SUBCMD_ARGS 128
 #define MAX_NAME_LEM 64
-#define MAX_WORK_PATH 256
+#define MAX_WORK_PATH_LEN 256
+#define ERR_NOSUBTOOL 2
+#define ERR_MISSARG 3
+
 #define bool int
 #define true 1
 #define false 0
@@ -22,10 +25,11 @@ char *system_modules = "/proc/modules";
 char kern_version[KVERSION];
 char modin[MAX_SUBCMD_ARGS];
 char modun[MAX_SUBCMD_ARGS];
-char tools_path[MAX_WORK_PATH];
-char sysak_rule[MAX_WORK_PATH];
-char module_path[MAX_WORK_PATH];
-char sysak_other_rule[MAX_WORK_PATH];
+char tools_path[MAX_WORK_PATH_LEN];
+char sysak_rule[MAX_WORK_PATH_LEN];
+char module_path[MAX_WORK_PATH_LEN];
+char sysak_work_path[MAX_WORK_PATH_LEN];
+char sysak_other_rule[MAX_WORK_PATH_LEN];
 bool pre_module = false;
 bool post_module = false;
 
@@ -47,7 +51,7 @@ static void kern_release(void)
         printf("cannot get system name\n");
         return;
     }
-    strncpy(kern_version,name.release,sizeof(name.release));
+    strncpy(kern_version, name.release, sizeof(name.release));
 }
 
 static void mod_ctrl(bool enable)
@@ -83,11 +87,13 @@ static void mod_ctrl(bool enable)
     }
 }
 
-static void exectue(int argc, char *argv[])
+static int exectue(int argc, char *argv[])
 {
     int i;
+    int ret = 0;
     char subcmd_name[MAX_NAME_LEM+MAX_SUBCMD_ARGS];
     char subcmd_args[MAX_SUBCMD_ARGS];
+    char subcmd_exec_final[MAX_NAME_LEM+MAX_SUBCMD_ARGS];
 
     if (pre_module)
         mod_ctrl(true);
@@ -101,10 +107,12 @@ static void exectue(int argc, char *argv[])
         snprintf(subcmd_args, sizeof(subcmd_args), " \"%s\"", argv[i]);
         strcat(subcmd_name,subcmd_args);
     }
-    system(subcmd_name);
+    snprintf(subcmd_exec_final, sizeof(subcmd_exec_final), "%s;%s", sysak_work_path, subcmd_name);
+    ret = system(subcmd_exec_final);
     
     if (post_module)
         mod_ctrl(false);
+    return ret;
 }
 
 static void print_each_tool(char *path)
@@ -161,14 +169,14 @@ static bool tool_lookup(char *path, char *tool)
     return false;
 }
 
-static void subcmd_parse(int argc, char *argv[])
+static int subcmd_parse(int argc, char *argv[])
 {
     int i;
     
     if (!tool_lookup(sysak_other_rule, argv[1]) && 
             !tool_lookup(sysak_rule, argv[1])){
         printf("no components, you should get first\n");
-        return;
+        return -ERR_NOSUBTOOL;
     }
 
     if (strstr(modin, "default") != NULL|| strstr(modun, "default") != NULL){
@@ -189,46 +197,51 @@ static void subcmd_parse(int argc, char *argv[])
         }
     }
 exec:
-    exectue(argc, argv);
+    return exectue(argc, argv);
 }
 
-static void parse_arg(int argc, char *argv[])
+static int parse_arg(int argc, char *argv[])
 {
-	if (argc < 2)
+	if (argc < 2){
 		usage();
+        return -ERR_MISSARG;
+    }
     
     if (!strcmp(argv[1],"list")){
         subcmd_list();
-        return;
+        return 0;
     }
 
     if (!strcmp(argv[1],"help")){
         usage();
-        return;
+        return 0;
     }
-    subcmd_parse(argc, argv);
+    return subcmd_parse(argc, argv);
 }
 
 int main(int argc, char *argv[])
 {
-    char tmp[MAX_WORK_PATH];
+    char tmp[MAX_WORK_PATH_LEN];
     char *work_path;
+    int ret = 0;
 
     if (access(log_path,0) != 0)
         mkdir(log_path, 0755 );
 
     kern_release();
-    work_path = getcwd(tmp,MAX_WORK_PATH);
+    work_path = getcwd(tmp,MAX_WORK_PATH_LEN);
 
-    snprintf(tools_path, sizeof(tools_path), "%s%s", work_path, 
-            "/.sysak_compoents/tools/");
-    snprintf(module_path, sizeof(module_path), "%s%s", work_path, 
-            "/.sysak_compoents/lib/");
-    snprintf(sysak_rule, sizeof(sysak_rule), "%s%s", work_path, 
-            "/.sysak_compoents/tools/.sysak.rules");
-    snprintf(sysak_other_rule, sizeof(sysak_other_rule), "%s%s%s%s", work_path, 
-            "/.sysak_compoents/tools/",kern_version,"/.sysak.rules");
+    snprintf(tools_path, sizeof(tools_path), "%s%s", 
+            work_path, "/.sysak_compoents/tools/");
+    snprintf(module_path, sizeof(module_path), "%s%s", 
+            work_path, "/.sysak_compoents/lib/");
+    snprintf(sysak_rule, sizeof(sysak_rule), "%s%s", 
+            work_path, "/.sysak_compoents/tools/.sysak.rules");
+    snprintf(sysak_other_rule, sizeof(sysak_other_rule), "%s%s%s%s", 
+            work_path, "/.sysak_compoents/tools/",kern_version,"/.sysak.rules");
+    snprintf(sysak_work_path, sizeof(sysak_work_path), "%s%s%s", 
+            "export SYSAK_WORK_PATH=", work_path, "/.sysak_compoents");
  
-	parse_arg(argc, argv);
-	return 0;
+	ret = parse_arg(argc, argv);
+	return ret;
 }
