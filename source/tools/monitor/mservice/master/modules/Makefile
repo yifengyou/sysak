@@ -11,13 +11,13 @@ ifeq ($(UNAME_S),Darwin)
 		   mod_lvs.so mod_mem.so mod_ncpu.so mod_nginx.so \
 		   mod_pcsw.so mod_percpu.so mod_pernic.so \
 		   mod_proc.so mod_squid.so mod_tcp.so mod_tcpx.so mod_traffic.so mod_udp.so \
-		   mod_cgroup.so
+		   mod_cgroup.so mod_jitter.so
 else
 	OBJS = mod_apache.so mod_cpu.so mod_haproxy.so mod_io.so mod_load.so mod_swap.so \
 		   mod_lvs.so mod_mem.so mod_ncpu.so mod_nginx.so \
 		   mod_partition.so mod_pcsw.so mod_percpu.so mod_pernic.so \
 		   mod_proc.so mod_squid.so mod_tcp.so mod_tcpx.so mod_traffic.so mod_udp.so \
-		   mod_cgroup.so
+		   mod_cgroup.so mod_jitter.so
 endif
 
 all: $(OBJS)
