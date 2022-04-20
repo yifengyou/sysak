@@ -181,10 +181,12 @@ def scan_all_proc(inodes):
                     if not os.path.exists(procName+fd):
                         continue
                     link = os.readlink(procName+fd)
-                    if link.find("socket") == -1:
+                    if link.find("socket:[") == -1:
+                        continue
+                    inode = link.strip().split("[")
+                    if len(inode) < 2:
                         continue
                     inodeNum += 1
-                    inode = link.strip().split("[")
                     inode = inode[1][:-1].strip()
                     #print("fd {} link {} inode {}".format(procName+fd, link, inode))
                     if inode not in inodes:
