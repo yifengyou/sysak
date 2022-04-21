@@ -91,7 +91,7 @@ void print_jitter_stats(struct module *mod)
 	memset(buf, 0, 4096);
 	if (fgets(line, 4096, fp) != NULL) {
 		/* "irqoff", "noschd", "rqslow" has 6 charactors */
-		sscanf(line+6, "%ld %llu %d %d %d %d %llu %llu %d %d",
+		sscanf(line+6, "%lu %llu %d %d %d %d %llu %llu %d %d",
 			&summary.num, &summary.total,
 			&summary.lastcpu0, &summary.lastcpu1,
 			&summary.lastcpu2, &summary.lastcpu3,
@@ -99,7 +99,7 @@ void print_jitter_stats(struct module *mod)
 			&summary.max_cpu, &summary.max_pid);
 	}
 
-	sprintf(buf, "%ld,%llu,%d,%d,%d,%d,%llu,%llu,%d,%d",
+	sprintf(buf, "%lu,%llu,%d,%d,%d,%d,%llu,%llu,%d,%d",
 			summary.num, summary.total,
 			summary.lastcpu0, summary.lastcpu1,
 			summary.lastcpu2, summary.lastcpu3,
