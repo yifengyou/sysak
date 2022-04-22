@@ -16,7 +16,7 @@ usage() {
 }
 
 extract_btf() {
-    source_path=${SYSAK_WORK_PATH}/tools/vmlinux-btf/vmlinux-`uname -r`
+    source_path=${SYSAK_WORK_PATH}/tools/`uname -r`/vmlinux-`uname -r`
     if [ ! -f "$source_path" ]; then
         echo "target vmlinux file not exist: vmlinux-`uname -r`"
         exit -1
