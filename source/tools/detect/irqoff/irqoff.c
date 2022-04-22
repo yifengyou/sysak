@@ -18,15 +18,14 @@
 #include "irqoff.h"
 #include "./bpf/irqoff.skel.h"
 
-#define LAT_THRESH_NS	(10*1000*1000)
-
 struct env {
-	int sample_period;
+	__u64 sample_period;
 	time_t duration;
 	bool verbose;
+	__u64 threshold;
 } env = {
-	.sample_period = 1*1000*1000 + 1,	//1ms
 	.duration = 0,
+	.threshold = 10,	/* 10ms */
 };
 
 FILE *filep = NULL;
@@ -36,7 +35,6 @@ char defaultfile[] = "/var/log/sysak/irqoff/irqoff.log";
 
 static struct ksym *ksyms;
 static int stackmp_fd;
-static __u64 threshold;
 volatile sig_atomic_t exiting = 0;
 
 void print_stack(int fd, __u32 ret, struct ksym *syms);
@@ -46,16 +44,14 @@ const char *argp_program_version = "irqoff 0.1";
 const char argp_program_doc[] =
 "Catch the irq-off time more than threshold.\n"
 "\n"
-"USAGE: irqoff [--help] [-p SAMPLE_PERIOD(us)] [-t THRESH(us)] [-f LOGFILE] [duration(s)]\n"
+"USAGE: irqoff [--help] [-t THRESH(ms)] [-f LOGFILE] [duration(s)]\n"
 "\n"
 "EXAMPLES:\n"
-"    irqoff                # run 10s, and detect irqoff more than 10ms(default)\n"
-"    irqoff -p 2000        # detect irqoff with period 2ms (default 1ms)\n"
-"    irqoff -t 15000       # detect irqoff with threshold 15ms (default 10ms)\n"
+"    irqoff                # run forever, and detect irqoff more than 10ms(default)\n"
+"    irqoff -t 15          # detect irqoff with threshold 15ms (default 10ms)\n"
 "    irqoff -f a.log       # record result to a.log (default to ~sysak/irqoff/irqoff.log)\n";
 
 static const struct argp_option opts[] = {
-	{ "sample_period", 'p', "SAMPLE_PERIOD", 0, "Period default to 1ms"},
 	{ "threshold", 't', "THRESH", 0, "Threshold to detect, default 10ms"},
 	{ "logfile", 'f', "LOGFILE", 0, "logfile for result"},
 	{ "verbose", 'v', NULL, 0, "Verbose debug output" },
@@ -65,6 +61,7 @@ static const struct argp_option opts[] = {
 
 static error_t parse_arg(int key, char *arg, struct argp_state *state)
 {
+	int ret = errno;
 	static int pos_args;
 
 	switch (key) {
@@ -74,23 +71,19 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	case 'v':
 		env.verbose = true;
 		break;
-	case 'p':
-		errno = 0;
-		env.sample_period = strtoull(arg, NULL, 10);
-		if (errno) {
-			fprintf(stderr, "invalid sample period\n");
-			argp_usage(state);
-		}
-		env.sample_period = env.sample_period * 1000;
-		break;
 	case 't':
 		errno = 0;
-		threshold = strtoull(arg, NULL, 10);
+		__u64 thresh;
+		thresh = strtoull(arg, NULL, 10);
 		if (errno) {
 			fprintf(stderr, "invalid threshold\n");
 			argp_usage(state);
+			break;
+		} else if (thresh < 5) {
+			fprintf(stderr, "threshold must >5ms, set to default 10ms\n");
+			break;
 		}
-		threshold = threshold * 1000;
+		env.threshold = thresh * 1000*1000;
 		break;
 	case 'f':
 		if (strlen(arg) < 2)
@@ -99,7 +92,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 			strncpy(filename, arg, sizeof(filename));
 		filep = fopen(filename, "w+");
 		if (!filep) {
-			int ret = errno;
+			ret = errno;
 			fprintf(stderr, "%s :fopen %s\n",
 				strerror(errno), filename);
 			return ret;
@@ -114,8 +107,10 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		errno = 0;
 		env.duration = strtol(arg, NULL, 10);
 		if (errno) {
+			ret = errno;
 			fprintf(stderr, "invalid duration\n");
 			argp_usage(state);
+			return ret;
 		}
 		break;
 	default:
@@ -124,15 +119,15 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	if (!filep) {
 		filep = fopen(defaultfile, "w+");
 		if (!filep) {
-			int ret = errno;
+			ret = errno;
 			fprintf(stderr, "%s :fopen %s\n",
 				strerror(errno), defaultfile);
 			return ret;
 		}
 	}
 
-	if (env.sample_period > threshold)
-		env.sample_period = threshold >> 2 ;
+	/* refer to watchdog.c:set_sample_period, sample_period set to thres*2/5. */
+	env.sample_period = env.threshold*2/5;
 
 	return 0;
 }
@@ -152,20 +147,15 @@ static void bump_memlock_rlimit(void)
 
 static int nr_cpus;
 
-static int open_and_attach_perf_event(__u64 config, int period,
-				struct bpf_program *prog,
-				struct bpf_link *links[])
+static int
+open_and_attach_perf_event(struct perf_event_attr *attr,
+			   struct bpf_program *prog,
+			   struct bpf_link *links[])
 {
-	struct perf_event_attr attr = {
-		.type = PERF_TYPE_SOFTWARE,
-		.freq = 0,
-		.sample_period = period,
-		.config = config,
-	};
 	int i, fd;
 
 	for (i = 0; i < nr_cpus; i++) {
-		fd = syscall(__NR_perf_event_open, &attr, -1, i, -1, 0);
+		fd = syscall(__NR_perf_event_open, attr, -1, i, -1, 0);
 		if (fd < 0) {
 			/* Ignore CPU that is offline */
 			if (errno == ENODEV)
@@ -184,6 +174,38 @@ static int open_and_attach_perf_event(__u64 config, int period,
 	return 0;
 }
 
+/* surprise! return 0 if failed! */
+static int attach_prog_to_perf(struct irqoff_bpf *obj,
+		struct bpf_link **sw_mlinks,struct bpf_link **hw_mlinks)
+{
+	int ret = 0;
+
+	struct perf_event_attr attr_hw = {
+		.type = PERF_TYPE_HARDWARE,
+		.freq = 0,
+		.sample_period = env.sample_period*2,	/* refer to watchdog_update_hrtimer_threshold() */
+		.config = PERF_COUNT_HW_CPU_CYCLES,
+	};
+
+	struct perf_event_attr attr_sw = {
+		.type = PERF_TYPE_SOFTWARE,
+		.freq = 0,
+		.sample_period = env.sample_period,
+		.config = PERF_COUNT_SW_CPU_CLOCK,
+	};
+
+	if (!open_and_attach_perf_event(&attr_hw, obj->progs.hw_irqoff_event, hw_mlinks)) {
+		ret = 1<<PERF_TYPE_SOFTWARE;
+		if (!open_and_attach_perf_event(&attr_sw, obj->progs.sw_irqoff_event1, sw_mlinks))
+			ret = ret | 1<<PERF_TYPE_SOFTWARE;
+
+	} else {
+		if (!open_and_attach_perf_event(&attr_sw, obj->progs.sw_irqoff_event2, sw_mlinks))
+			ret = 1<<PERF_TYPE_SOFTWARE;
+	}
+	return ret;
+}
+
 void handle_event(void *ctx, int cpu, void *data, __u32 data_sz)
 {
 	const struct event *e = data;
@@ -199,9 +221,10 @@ void handle_event(void *ctx, int cpu, void *data, __u32 data_sz)
 	print_stack(stackmp_fd, e->ret, ksyms);
 }
 
-void irqoff_handler(int poll_fd)
+void irqoff_handler(int poll_fd, int map_fd)
 {
-	int err = 0;
+	int arg_key = 0, err = 0;
+	struct arg_info arg_info = {};
 	struct perf_buffer *pb = NULL;
 	struct perf_buffer_opts pb_opts = {};
 
@@ -212,6 +235,13 @@ void irqoff_handler(int poll_fd)
 	if (!pb) {
 		err = -errno;
 		fprintf(stderr, "failed to open perf buffer: %d\n", err);
+		goto clean_irqoff;
+	}
+
+	arg_info.thresh = env.threshold;
+	err = bpf_map_update_elem(map_fd, &arg_key, &arg_info, 0);
+	if (err) {
+		fprintf(stderr, "Failed to update arg_map\n");
 		goto clean_irqoff;
 	}
 
@@ -259,10 +289,9 @@ static void sig_int(int sig)
 
 int main(int argc, char **argv)
 {
-	int err, i, ent_fd, map_fd, args_key;
-	struct args args;
+	int err, i, ent_fd, arg_fd;
 	struct irqoff_bpf *obj;
-	struct bpf_link **mlinks = NULL;
+	struct bpf_link **sw_mlinks, **hw_mlinks= NULL;
 	static const struct argp argp = {
 		.options = opts,
 		.parser = parse_arg,
@@ -270,15 +299,16 @@ int main(int argc, char **argv)
 	};
 
 	err = prepare_dictory(log_dir);
-	if (err)
+	if (err) {
+		fprintf(stderr, "prepare_dictory %s fail\n", log_dir);
 		return err;
-
+	}
 	ksyms = NULL;
-	threshold = LAT_THRESH_NS;
 	err = argp_parse(&argp, argc, argv, 0, NULL, NULL);
-	if (err)
+	if (err) {
+		fprintf(stderr, "argp_parse fail\n");
 		return err;
-
+	}
 	libbpf_set_print(libbpf_print_fn);
 
 	bump_memlock_rlimit();
@@ -294,9 +324,15 @@ int main(int argc, char **argv)
 			strerror(-nr_cpus));
 		return 1;
 	}
-	mlinks = calloc(nr_cpus, sizeof(*mlinks));
-	if (!mlinks) {
-		fprintf(stderr, "failed to alloc mlinks or rlinks\n");
+	sw_mlinks = calloc(nr_cpus, sizeof(*sw_mlinks));
+	if (!sw_mlinks) {
+		fprintf(stderr, "failed to alloc sw_mlinks or rlinks\n");
+		return 1;
+	}
+	hw_mlinks = calloc(nr_cpus, sizeof(*hw_mlinks));
+	if (!hw_mlinks) {
+		fprintf(stderr, "failed to alloc hw_mlinks or rlinks\n");
+		free(sw_mlinks);
 		return 1;
 	}
 
@@ -306,23 +342,12 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 
-	if (open_and_attach_perf_event(PERF_COUNT_SW_CPU_CLOCK,
-					env.sample_period,
-					obj->progs.on_irqoff_event, mlinks))
+	if (!attach_prog_to_perf(obj, sw_mlinks, hw_mlinks))
 		goto cleanup;
 
-	map_fd = bpf_map__fd(obj->maps.argmap);
+	arg_fd = bpf_map__fd(obj->maps.arg_map);
 	ent_fd = bpf_map__fd(obj->maps.events);
 	stackmp_fd = bpf_map__fd(obj->maps.stackmap);
-
-	args_key = 0;
-	args.threshold = threshold;
-	args.period = env.sample_period;
-	err = bpf_map_update_elem(map_fd, &args_key, &args, 0);
-	if (err) {
-		fprintf(stderr, "Failed to update args map\n");
-		goto cleanup;
-	}
 
 	if (signal(SIGINT, sig_int) == SIG_ERR ||
 		signal(SIGALRM, sig_alarm) == SIG_ERR) {
@@ -334,16 +359,19 @@ int main(int argc, char **argv)
 	if (env.duration)
 		alarm(env.duration);
 
-	irqoff_handler(ent_fd);
+	irqoff_handler(ent_fd, arg_fd);
 
 cleanup:
 	for (i = 0; i < nr_cpus; i++) {
-		bpf_link__destroy(mlinks[i]);
+		bpf_link__destroy(sw_mlinks[i]);
+		bpf_link__destroy(hw_mlinks[i]);
 	}
-	free(mlinks);
+	free(sw_mlinks);
+	free(hw_mlinks);
 	if (ksyms)
 		free(ksyms);
 	irqoff_bpf__destroy(obj);
 
 	return err != 0;
 }
+

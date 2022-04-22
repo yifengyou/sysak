@@ -8,9 +8,12 @@ struct info {
 	__u64 prev_counter;
 };
 
-struct args {
-	__u64 threshold;
-	__u64 period;
+struct tm_info {
+	__u64 last_stamp;
+};
+
+struct arg_info {
+	__u64 thresh;
 };
 
 struct event {
@@ -25,3 +28,4 @@ struct ksym {
 };
 
 #endif /* __LLCSTAT_H */
+

@@ -9,13 +9,6 @@
 #define BPF_F_FAST_STACK_CMP	(1ULL << 9)
 #define KERN_STACKID_FLAGS	(0 | BPF_F_FAST_STACK_CMP)
 
-struct bpf_map_def SEC("maps") args_map = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(int),
-	.value_size = sizeof(struct args),
-	.max_entries = 1,
-};
-
 struct bpf_map_def SEC("maps") stackmap = {
 	.type = BPF_MAP_TYPE_STACK_TRACE,
 	.key_size = sizeof(u32),
@@ -25,10 +18,17 @@ struct bpf_map_def SEC("maps") stackmap = {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, 4);
+	__uint(max_entries, 1);
 	__type(key, u32);
-	__type(value, struct args);
-} argmap SEC(".maps");
+	__type(value, struct arg_info);
+} arg_map SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, u32);
+	__type(value, struct tm_info);
+} tm_map SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
@@ -45,94 +45,103 @@ struct {
 
 #define _(P) ({typeof(P) val = 0; bpf_probe_read(&val, sizeof(val), &P); val;})
 
-#define GETARG_FROM_ARRYMAP(map,argp,type,member)({	\
-	type retval = 0;			\
-	int i = 0;				\
-	argp = bpf_map_lookup_elem(&map, &i);	\
-	if (argp) {				\
-		retval = _(argp->member);		\
-	}					\
-	retval;					\
-	})
-
-static u64 get_period(void)
+static inline u64 get_thresh(void)
 {
-	__u64 period;
-	struct args *argp;
+	u64 thresh, i = 0;
+	struct arg_info *argp;
 
-	period = GETARG_FROM_ARRYMAP(argmap, argp, __u64, period);
-
-	return period;
-}
-
-static u64 get_thresh(void)
-{
-	__u64 thresh;
-	struct args *argp;
-
-	thresh = GETARG_FROM_ARRYMAP(argmap, argp, __u64, threshold);
+	argp = bpf_map_lookup_elem(&arg_map, &i);
+	if (argp)
+		thresh = argp->thresh;
+	else
+		thresh = -1;
 
 	return thresh;
 }
 
-static void set_prev_counter(u64 new_cnt, u64 cpu)
+SEC("perf_event")
+int hw_irqoff_event(struct bpf_perf_event_data *ctx)
 {
-	struct info *infop, infos;
+	int i = 0;
+	u64 now, delta, thresh, stamp;
+	struct tm_info *tmifp;
+	struct event event = {};
+	u32 cpu = bpf_get_smp_processor_id();
 
-	infop = bpf_map_lookup_elem(&info_map, &cpu);
-	if (infop) {
-		infop->prev_counter = new_cnt;
-	} else {
-		__builtin_memset(&infos, 0, sizeof(struct info));
-		infos.prev_counter = new_cnt;
-		bpf_map_update_elem(&info_map, &cpu, &infos, 0);
+	now = bpf_ktime_get_ns();
+	tmifp = bpf_map_lookup_elem(&tm_map, &i);
+
+	if (tmifp) {
+		stamp = tmifp->last_stamp;
+		thresh = get_thresh();
+		if (stamp && (thresh != -1)) {
+			delta = now - stamp;
+			if (delta > thresh) {
+				event.cpu = cpu;
+				event.delay = delta/1000;
+				event.pid = bpf_get_current_pid_tgid();
+				bpf_get_current_comm(&event.comm, sizeof(event.comm));
+				event.ret = bpf_get_stackid(ctx, &stackmap, KERN_STACKID_FLAGS);
+				bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU,
+				      &event, sizeof(event));
+			}
+		}
 	}
-}
 
-static u64 get_prev_counter(u64 cpuid)
-{
-	struct info *infop;
-
-	infop = bpf_map_lookup_elem(&info_map, &cpuid);
-	if (infop) {
-		return _(infop->prev_counter);
-	} else {
-		return 0;
-	}
+	return 0;
 }
 
 SEC("perf_event")
-int on_irqoff_event(struct bpf_perf_event_data *ctx)
+int sw_irqoff_event1(struct bpf_perf_event_data *ctx)
 {
-	int ret;
+	int ret, i = 0;
+	struct tm_info *tmifp, tm;
+
+	tmifp = bpf_map_lookup_elem(&tm_map, &i);
+	if (tmifp) {
+		tmifp->last_stamp = bpf_ktime_get_ns();
+	} else {
+		__builtin_memset(&tm, 0, sizeof(tm));
+		tm.last_stamp = bpf_ktime_get_ns();
+		bpf_map_update_elem(&tm_map, &i, &tm, 0);
+	}
+	return 0;
+}
+
+SEC("perf_event")
+int sw_irqoff_event2(struct bpf_perf_event_data *ctx)
+{
+	int i = 0;
+	u64 now, delta, thresh, stamp;
+	struct tm_info *tmifp, tm;
 	struct event event = {};
-	struct bpf_perf_event_value value_buf;
-	char time_fmt[] = "Get Time Failed, ErrCode: %d\n";
 	u32 cpu = bpf_get_smp_processor_id();
 
-	ret = bpf_perf_prog_read_value(ctx, (void *)&value_buf, sizeof(struct bpf_perf_event_value));
-	if (!ret) {
-		u64 threshold, delta, period, prev_counter;
+	now = bpf_ktime_get_ns();
+	tmifp = bpf_map_lookup_elem(&tm_map, &i);
 
-		prev_counter = get_prev_counter(cpu);
-		threshold = get_thresh();
-		period = get_period();
-		delta = value_buf.counter - prev_counter;
-		if ((prev_counter > 0) && (period > 0) &&
-		    (delta > period) && (delta - period > threshold)) {
-			event.cpu = cpu;
-			event.delay = delta/1000;
-			event.pid = bpf_get_current_pid_tgid();
-			bpf_get_current_comm(&event.comm, sizeof(event.comm));
-			event.ret = bpf_get_stackid(ctx, &stackmap, KERN_STACKID_FLAGS);
-			bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU,
-					      &event, sizeof(event));
+	if (tmifp) {
+		stamp = tmifp->last_stamp;
+		tmifp->last_stamp = now;
+		thresh = get_thresh();
+		if (stamp && (thresh != -1)) {
+			delta = now - stamp;
+			if (delta > thresh) {
+				event.cpu = cpu;
+				event.delay = delta/1000;
+				event.pid = bpf_get_current_pid_tgid();
+				bpf_get_current_comm(&event.comm, sizeof(event.comm));
+				event.ret = bpf_get_stackid(ctx, &stackmap, KERN_STACKID_FLAGS);
+				bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU,
+				      &event, sizeof(event));
+			}
 		}
 	} else {
-		bpf_trace_printk(time_fmt, sizeof(time_fmt), ret);
+		__builtin_memset(&tm, 0, sizeof(tm));
+		tm.last_stamp = now;
+		bpf_map_update_elem(&tm_map, &i, &tm, 0);
 	}
 
-	set_prev_counter(value_buf.counter, cpu);
 	return 0;
 }
 
