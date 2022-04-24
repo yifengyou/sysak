@@ -18,13 +18,14 @@
 #include "runqslower.h"
 #include "bpf/runqslower.skel.h"
 
+unsigned int nr_cpus;
 FILE *filep = NULL;
 static volatile sig_atomic_t exiting = 0;
 char log_dir[] = "/var/log/sysak/runqslow/";
 char defaultfile[] = "/var/log/sysak/runqslow/runqslow.log";
 char filename[256] = {0};
 
-struct summary summary;
+struct summary summary, *percpu_summary;
 struct env {
 	pid_t pid;
 	pid_t tid;
@@ -106,6 +107,10 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		env.verbose = true;
 		break;
 	case 'S':
+		nr_cpus = libbpf_num_possible_cpus();
+		percpu_summary = malloc(nr_cpus*sizeof(struct summary));
+		if (!percpu_summary)
+			return -ENOMEM;
 		env.summary = true;
 		break;
 	case 'P':
@@ -169,7 +174,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		return ARGP_ERR_UNKNOWN;
 	}
 	if (!filep) {
-	filep = fopen(defaultfile, "w+");
+		filep = fopen(defaultfile, "w+");
 		if (!filep) {
 			int ret = errno;
 			fprintf(stderr, "%s :fopen %s\n",
@@ -197,6 +202,58 @@ static void sig_int(int signo)
 	exiting = 1;
 }
 
+static void update_summary(struct summary* summary, const struct event *e)
+{
+	int idx;
+
+	summary->num++;
+	idx = summary->num % CPU_ARRY_LEN;
+	summary->total += e->delta_us;
+	summary->cpus[idx] = e->cpuid;
+	if (summary->max.value < e->delta_us) {
+		summary->max.value = e->delta_us;
+		summary->max.cpu = e->cpuid;
+		summary->max.pid = e->pid;
+		summary->max.stamp = e->stamp;
+		strncpy(summary->max.comm, e->task, 16);
+	}
+}
+
+static int record_summary(struct summary *summary, long offset, bool total)
+{
+	char *p;
+	int i, idx, pos;
+	char buf[128] = {0};
+	char header[16] = {0};
+
+	snprintf(header, 15, "cpu%ld", offset);
+	p = buf;
+	pos = sprintf(p,"%-7s %-5lu %-6llu",
+		total?"rqslow":header,
+		summary->num, summary->total/1000);
+
+	if (total) {
+		idx = summary->num % CPU_ARRY_LEN;
+		for (i = 1; i <= CPU_ARRY_LEN; i++) {
+			p = p+pos;
+			pos = sprintf(p, " %d", summary->cpus[(idx+i)%CPU_ARRY_LEN]);
+		}
+	}
+
+	p = p+pos;
+	pos = sprintf(p, "   %-4llu %-12llu %-3d %-9d %-15s\n",
+		summary->max.value/1000, summary->max.stamp/1000,
+		summary->max.cpu, summary->max.pid, summary->max.comm);
+
+	if (total)
+		fseek(filep, 0, SEEK_SET);
+	else
+		fseek(filep, (offset)*(p-buf+pos), SEEK_CUR);
+
+	fprintf(filep, "%s", buf);
+	return 0;
+}
+
 void handle_event(void *ctx, int cpu, void *data, __u32 data_sz)
 {
 	const struct event *e = data;
@@ -208,31 +265,16 @@ void handle_event(void *ctx, int cpu, void *data, __u32 data_sz)
 	tm = localtime(&t);
 	strftime(ts, sizeof(ts), "%F %H:%M:%S", tm);
 	if (env.summary) {
-		int idx, i;
-
-		if(fseek(filep, 0L, SEEK_SET) < 0)
+		struct summary *sumi;
+		if (e->cpuid > nr_cpus - 1)
 			return;
-		summary.num++;
-		idx = summary.num % CPU_ARRY_LEN;
-		summary.total += e->delta_us;
-		summary.cpus[idx] = e->cpuid;
-		if (summary.max.value < e->delta_us) {
-			summary.max.value = e->delta_us;
-			summary.max.cpu = e->cpuid;
-			summary.max.pid = e->pid;
-			summary.max.stamp = e->stamp;
-			strncpy(summary.max.comm, e->task, 16);
-		}
 
-		fprintf(filep, "rqslow %-5lu %-6llu",
-			summary.num, summary.total/1000);
-
-		for (i = 1; i <= CPU_ARRY_LEN; i++)
-			fprintf(filep, " %d", summary.cpus[(idx+i)%CPU_ARRY_LEN]);
-		
-		fprintf(filep, "   %-4llu %-12llu %-3d %-9d %-15s\n",
-			summary.max.value/1000, summary.max.stamp/1000,
-			summary.max.cpu, summary.max.pid, summary.max.comm);
+		sumi = &percpu_summary[e->cpuid];
+		update_summary(&summary, e);
+		update_summary(sumi, e);
+		if(record_summary(&summary, 0, true))
+			return;
+		record_summary(sumi, e->cpuid, false);
 	} else {
 		if (env.previous)
 			fprintf(filep, "%-21s %-6d %-16s %-8d %-10llu %-16s %-6d\n",
@@ -306,6 +348,12 @@ int main(int argc, char **argv)
 		else
 			fprintf(filep, "%-21s %-6s %-16s %-8s %-10s\n",
 				"TIME(runslw)", "CPU", "COMM", "TID", "LAT(us)");
+	} else {
+		int i;
+		char buf[78] = {' '};
+		fprintf(filep, "rqslow\n");
+		for (i = 0; i < nr_cpus; i++)
+			fprintf(filep, "cpu%d  %s\n", i, buf);
 	}
 	pb_opts.sample_cb = handle_event;
 	pb = perf_buffer__new(bpf_map__fd(obj->maps.events), 64, &pb_opts);
