@@ -21,6 +21,7 @@
 char *module = "/sysak.ko";
 char *log_path="/var/log/sysak";
 char *system_modules = "/proc/modules";
+char *bin_path = "/usr/local/sbin";
 
 char kern_version[KVERSION];
 char modin[MAX_SUBCMD_ARGS];
@@ -219,29 +220,42 @@ static int parse_arg(int argc, char *argv[])
     return subcmd_parse(argc, argv);
 }
 
+static void set_path(char *current_path)
+{
+    char compoents_path[MAX_WORK_PATH_LEN];
+
+    snprintf(compoents_path, sizeof(compoents_path), "%s%s", 
+            current_path, "/.sysak_compoents");
+
+    if (access(compoents_path,0) != 0)
+        snprintf(compoents_path, sizeof(tools_path), "%s%s", 
+            bin_path, "/.sysak_compoents");
+
+    snprintf(tools_path, sizeof(tools_path), "%s%s", 
+            compoents_path, "/tools/");
+    snprintf(module_path, sizeof(module_path), "%s%s", 
+            compoents_path, "/lib/");
+    snprintf(sysak_rule, sizeof(sysak_rule), "%s%s", 
+            compoents_path, "/tools/.sysak.rules");
+    snprintf(sysak_other_rule, sizeof(sysak_other_rule), "%s%s%s%s", 
+            compoents_path, "/tools/",kern_version,"/.sysak.rules");
+    snprintf(sysak_work_path, sizeof(sysak_work_path), "%s%s", 
+            "export SYSAK_WORK_PATH=", compoents_path);
+}
+
 int main(int argc, char *argv[])
 {
     char tmp[MAX_WORK_PATH_LEN];
-    char *work_path;
+    char *current_path;
     int ret = 0;
 
     if (access(log_path,0) != 0)
         mkdir(log_path, 0755 );
 
     kern_release();
-    work_path = getcwd(tmp,MAX_WORK_PATH_LEN);
+    current_path = getcwd(tmp,MAX_WORK_PATH_LEN);
+    set_path(current_path);
 
-    snprintf(tools_path, sizeof(tools_path), "%s%s", 
-            work_path, "/.sysak_compoents/tools/");
-    snprintf(module_path, sizeof(module_path), "%s%s", 
-            work_path, "/.sysak_compoents/lib/");
-    snprintf(sysak_rule, sizeof(sysak_rule), "%s%s", 
-            work_path, "/.sysak_compoents/tools/.sysak.rules");
-    snprintf(sysak_other_rule, sizeof(sysak_other_rule), "%s%s%s%s", 
-            work_path, "/.sysak_compoents/tools/",kern_version,"/.sysak.rules");
-    snprintf(sysak_work_path, sizeof(sysak_work_path), "%s%s%s", 
-            "export SYSAK_WORK_PATH=", work_path, "/.sysak_compoents");
- 
 	ret = parse_arg(argc, argv);
 	return ret;
 }
