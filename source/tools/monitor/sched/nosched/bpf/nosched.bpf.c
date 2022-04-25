@@ -112,6 +112,7 @@ int BPF_KPROBE(account_process_tick, struct task_struct *p, int user_tick)
 			resched_latency = now - latp->last_seen_need_resched_ns;
 			if (resched_latency > _(argsp->thresh)) {
 				struct event event = {};
+				event.stamp = now;
 				event.cpu = cpuid;
 				event.delay = resched_latency/1000;
 				event.pid = bpf_get_current_pid_tgid();

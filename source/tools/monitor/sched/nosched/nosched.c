@@ -20,24 +20,34 @@
 #include "nosched.comm.h"
 
 #define MAX_SYMS 300000
+unsigned int nr_cpus;
 FILE *filep = NULL;
 char filename[256] = {0};
 char log_dir[] = "/var/log/sysak/nosched";
 char defaultfile[] = "/var/log/sysak/nosched/nosched.log";
 
+struct summary summary, *percpu_summary;
 static struct ksym syms[MAX_SYMS];
 static volatile sig_atomic_t exiting;
 static int sym_cnt,  stackmp_fd;
 char *help_str = "sysak nosched";
+struct evn {
+	__u64 thresh;
+	bool summary;
+} env = {
+	.thresh = LAT_THRESH_NS,
+	.summary = false,
+};
 
 static void usage(char *prog)
 {
 	const char *str =
 	"  Usage: %s [OPTIONS]\n"
 	"  Options:\n"
-	"  -t                   specify the threshold time(ms), default=10ms\n"
+	"  -t THRESH_TIME       specify the threshold time(ms), default=10ms\n"
 	"  -f result.log        result file, default is /var/log/sysak/nosched.log\n"
-	"  -s                   specify how long to run \n"
+	"  -s TIME              specify how long to run \n"
+	"  -S                   record the result as summary mod\n"
 	;
 
 	fprintf(stderr, str, prog);
@@ -164,6 +174,58 @@ static int prepare_dictory(char *path)
 		return 0;
 }
 
+static void update_summary(struct summary* summary, const struct event *e)
+{
+	int idx;
+
+	summary->num++;
+	idx = summary->num % CPU_ARRY_LEN;
+	summary->total += e->delay;
+	summary->cpus[idx] = e->cpu;
+	if (summary->max.value < e->delay) {
+		summary->max.value = e->delay;
+		summary->max.cpu = e->cpu;
+		summary->max.pid = e->pid;
+		summary->max.stamp = e->stamp;
+		strncpy(summary->max.comm, e->comm, 16);
+	}
+}
+
+static int record_summary(struct summary *summary, long offset, bool total)
+{
+	char *p;
+	int i, idx, pos;
+	char buf[128] = {0};
+	char header[16] = {0};
+
+	snprintf(header, 15, "cpu%ld", offset);
+	p = buf;
+	pos = sprintf(p,"%-7s %-5lu %-6llu",
+		total?"nosche":header,
+		summary->num, summary->total/1000);
+
+	if (total) {
+		idx = summary->num % CPU_ARRY_LEN;
+		for (i = 1; i <= CPU_ARRY_LEN; i++) {
+			p = p+pos;
+			pos = sprintf(p, " %d", summary->cpus[(idx+i)%CPU_ARRY_LEN]);
+		}
+	}
+
+	p = p+pos;
+	pos = sprintf(p, "   %-4llu %-12llu %-3d %-9d %-15s\n",
+		summary->max.value/1000, summary->max.stamp/1000,
+		summary->max.cpu, summary->max.pid, summary->max.comm);
+
+	if (total)
+		fseek(filep, 0, SEEK_SET);
+	else
+		fseek(filep, (offset)*(p-buf+pos), SEEK_CUR);
+
+	fprintf(filep, "%s", buf);
+	return 0;
+}
+
 void handle_event(void *ctx, int cpu, void *data, __u32 data_sz)
 {
 	const struct event *e = data;
@@ -174,9 +236,23 @@ void handle_event(void *ctx, int cpu, void *data, __u32 data_sz)
 	time(&t);
 	tm = localtime(&t);
 	strftime(ts, sizeof(ts), "%F_%H:%M:%S", tm);
-	fprintf(filep, "%-21s %-5d %-15s %-8d %-10llu\n",
-		ts, e->cpu, e->comm, e->pid, e->delay);
-	print_stack(stackmp_fd, e->ret);
+	if (env.summary) {
+		struct summary *sumi;
+
+		if (e->cpu > nr_cpus - 1)
+			return;
+
+		sumi = &percpu_summary[e->cpu];
+		update_summary(&summary, e);
+		update_summary(sumi, e);
+		if(record_summary(&summary, 0, true))
+			return;
+		record_summary(sumi, e->cpu, false);
+	} else {
+		fprintf(filep, "%-21s %-5d %-15s %-8d %-10llu\n",
+			ts, e->cpu, e->comm, e->pid, e->delay);
+		print_stack(stackmp_fd, e->ret);
+	}
 }
 
 void nosched_handler(int poll_fd)
@@ -185,9 +261,17 @@ void nosched_handler(int poll_fd)
 	struct perf_buffer *pb = NULL;
 	struct perf_buffer_opts pb_opts = {};
 
-	fprintf(filep, "%-21s %-5s %-15s %-8s %-10s\n",
-		"TIME(nosched)", "CPU", "COMM", "TID", "LAT(us)");
-
+	if (!env.summary) {
+		fprintf(filep, "%-21s %-5s %-15s %-8s %-10s\n",
+			"TIME(nosched)", "CPU", "COMM", "TID", "LAT(us)");
+	} else {
+		int i;
+		char buf[78] = {' '};
+		fprintf(filep, "nosche\n");
+		for (i = 0; i < nr_cpus; i++)
+			fprintf(filep, "cpu%d  %s\n", i, buf);
+		fseek(filep, 0, SEEK_SET);
+	}
 	pb_opts.sample_cb = handle_event;
 	pb = perf_buffer__new(poll_fd, 64, &pb_opts);
 	if (!pb) {
@@ -225,29 +309,27 @@ int main(int argc, char **argv)
 	struct nosched_bpf *skel;
 	struct args args;
 	int c, option_index, args_key;
-	unsigned long val, span = 0;
+	unsigned long span = 0;
 	int err, map_fd0, map_fd1, map_fd2;
 
 	err = prepare_dictory(log_dir);
 	if (err)
 		return err;
 
-	val = LAT_THRESH_NS;
 	for (;;) {
-		c = getopt_long(argc, argv, "t:f:s:h", NULL, &option_index);
+		c = getopt_long(argc, argv, "t:f:s:Sh", NULL, &option_index);
 		if (c == -1)
 			break;
 
 		switch (c) {
 			case 't':
-				val = (int)strtoul(optarg, NULL, 10);
-				if ((errno == ERANGE && (val == LONG_MAX || val == LONG_MIN))
-					|| (errno != 0 && val == 0)) {
-					perror("strtol");
+				env.thresh = (int)strtoul(optarg, NULL, 10);
+				if ((errno == ERANGE && (env.thresh == LONG_MAX || env.thresh == LONG_MIN))
+					|| (errno != 0 && env.thresh == 0)) {
+					fprintf(stderr, "%s :strtoul %s\n", strerror(errno), optarg);
 					return errno;
 				}
-				printf("Threshold set to %lu ms\n", val);
-				val = val*1000*1000;
+				env.thresh = env.thresh*1000*1000;
 				break;
 			case 'f':
 				if (strlen(optarg) < 2)
@@ -269,6 +351,13 @@ int main(int argc, char **argv)
 					perror("strtoul");
 					return errno;
 				}
+				break;
+			case 'S':
+				nr_cpus = libbpf_num_possible_cpus();
+				percpu_summary = malloc(nr_cpus*sizeof(struct summary));
+				if (!percpu_summary)
+					return -ENOMEM;
+				env.summary = 1;
 				break;
 			case 'h':
 				usage(help_str);
@@ -327,7 +416,7 @@ int main(int argc, char **argv)
 	stackmp_fd = map_fd2;
 	args_key = 0;
 	args.flag = TIF_NEED_RESCHED;
-	args.thresh = val;
+	args.thresh = env.thresh;
 	err = bpf_map_update_elem(map_fd0, &args_key, &args, 0);
 	if (err) {
 		fprintf(stderr, "Failed to update flag map\n");
@@ -337,8 +426,6 @@ int main(int argc, char **argv)
 	if (span)
 		alarm(span);
 
-	fprintf(stderr, "Running....\n tips:Ctl+c show the result!\n");
-	printf("\n");
 	nosched_handler(map_fd1);
 
 cleanup:
