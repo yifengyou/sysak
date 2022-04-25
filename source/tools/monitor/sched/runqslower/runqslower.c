@@ -354,6 +354,7 @@ int main(int argc, char **argv)
 		fprintf(filep, "rqslow\n");
 		for (i = 0; i < nr_cpus; i++)
 			fprintf(filep, "cpu%d  %s\n", i, buf);
+		fseek(filep, 0, SEEK_SET);
 	}
 	pb_opts.sample_cb = handle_event;
 	pb = perf_buffer__new(bpf_map__fd(obj->maps.events), 64, &pb_opts);
