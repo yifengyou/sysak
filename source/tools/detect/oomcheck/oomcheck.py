@@ -282,13 +282,17 @@ def oom_cgroup_output(oom_result, num):
 
 def oom_check_score(oom, oom_result):
     res = oom_result['max']
+    res_total = oom_result['max_total']
     if res['pid'] == 0:
         return '\n'
     if int(oom['pid'].strip()) == res['pid']:
         return '\n'
     if res['score'] >= 0:
         return '\n'
-    return '，进一步确认进程oom score设置是否合理: %s-%d oom_score_adj:%d rss:%dKB\n'%(res['task'],res['pid'],res['score'],res['rss']*4)
+    if res['task'] == res_total['task']:
+        return '，进程%s(%s)消耗内存%dKB,oom_score_adj:%s. 另需进一步确认进程oom score设置是否合理.'%(res['task'],res['pid'],res['rss']*4,res['score'])
+    else:
+        return '，%d个进程%s累加消耗内存%dKB,oom_score_adj:%s. 另需进一步确认进程oom score设置是否合理.'%(res_total['cnt'],res_total['task'],res_total['rss']*4,res_total['score'])
 
 def oom_output_msg(oom_result,num):
     oom = oom_result['sub_msg'][num]
@@ -310,6 +314,8 @@ def oom_get_max_task(num, oom_result):
     oom = oom_result['sub_msg'][num]
     dump_task = False
     res = oom_result['max']
+    res_total = oom_result['max_total']
+    rss_all = {}
 
     for line in oom['oom_msg']:
         if 'rss' in line and 'oom_score_adj' in line and 'name' in line:
@@ -329,12 +335,24 @@ def oom_get_max_task(num, oom_result):
         last = last_str.split()
         if len(last) < 3:
             continue
-        if int(last[3]) < res['rss']:
-            continue
-        res['rss'] = int(last[3])
-        res['score'] = int(last[-2])
-        res['task'] = last[-1]
-        res['pid'] = pid
+        if last[-1] not in rss_all:
+            rss_all[last[-1]] = {}
+            rss_all[last[-1]]['rss'] = int(last[3])
+            rss_all[last[-1]]['cnt'] = 1
+        else:
+            rss_all[last[-1]]['rss'] += int(last[3])
+            rss_all[last[-1]]['cnt'] += 1
+
+        if int(last[3]) >  res['rss']:
+            res['rss'] = int(last[3])
+            res['score'] = int(last[-2])
+            res['task'] = last[-1]
+            res['pid'] = pid
+        if rss_all[last[-1]]['rss'] >  res_total['rss']:
+            res_total['rss'] = int(rss_all[last[-1]]['rss'])
+            res_total['cnt'] = int(rss_all[last[-1]]['cnt'])
+            res_total['score'] = int(last[-2])
+            res_total['task'] = last[-1]
     return res
 
 def oom_reason_analyze(num, oom_result):
@@ -416,8 +434,6 @@ def oom_dmesg_analyze(dmesgs, oom_result):
                         oom_result['cgroup'][cgroup_name] += 1
 
     except Exception as err:
-        import traceback
-        traceback.print_exc()
         print( "oom_dmesg_analyze failed {}".format(err))
 
 def oom_read_dmesg(data, mode, filename):
@@ -445,6 +461,7 @@ def oom_diagnose(sn, data, mode):
         oom_result['total_mem'] = 0
         oom_result['slab'] = 0
         oom_result['max'] = {'rss':0,'task':"",'score':0,'pid':0}
+        oom_result['max_total'] = {'rss':0,'task':"",'score':0,'cnt':0}
         dmesgs = data['dmesg']
         if OOM_BEGIN_KEYWORD in dmesgs:
             oom_dmesg_analyze(dmesgs, oom_result)
