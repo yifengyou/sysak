@@ -168,7 +168,9 @@ show_result() {
 collect_global_framegraph() {
 	if [ -f  $TOOLS_ROOT/cpu_flamegraph ]; then
 		$TOOLS_ROOT/cpu_flamegraph -d 5 | xargs -I {} sudo cp {} $global_cpuflamegraph
-		sudo cp $global_cpuflamegraph $tmp_cpuflamegraph
+		if [ -e $global_cpuflamegraph ];then
+			sudo cp $global_cpuflamegraph $tmp_cpuflamegraph
+		fi
 	fi
 }
 
@@ -186,7 +188,11 @@ current_analyse() {
 	echo "####################################################################################" > $tmpfile
 
 	echo "Time: `date "+%Y-%m-%d %H:%M:%S"`" >> $tmpfile
-	echo "$global_cpuflamegraph" >> $tmpfile
+	if [ -e $global_cpuflamegraph ];then
+		echo "$global_cpuflamegraph" >> $tmpfile
+	else
+		echo "Failed to generate cpu flamwgrapg" >> $tmpfile
+	fi
 	load_proc=`cat /proc/loadavg`
 	load_proc="load_proc: $load_proc"
 	echo "$load_proc" >> $tmpfile
@@ -301,6 +307,7 @@ current_analyse() {
 	echo >> $tmpfile
 	echo "####################################################################################" >> $tmpfile
 	cat ${tmp_cpuflamegraph} >> $tmpfile
+	rm ${tmp_cpuflamegraph}
 }
 
 history_analyse() {

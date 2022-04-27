@@ -62,6 +62,9 @@ static void mod_ctrl(bool enable)
     bool has_ko = false;
     char modinfo[MAX_SUBCMD_ARGS];
 
+    if (access(system_modules,0) != 0)
+        return;
+
     modlist_fp = fopen(system_modules, "r");
     if (!modlist_fp){
         printf("open %s failed\n", system_modules);
@@ -122,6 +125,9 @@ static void print_each_tool(char *path)
     char buf[MAX_NAME_LEM + MAX_SUBCMD_ARGS];
     char tools_name[MAX_NAME_LEM];
 
+    if (access(path,0) != 0)
+        return;
+
     fp = fopen(path, "r");
     if (!fp){
         printf("open %s failed\n", path);
@@ -147,6 +153,9 @@ static bool tool_lookup(char *path, char *tool)
 {
     FILE *fp;
     char buf[MAX_NAME_LEM + MAX_SUBCMD_ARGS];
+
+    if (access(path,0) != 0)
+        return false;
 
     fp = fopen(path, "r");
     if (!fp){
