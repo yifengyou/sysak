@@ -12,10 +12,18 @@
 #include <sys/param.h>
 #include <linux/major.h>
 
+#define NR_MODS	3
+#define BUF_SIZE	(NR_MODS * 4096)
+char g_buf[BUF_SIZE];
 static int jitter_init = 0;
 char *jitter_usage = "    --jit                Application jitter stats";
 char *mservice_log_dir = "/var/log/sysak/mservice/";
-char *runqslow_log_path = "/var/log/sysak/mservice/runqslower";
+char *jit_mod[] = {"rqslow", "noschd", "irqoff"};
+char *log_path[] = {
+	"/var/log/sysak/mservice/runqslower",
+	"/var/log/sysak/mservice/nosched",
+	"/var/log/sysak/mservice/irqoff",
+};
 
 struct summary {
 	unsigned long num;
@@ -57,7 +65,7 @@ static int prepare_dictory(char *path)
 
 static int init_sysak(void)
 {
-	FILE *fp;
+	FILE *fp1, *fp2, *fp3;
 	int ret;
 
 	if (jitter_init)
@@ -67,46 +75,77 @@ static int init_sysak(void)
 	if (ret)
 		return ret;
 
+	/* todo: what if command can't be find? */
 	/* threshold is 40ms */
-	fp = popen("sysak runqslower -S -f /var/log/sysak/mservice/runqslower 40000 2>/dev/null &", "r");
-	if (!fp) {
-		perror("popen");
+	fp1 = popen("sysak runqslower -S -f /var/log/sysak/mservice/runqslower 40 2>/dev/null &", "r");
+	if (!fp1) {
+		perror("popen runqslower");
 		return -1;
 	}
 
+	fp2 = popen("sysak nosched -S -f /var/log/sysak/mservice/nosched -t 10 2>/dev/null &", "r");
+	if (!fp2) {
+		perror("popen nosched");
+		return -1;
+	}
+
+	fp3 = popen("sysak irqoff -S -f /var/log/sysak/mservice/irqoff 10 2>/dev/null &", "r");
+	if (!fp3) {
+		perror("popen irqoff");
+		return -1;
+	}
 	jitter_init = 1;
 	return 0;
 }
 
-void print_jitter_stats(struct module *mod)
+static int get_jitter_info(char *path, struct summary *sump)
 {
+	int ret = -1;
+	char line[4096];
 	FILE *fp;
-	char buf[4096], line[4096];
 
-	if((fp = fopen(runqslow_log_path, "r")) == NULL) {
-		perror("fopen");
-		;/*todo*/
+	if((fp = fopen(path, "r")) == NULL) {
+		fprintf(stderr, "fopen %s fail\n", path);
+		return ret;
 	}
 
-	memset(buf, 0, 4096);
+	memset(line, 0, sizeof(line));
 	if (fgets(line, 4096, fp) != NULL) {
 		/* "irqoff", "noschd", "rqslow" has 6 charactors */
 		sscanf(line+6, "%lu %llu %d %d %d %d %llu %llu %d %d",
-			&summary.num, &summary.total,
-			&summary.lastcpu0, &summary.lastcpu1,
-			&summary.lastcpu2, &summary.lastcpu3,
-			&summary.max_value, &summary.max_stamp,
-			&summary.max_cpu, &summary.max_pid);
+			&sump->num, &sump->total,
+			&sump->lastcpu0, &sump->lastcpu1,
+			&sump->lastcpu2, &sump->lastcpu3,
+			&sump->max_value, &sump->max_stamp,
+			&sump->max_cpu, &sump->max_pid);
+		ret = 0;
+	} else {
+		fprintf(stderr, "fgets %s fail:%s\n", path, strerror(errno));
 	}
+	rewind(fp);
+	fclose(fp);
+	return ret;
+}
 
-	sprintf(buf, "%lu,%llu,%d,%d,%d,%d,%llu,%llu,%d,%d",
-			summary.num, summary.total,
+void print_jitter_stats(struct module *mod)
+{
+	int i, ret, pos;
+
+	pos = 0;
+	memset(g_buf, 0, BUF_SIZE);
+	for (i = 0; i < NR_MODS; i++) {
+		memset(&summary, 0, sizeof(struct summary));
+		ret = get_jitter_info(log_path[i], &summary);
+		if (ret < 0)
+			continue;
+		pos += snprintf(g_buf + pos, BUF_SIZE - pos, "%s=%ld,%llu,%d,%d,%d,%d,%llu,%llu,%d,%d,%d" ITEM_SPLIT,
+			jit_mod[i], summary.num, summary.total,
 			summary.lastcpu0, summary.lastcpu1,
 			summary.lastcpu2, summary.lastcpu3,
 			summary.max_value, summary.max_stamp,
-			summary.max_cpu, summary.max_pid);
-	set_mod_record(mod, buf);
-	fclose(fp);
+			summary.max_cpu, summary.max_pid, pos);
+	}
+	set_mod_record(mod, g_buf);
 }
 
 void read_jitter_stat(struct module *mod, char *parameter)
@@ -115,7 +154,7 @@ void read_jitter_stat(struct module *mod, char *parameter)
 
 	ret = init_sysak();
 	if (ret)
-		;/*todo*/
+		fprintf(stderr, "init_sysak failed\n");/*todo*/
 
 	print_jitter_stats(mod);
 }
