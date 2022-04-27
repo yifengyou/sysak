@@ -21,15 +21,18 @@
 struct env {
 	__u64 sample_period;
 	time_t duration;
-	bool verbose;
+	bool verbose, summary;
 	__u64 threshold;
 } env = {
 	.duration = 0,
 	.threshold = 10,	/* 10ms */
+	.summary = false,
 };
 
+static int nr_cpus;
 FILE *filep = NULL;
 char filename[256] = {0};
+struct summary summary, *percpu_summary;
 char log_dir[] = "/var/log/sysak/irqoff";
 char defaultfile[] = "/var/log/sysak/irqoff/irqoff.log";
 
@@ -48,12 +51,14 @@ const char argp_program_doc[] =
 "\n"
 "EXAMPLES:\n"
 "    irqoff                # run forever, and detect irqoff more than 10ms(default)\n"
+"    irqoff -S 	  	   # record the result as summary mod\n"
 "    irqoff -t 15          # detect irqoff with threshold 15ms (default 10ms)\n"
 "    irqoff -f a.log       # record result to a.log (default to ~sysak/irqoff/irqoff.log)\n";
 
 static const struct argp_option opts[] = {
 	{ "threshold", 't', "THRESH", 0, "Threshold to detect, default 10ms"},
 	{ "logfile", 'f', "LOGFILE", 0, "logfile for result"},
+	{ "summary", 'S', NULL, 0, "Summary the output" },
 	{ "verbose", 'v', NULL, 0, "Verbose debug output" },
 	{ NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
 	{},
@@ -67,6 +72,12 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	switch (key) {
 	case 'h':
 		argp_state_help(state, stderr, ARGP_HELP_STD_HELP);
+		break;
+	case 'S':
+		percpu_summary = malloc(nr_cpus*sizeof(struct summary));
+		if (!percpu_summary)
+			return -ENOMEM;
+		env.summary = true;
 		break;
 	case 'v':
 		env.verbose = true;
@@ -145,8 +156,6 @@ static void bump_memlock_rlimit(void)
 	}
 }
 
-static int nr_cpus;
-
 static int
 open_and_attach_perf_event(struct perf_event_attr *attr,
 			   struct bpf_program *prog,
@@ -206,6 +215,58 @@ static int attach_prog_to_perf(struct irqoff_bpf *obj,
 	return ret;
 }
 
+static void update_summary(struct summary* summary, const struct event *e)
+{
+	int idx;
+
+	summary->num++;
+	idx = summary->num % CPU_ARRY_LEN;
+	summary->total += e->delay;
+	summary->cpus[idx] = e->cpu;
+	if (summary->max.value < e->delay) {
+		summary->max.value = e->delay;
+		summary->max.cpu = e->cpu;
+		summary->max.pid = e->pid;
+		summary->max.stamp = e->stamp;
+		strncpy(summary->max.comm, e->comm, 16);
+	}
+}
+
+static int record_summary(struct summary *summary, long offset, bool total)
+{
+	char *p;
+	int i, idx, pos;
+	char buf[128] = {0};
+	char header[16] = {0};
+
+	snprintf(header, 15, "cpu%ld", offset);
+	p = buf;
+	pos = sprintf(p,"%-7s %-5lu %-6llu",
+		total?"irqoff":header,
+		summary->num, summary->total/1000);
+
+	if (total) {
+		idx = summary->num % CPU_ARRY_LEN;
+		for (i = 1; i <= CPU_ARRY_LEN; i++) {
+			p = p+pos;
+			pos = sprintf(p, " %d", summary->cpus[(idx+i)%CPU_ARRY_LEN]);
+		}
+	}
+
+	p = p+pos;
+	pos = sprintf(p, "   %-4llu %-12llu %-3d %-9d %-15s\n",
+		summary->max.value/1000, summary->max.stamp/1000,
+		summary->max.cpu, summary->max.pid, summary->max.comm);
+
+	if (total)
+		fseek(filep, 0, SEEK_SET);
+	else
+		fseek(filep, (offset)*(p-buf+pos), SEEK_CUR);
+
+	fprintf(filep, "%s", buf);
+	return 0;
+}
+
 void handle_event(void *ctx, int cpu, void *data, __u32 data_sz)
 {
 	const struct event *e = data;
@@ -216,9 +277,23 @@ void handle_event(void *ctx, int cpu, void *data, __u32 data_sz)
 	time(&t);
 	tm = localtime(&t);
 	strftime(ts, sizeof(ts), "%F_%H:%M:%S", tm);
-	fprintf(filep, "%-21s %-5d %-15s %-8d %-10llu\n",
-		ts, e->cpu, e->comm, e->pid, e->delay);
-	print_stack(stackmp_fd, e->ret, ksyms);
+	if (env.summary) {
+		struct summary *sumi;
+
+		if (e->cpu > nr_cpus - 1)
+			return;
+
+		sumi = &percpu_summary[e->cpu];
+		update_summary(&summary, e);
+		update_summary(sumi, e);
+		if(record_summary(&summary, 0, true))
+			return;
+		record_summary(sumi, e->cpu, false);
+	} else {
+		fprintf(filep, "%-21s %-5d %-15s %-8d %-10llu\n",
+			ts, e->cpu, e->comm, e->pid, e->delay);
+		print_stack(stackmp_fd, e->ret, ksyms);
+	}
 }
 
 void irqoff_handler(int poll_fd, int map_fd)
@@ -228,7 +303,17 @@ void irqoff_handler(int poll_fd, int map_fd)
 	struct perf_buffer *pb = NULL;
 	struct perf_buffer_opts pb_opts = {};
 
-	fprintf(filep, "%-21s %-5s %-15s %-8s %-10s\n", "TIME(irqoff)", "CPU", "COMM", "TID", "LAT(us)");
+	if (!env.summary) {
+		fprintf(filep, "%-21s %-5s %-15s %-8s %-10s\n",
+			"TIME(irqoff)", "CPU", "COMM", "TID", "LAT(us)");
+	} else {
+		int i;
+		char buf[78] = {' '};
+		fprintf(filep, "irqoff\n");
+		for (i = 0; i < nr_cpus; i++)
+			fprintf(filep, "cpu%d  %s\n", i, buf);
+		fseek(filep, 0, SEEK_SET);
+	}
 
 	pb_opts.sample_cb = handle_event;
 	pb = perf_buffer__new(poll_fd, 64, &pb_opts);
@@ -304,6 +389,14 @@ int main(int argc, char **argv)
 		return err;
 	}
 	ksyms = NULL;
+
+	nr_cpus = libbpf_num_possible_cpus();
+	if (nr_cpus < 0) {
+		fprintf(stderr, "failed to get # of possible cpus: '%s'!\n",
+			strerror(-nr_cpus));
+		return 1;
+	}
+
 	err = argp_parse(&argp, argc, argv, 0, NULL, NULL);
 	if (err) {
 		fprintf(stderr, "argp_parse fail\n");
@@ -318,12 +411,6 @@ int main(int argc, char **argv)
 		return err;
 	}
 
-	nr_cpus = libbpf_num_possible_cpus();
-	if (nr_cpus < 0) {
-		fprintf(stderr, "failed to get # of possible cpus: '%s'!\n",
-			strerror(-nr_cpus));
-		return 1;
-	}
 	sw_mlinks = calloc(nr_cpus, sizeof(*sw_mlinks));
 	if (!sw_mlinks) {
 		fprintf(stderr, "failed to alloc sw_mlinks or rlinks\n");

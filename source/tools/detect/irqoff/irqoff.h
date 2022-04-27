@@ -3,6 +3,7 @@
 #define __IRQOFF_H
 
 #define TASK_COMM_LEN	16
+#define CPU_ARRY_LEN	4
 
 struct info {
 	__u64 prev_counter;
@@ -18,7 +19,7 @@ struct arg_info {
 
 struct event {
 	__u32 ret, pid, cpu;
-	__u64 delay;
+	__u64 delay, stamp;
 	char comm[TASK_COMM_LEN];
 };
 
@@ -27,5 +28,18 @@ struct ksym {
 	char *name;
 };
 
+struct max_sum {
+	__u64 value;
+	__u64 stamp;
+	int cpu, pid;
+	char comm[TASK_COMM_LEN];
+};
+
+struct summary {
+	unsigned long num;
+	__u64	total;
+	struct max_sum max;
+	int cpus[CPU_ARRY_LEN];
+};
 #endif /* __LLCSTAT_H */
 

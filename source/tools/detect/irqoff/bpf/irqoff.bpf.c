@@ -78,6 +78,7 @@ int hw_irqoff_event(struct bpf_perf_event_data *ctx)
 			delta = now - stamp;
 			if (delta > thresh) {
 				event.cpu = cpu;
+				event.stamp = now;
 				event.delay = delta/1000;
 				event.pid = bpf_get_current_pid_tgid();
 				bpf_get_current_comm(&event.comm, sizeof(event.comm));
