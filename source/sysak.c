@@ -8,7 +8,7 @@
 #include <sys/utsname.h>
 
 #define KVERSION 64
-#define MAX_SUBCMD_ARGS 128
+#define MAX_SUBCMD_ARGS 512
 #define MAX_NAME_LEM 64
 #define MAX_WORK_PATH_LEN 256
 #define ERR_NOSUBTOOL 2
@@ -216,7 +216,7 @@ static int parse_arg(int argc, char *argv[])
 		usage();
         return -ERR_MISSARG;
     }
-    
+
     if (!strcmp(argv[1],"list")){
         subcmd_list();
         return 0;
@@ -228,10 +228,27 @@ static int parse_arg(int argc, char *argv[])
     }
     return subcmd_parse(argc, argv);
 }
+char *dirpath(char *fullpath)
+{
+    char* substr = strrchr(fullpath,'/');
+    char *ptr = fullpath;
 
-static void set_path(char *current_path)
+    while(strcmp(substr,ptr))
+        ptr++;
+
+    *(ptr)='\0';
+    return fullpath;
+}
+
+
+static void set_path(char *argv[])
 {
     char compoents_path[MAX_WORK_PATH_LEN];
+    char tmp[MAX_WORK_PATH_LEN];
+    char *current_path;
+
+    realpath(argv[0],tmp);
+    current_path = dirpath(tmp);
 
     snprintf(compoents_path, sizeof(compoents_path), "%s%s", 
             current_path, "/.sysak_compoents");
@@ -254,17 +271,13 @@ static void set_path(char *current_path)
 
 int main(int argc, char *argv[])
 {
-    char tmp[MAX_WORK_PATH_LEN];
-    char *current_path;
     int ret = 0;
 
     if (access(log_path,0) != 0)
         mkdir(log_path, 0755 );
 
     kern_release();
-    current_path = getcwd(tmp,MAX_WORK_PATH_LEN);
-    set_path(current_path);
-
-	ret = parse_arg(argc, argv);
-	return ret;
+    set_path(argv);
+    ret = parse_arg(argc, argv);
+    return ret;
 }
