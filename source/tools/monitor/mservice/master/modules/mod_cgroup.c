@@ -240,7 +240,7 @@ static int perf_event_init(struct cgroup_info *cgroup)
 	counts = malloc(nr_cpus * sizeof(long long));
 	if (!counts) {
 		fprintf(stderr, "%s :malloc counsts fail\n", strerror(errno));
-		free(counts);
+		free(fds);
 		return -ENOMEM;
 	}
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
@@ -782,7 +782,7 @@ static int print_cgroup_blkio(char *buf, int len, struct cg_blkio_info *info)
 
 static int print_cgroup_hwres(char *buf, int len, struct cg_hwres_info *info)
 {
-	return snprintf(buf, len, "%llu", info->cachmis_sum);
+	return snprintf(buf, len, "%lld", info->cachmis_sum);
 }
 
 void
