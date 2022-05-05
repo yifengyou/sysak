@@ -120,7 +120,6 @@ load iosdiag_virtblk bpf success
 running...done
 运行结果输出
 两个维度，整体IO的延迟分布情况(以百分比展示整体IO的延迟点)+输出延迟最大的前TOPn个IO的最大延迟点以及总延迟
-IO在一个生命周期中，先后经历OS内核IO通用块层软件 —> OS内核磁盘驱动软件 —> 磁盘本身 —> OS内核中IO消亡流程
 os(block)：指IO在OS内核通用块层部分的耗时占比
 os(driver)：指IO在OS内核磁盘驱动部分的耗时占比
 Disk：指IO在硬件磁盘侧的耗时占比
