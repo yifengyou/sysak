@@ -1,16 +1,18 @@
 1. iosdiag
-iosdiag (IO storage diagnostics tools), IO存储诊断工具，目前包括已实现的IO延迟诊断功能以及正在实现的IO夯诊断或其他功能等等
+iosdiag (IO storage diagnostics tools), IO存储诊断工具，目前包括已实现的IO延迟诊断功能以及IO夯诊断功能
 
 2. 代码目录结构(source/tools/detect/iosdiag目录下)
 entry          IO诊断功能入口代码
 latency        IO延迟诊断代码
+hangdetect     IO夯诊断代码
 data_analysis  IO诊断数据分析与结果输出代码
 
 3. 编译
 在编译sysak的之前，需要在执行configure配置的时候加上--enable-libbpf --enable-target-btf --enable-target-iosdiag才能编译进sysak
 
 4. 运行
-由于基于eBPF实现，因此需要内核支持并启动eBPF，另外，因为程序运行要依赖内核btf文件，目前sysak仓库默认的只具备如下内核版本的btf：
+4.1 iosdiag latency
+IO延迟诊断功能，由于基于eBPF实现，因此需要内核支持并启动eBPF，另外，因为程序运行要依赖内核btf文件，目前sysak仓库默认的只具备如下内核版本的btf：
 3.10.0-1062.an7.x86_64
 3.10.0-1160.11.1.el7.x86_64
 3.10.0-1160.15.2.el7.x86_64
@@ -38,6 +40,49 @@ data_analysis  IO诊断数据分析与结果输出代码
 4.19.91-24.8.an7.x86_64
 4.19.91-24.8.an8.x86_64
 
+4.2 iosdiag hangdetect
+IO夯诊断功能，目前支持如下内核版本：
+3.10.0-1062.1.1.el7.x86_64
+3.10.0-1062.12.1.el7.x86_64
+3.10.0-1062.1.2.el7.x86_64
+3.10.0-1062.18.1.el7.x86_64
+3.10.0-1062.4.1.el7.x86_64
+3.10.0-1062.4.2.el7.x86_64
+3.10.0-1062.4.3.el7.x86_64
+3.10.0-1062.7.1.el7.x86_64
+3.10.0-1062.9.1.el7.x86_64
+3.10.0-1062.el7.x86_64
+3.10.0-1127.10.1.el7.x86_64
+3.10.0-1127.13.1.el7.x86_64
+3.10.0-1127.18.2.el7.x86_64
+3.10.0-1127.19.1.el7.x86_64
+3.10.0-1127.8.2.el7.x86_64
+3.10.0-1127.el7.x86_64
+3.10.0-1160.11.1.el7.x86_64
+3.10.0-1160.15.2.el7.x86_64
+3.10.0-1160.2.1.el7.x86_64
+3.10.0-1160.2.2.el7.x86_64
+3.10.0-1160.6.1.el7.x86_64
+3.10.0-1160.el7.x86_64
+3.10.0-862.14.4.el7.x86_64
+3.10.0-957.21.3.el7.x86_64
+4.19.24-9.al7.x86_64
+4.19.81-17.1.al7.x86_64
+4.19.81-17.2.al7.x86_64
+4.19.91-18.al7.x86_64
+4.19.91-19.1.al7.x86_64
+4.19.91-19.2.al7.x86_64
+4.19.91-21.2.al7.x86_64
+4.19.91-21.al7.x86_64
+4.19.91-22.1.al7.x86_64
+4.19.91-22.2.al7.x86_64
+4.19.91-23.4.an8.x86_64
+4.19.91-23.al7.x86_64
+4.19.91-24.1.al7.x86_64
+4.19.91-24.8.an8.x86_64
+4.19.91-24.al7.x86_64
+4.19.91-25.an8.x86_64
+
 5. 使用
 5.1 参数说明
 5.1.1 sysak iosdiag -h
@@ -45,11 +90,12 @@ data_analysis  IO诊断数据分析与结果输出代码
 Usage: sysak iosdiag [options] subcmd [cmdargs]]
 subcmd:
 		latency, 执行io延迟诊断功能
+        hangdetect, 执行io夯诊断功能
 cmdargs:
 		-h, 跟在子命令之后显示功能支持参数
 options:
 		-u url, 指定url，将会通过curl命令把诊断日志文件打包上传到此url，不指定不上传
-		-s latency, 停止诊断
+		-s latency/hangdetect, 停止诊断
 
 5.1.2 sysak iosdiag latency -h
 
@@ -74,25 +120,34 @@ load iosdiag_virtblk bpf success
 running...done
 运行结果输出
 两个维度，整体IO的延迟分布情况(以百分比展示整体IO的延迟点)+输出延迟最大的前TOPn个IO的最大延迟点以及总延迟
-15 IOs of disk vda over 1 ms, delay distribution:
-os(block)    delay: 17.147%
-os(driver)   delay: 0.009%
-disk         delay: 82.84%
-os(complete) delay: 0.002%
-The first 10 IOs with the largest delay, more details:
-seq   comm                     pid       iotype  datalen         abnormal(delay:totaldelay)
-11    kworker/u12:2       	   11943     W       4096            disk delay (145.56:256.88 ms)
-12    kworker/u12:2            11943     W       4096            disk delay (145.46:256.66 ms)
-15    kworker/u12:2            11943     W       4096            disk delay (217.39:217.51 ms)
-14    jbd2/vda1-8              354       FWFS    4096           os(block) delay (143.42:152.93 ms)
-13   kworker/u12:2             11943     W       4096            disk delay (145.05:145.30 ms)
-3     kworker/u12:2            11943     W       4096            disk delay (113.80:114.00 ms)
-5     kworker/u12:2            11943     W       8192            disk delay (112.97:113.14 ms)
-1     kworker/u12:2            11943     W       4096            disk delay (111.79:111.96 ms)
-10   kworker/u12:2             11943     W       8192            disk delay (111.62:111.78 ms)
-4     kworker/u12:2            11943     W       4096            disk delay (111.11:111.30 ms)
+IO在一个生命周期中，先后经历OS内核IO通用块层软件 —> OS内核磁盘驱动软件 —> 磁盘本身 —> OS内核中IO消亡流程
+os(block)：指IO在OS内核通用块层部分的耗时占比
+os(driver)：指IO在OS内核磁盘驱动部分的耗时占比
+Disk：指IO在硬件磁盘侧的耗时占比
+os(complete)：指IO在OS内核中，IO消亡流程的耗时占比
+
+```
+6 IOs of disk vda over 1 ms, delay distribution:
+os(block)    delay: 1.639%
+os(driver)   delay: 0.042%
+disk         delay: 98.291%
+os(complete) delay: 0.0%
+The first 6 IOs with the largest delay, more details:
+time                      comm                pid       iotype  datalen         abnormal(delay:totaldelay)
+2021-11-23 11:27:53.960     kworker/u8:3        86783     WM          4096        disk delay (7.076:7.2 ms)
+2021-11-23 11:27:53.960     kworker/u8:3        86783     WM          4096        disk delay (7.076:7.2 ms)
+2021-11-23 11:27:53.960     kworker/u8:3        86783     WM          12288       disk delay (7.075:7.2 ms)
+2021-11-23 11:27:53.960     kworker/u8:3        86783     WM          4096        disk delay (7.075:7.199 ms)
+2021-11-23 11:27:53.960     kworker/u8:3        86783     WM          8192        disk delay (7.077:7.198 ms)
+2021-11-23 11:27:53.960     kworker/u8:3        86783     WM          61440       disk delay (7.076:7.193 ms)
 more details see /var/log/sysak/iosdiag/latency/result.log*
 ```
+time:检测到延迟IO的时间
+comm/pid:进程信息
+iotype:此IO类型
+datalen:IO大小
+abnormal(delay:totaldelay):此IO异常点（此IO在此异常点的耗时：此IO总耗时）
+
 5.2.2 日志文件说明
 日志文件中的数据均以磁盘为单位以json数组的方式呈现
 /var/log/sysak/iosdiag/latency/result.log
