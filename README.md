@@ -14,14 +14,6 @@ just for fun~
 
 
 
-
-
-
-
-
-
-
-
 ## 原仓库README.md
 
 
@@ -47,18 +39,6 @@ Quick start to use sysAK:
 
 See more info about sysAK tools at doc/
 ```
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 ---
