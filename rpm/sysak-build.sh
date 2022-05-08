@@ -85,4 +85,4 @@ main() {
 	build_rpm
 }
 
-main $3 $4
+main $1 $2
