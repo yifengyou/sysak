@@ -35,4 +35,4 @@ source/tools/monitor/mservice/master/src/mservice
 source/tools/monitor/mservice/master/src/output_nagios.d
 source/tools/monitor/mservice/master/src/output_print.d
 source/tools/monitor/mservice/master/src/output_tcp.d
-
+/log.build
