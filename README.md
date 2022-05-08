@@ -1,4 +1,4 @@
-# 龙溪社区sysak项目学习
+# 龙蜥社区sysak项目学习
 
 ```
 fork from https://gitee.com/anolis/sysak
@@ -11,11 +11,6 @@ just for fun~
 * [跑起来](docs/跑起来.md)
   - [环境搭建](docs/跑起来/环境搭建.md)
   - [构建rpm包](docs/跑起来/构建rpm包.md)
-
-
-
-
-
 
 
 
