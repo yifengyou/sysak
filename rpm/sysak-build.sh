@@ -41,7 +41,6 @@ mkdir -p \$RPM_BUILD_ROOT/usr/local/sbin
 /bin/cp -rf $BUILD_DIR/sysak \$RPM_BUILD_ROOT/usr/local/sbin/
 
 %preun
-
 /sbin/lsmod | grep sysak > /dev/null
 if [ $? -eq 0 ]; then
 	/sbin/rmmod sysak
@@ -62,7 +61,7 @@ rpmbuild --define "%linux_version $LINUX_VERSION" \
 	 --define "%_topdir ${RPMBUILD_DIR}"       \
 	 --define "%source_dir $SOURCE_DIR" \
 	 --define "%target $TARGET_LIST" \
-	 -bb $RPMBUILD_DIR/sysak.spec
+	 -ba $RPMBUILD_DIR/sysak.spec
 }
 
 main() {
