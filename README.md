@@ -7,7 +7,6 @@ just for fun~
 
 ## 目录
 
-
 * [跑起来](docs/跑起来.md)
     * [环境搭建](docs/跑起来/环境搭建.md)
     * [构建rpm包](docs/跑起来/构建rpm包.md)
@@ -62,7 +61,9 @@ just for fun~
     * [ossre_client](docs/工具集/ossre_client.md)
     * [taskctl](docs/工具集/taskctl.md)
 
+## 参考
 
+* 基于eBPF的ping探测(pingtrace) :<https://www.bilibili.com/video/BV12v4y1P7t5>
 
 ## 原仓库README.md
 
